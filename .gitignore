@@ -1,0 +1,17 @@
+# React
+frontend/node_modules/
+frontend/dist/
+
+# Spring Boot
+backend/.gradle/
+backend/build/
+backend/*.class
+
+# 환경변수
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.iml
