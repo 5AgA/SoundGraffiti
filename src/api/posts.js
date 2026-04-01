@@ -1,8 +1,8 @@
 import { supabase } from '../supabaseClient'
 
-export const createPost = async ({ userId, trackId, placeId, content }) => {
+export const createPost = async ({ userId, trackId, placeId, content, previewStartMs, previewEndMs }) => {
   const { data, error } = await supabase.functions.invoke('create-post', {
-    body: { userId, trackId, placeId, content }
+    body: { userId, trackId, placeId, content, previewStartMs, previewEndMs }
   })
 
   if (error) console.error(error)

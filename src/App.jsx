@@ -14,6 +14,7 @@ function App() {
 
   const handleGetFeed = async () => {
     const result = await getFeed()
+    console.log('피드 첫번째 트랙:', result?.[0]?.Tracks)
     setFeed(result || [])
   }
 
@@ -23,11 +24,15 @@ function App() {
       return
     }
 
+    console.log('구간 설정:', previewStart, previewEnd)
+
     const post = await createPost({
       userId: 1,
       trackId: selectedTrack.track_id,
       placeId: 5,
-      content: content
+      content: content,
+      previewStartMs: previewStart,  
+      previewEndMs: previewEnd      
     })
 
     console.log('생성된 포스트:', post)
@@ -72,6 +77,9 @@ function App() {
     handleGetFeed()
   }
 
+  const [previewStart, setPreviewStart] = useState(0)
+  const [previewEnd, setPreviewEnd] = useState(30000)  // 기본 30초 
+
   useEffect(() => {
     handleGetFeed()
   }, [])
@@ -103,6 +111,28 @@ function App() {
         <TrackSearch onSelect={setSelectedTrack} />
       )}
 
+      {selectedTrack && (
+        <div>
+          <p>구간 설정 (ms)</p>
+          <p>시작: {previewStart}ms ({Math.floor(previewStart/1000)}초)</p>
+          <input
+            type="range"
+            min={0}
+            max={selectedTrack.duration_ms}
+            value={previewStart}
+            onChange={(e) => setPreviewStart(Number(e.target.value))}
+          />
+          <p>끝: {previewEnd}ms ({Math.floor(previewEnd/1000)}초)</p>
+          <input
+            type="range"
+            min={0}
+            max={selectedTrack.duration_ms}
+            value={previewEnd}
+            onChange={(e) => setPreviewEnd(Number(e.target.value))}
+          />
+        </div>
+      )}
+
       <button onClick={handleCreate}>생성</button>
 
       <h2>포스트 수정</h2>
@@ -127,6 +157,25 @@ function App() {
           <p>작성자: {post.Users?.user_name}</p>
           <p>장소: {post.Places?.place_name}</p>
           <p>트랙: {post.Tracks?.track_title} - {post.Tracks?.artist_name}</p>
+            
+          {post.Tracks?.preview_url && (
+            <audio
+              controls
+              src={post.Tracks.preview_url}
+              onLoadedMetadata={(e) => {
+                if (post.preview_start_ms) {
+                  e.target.currentTime = post.preview_start_ms / 1000
+                }
+              }}
+              onTimeUpdate={(e) => {
+                if (post.preview_end_ms && e.target.currentTime >= post.preview_end_ms / 1000) {
+                  e.target.pause()
+                  e.target.currentTime = post.preview_start_ms / 1000
+                }
+              }}
+            />
+          )}
+
           {post.PostMedia?.map((media, idx) => (
             <img key={idx} src={media.media_url} width={100} />
           ))}
