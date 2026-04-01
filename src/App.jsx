@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPost, updatePost, deletePost, getFeed } from './api/posts'
 import { uploadMedia, saveMedia } from './api/media'
+import { toggleLike } from './api/likes'
 import TrackSearch from './components/TrackSearch'
 
 function App() {
@@ -65,6 +66,12 @@ function App() {
     handleGetFeed()
   }
 
+  const handleLike = async (postId) => {
+    const result = await toggleLike(postId, 2)
+    console.log('좋아요 결과:', result)
+    handleGetFeed()
+  }
+
   useEffect(() => {
     handleGetFeed()
   }, [])
@@ -123,6 +130,9 @@ function App() {
           {post.PostMedia?.map((media, idx) => (
             <img key={idx} src={media.media_url} width={100} />
           ))}
+          <p>좋아요 수: {post.Likes?.length || 0}</p>
+          <p>좋아요 누른 사람: {post.Likes?.map(like => like.Users?.user_name).join(', ') || '없음'}</p>
+          <button onClick={() => handleLike(post.post_id)}>좋아요</button>
           <button onClick={() => handleDelete(post.post_id)}>삭제</button>
         </div>
       ))}

@@ -24,7 +24,8 @@ Deno.serve(async (req) => {
       Users (user_name),
       Places (place_name),
       Tracks (track_title, artist_name),
-      PostMedia (media_url)
+      PostMedia (media_url),
+      Likes (like_id, user_id, Users (user_name))   ← 이 줄만 추가
     `)
     .is('post_deleted', null)
     .in('status', ['published', 'draft'])
