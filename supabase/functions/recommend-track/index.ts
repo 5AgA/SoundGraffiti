@@ -8,45 +8,57 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  const { placeName, content, visitReason } = await req.json()
+  try {
+    const { placeName, content, visitReason } = await req.json()
 
-  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')
+    const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY')
 
-  const prompt = `
-    나는 지금 "${placeName}"에 있어.
-    방문 이유: "${visitReason}"
-    현재 내 상태/기분: "${content}"
+    const prompt = `
+      나는 지금 "${placeName}"에 있어.
+      방문 이유: "${visitReason}"
+      현재 내 상태/기분: "${content}"
 
-    이 상황에 어울리는 노래 5곡을 추천해줘.
-    각 노래마다 아래 형식으로 답해줘.
-    JSON 배열 형식으로만 답하고 다른 말은 하지마.
+      이 상황에 어울리는 노래 5곡을 추천해줘.
+      JSON 배열 형식으로만 답하고 다른 말은 절대 하지마.
+      마크다운 코드블록도 쓰지마.
 
-    [
-      {
-        "title": "노래 제목",
-        "artist": "아티스트명",
-        "reason": "이 노래를 추천하는 이유 (한 줄)"
-      }
-    ]
-  `
+      [
+        {
+          "title": "노래 제목",
+          "artist": "아티스트명",
+          "reason": "이 노래를 추천하는 이유 (한 줄)"
+        }
+      ]
+    `
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-    {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GROQ_API_KEY}`
+      },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7
       })
-    }
-  )
+    })
 
-  const data = await response.json()
-  const text = data.candidates[0].content.parts[0].text
-  const clean = text.replace(/```json|```/g, '').trim()
-  const tracks = JSON.parse(clean)
+    const data = await response.json()
+    console.log('Groq 응답:', JSON.stringify(data))
 
-  return new Response(JSON.stringify(tracks), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-  })
+    const text = data.choices[0].message.content
+    const clean = text.replace(/```json|```/g, '').trim()
+    const tracks = JSON.parse(clean)
+
+    return new Response(JSON.stringify(tracks), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+  } catch (e) {
+    console.log('에러:', e.message)
+    return new Response(JSON.stringify({ error: e.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+  }
 })

@@ -1,16 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { AuthProvider } from "./contexts/AuthContext";
 import UserStatus from "./components/UserStatus";
-import KakaoMap from "./KakaoMap";
 import { createPost, updatePost, deletePost, getFeed } from "./api/posts";
 import { uploadMedia, saveMedia } from "./api/media";
 import { toggleLike } from "./api/likes";
 import { recommendTracks } from "./api/recommend";
-import TrackSearch from "./components/TrackSearch";
-import { useState, useEffect, useRef } from "react";
-import { createPost, updatePost, deletePost, getFeed } from "./api/posts";
-import { uploadMedia, saveMedia } from "./api/media";
-import { toggleLike } from "./api/likes";
 import TrackSearch from "./components/TrackSearch";
 
 function App() {
@@ -36,8 +30,6 @@ function App() {
       alert("트랙을 선택해주세요!");
       return;
     }
-
-    console.log("구간 설정:", previewStart, previewEnd);
 
     const post = await createPost({
       userId: 1,
@@ -102,6 +94,22 @@ function App() {
     setIsLoading(false);
   };
 
+  const handleRecommendSelect = async (track) => {
+    // 추천받은 노래 제목+아티스트로 Spotify 검색
+    const { searchTracks } = await import("./api/spotify");
+    const results = await searchTracks(`${track.title} ${track.artist}`);
+
+    if (results && results.length > 0) {
+      const { saveTrack } = await import("./api/tracks");
+      const saved = await saveTrack(results[0]);
+      setSelectedTrack(saved);
+      setRecommendations([]); // 추천 목록 닫기
+      console.log("선택된 트랙:", saved);
+    } else {
+      alert("Spotify에서 해당 노래를 찾을 수 없어요!");
+    }
+  };
+
   useEffect(() => {
     handleGetFeed();
   }, []);
@@ -131,11 +139,16 @@ function App() {
           onChange={(e) => setVisitReason(e.target.value)}
         >
           <option value="">방문 이유 선택</option>
-          <option value="데이트">데이트</option>
           <option value="혼자만의 시간">혼자만의 시간</option>
           <option value="친구와 함께">친구와 함께</option>
+          <option value="데이트">데이트</option>
           <option value="공부">공부</option>
           <option value="산책">산책</option>
+          <option value="운동">운동</option>
+          <option value="등교">등교길</option>
+          <option value="하교">하교길</option>
+          <option value="출근">출근길</option>
+          <option value="퇴근">퇴근길</option>
         </select>
 
         <button onClick={handleRecommend} disabled={isLoading}>
@@ -158,13 +171,7 @@ function App() {
                   {track.title} - {track.artist}
                 </p>
                 <p style={{ color: "gray", fontSize: 12 }}>{track.reason}</p>
-                <button
-                  onClick={() => {
-                    alert(
-                      `Spotify에서 "${track.title} ${track.artist}" 검색해보세요!`,
-                    );
-                  }}
-                >
+                <button onClick={() => handleRecommendSelect(track)}>
                   이 노래로 포스팅
                 </button>
               </div>
@@ -268,8 +275,6 @@ function App() {
             <button onClick={() => handleDelete(post.post_id)}>삭제</button>
           </div>
         ))}
-
-        <KakaoMap />
       </div>
     </AuthProvider>
   );
