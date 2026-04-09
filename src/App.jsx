@@ -7,6 +7,11 @@ import { uploadMedia, saveMedia } from "./api/media";
 import { toggleLike } from "./api/likes";
 import { recommendTracks } from "./api/recommend";
 import TrackSearch from "./components/TrackSearch";
+import { useState, useEffect, useRef } from "react";
+import { createPost, updatePost, deletePost, getFeed } from "./api/posts";
+import { uploadMedia, saveMedia } from "./api/media";
+import { toggleLike } from "./api/likes";
+import TrackSearch from "./components/TrackSearch";
 
 function App() {
   const [feed, setFeed] = useState([]);
@@ -31,6 +36,8 @@ function App() {
       alert("트랙을 선택해주세요!");
       return;
     }
+
+    console.log("구간 설정:", previewStart, previewEnd);
 
     const post = await createPost({
       userId: 1,

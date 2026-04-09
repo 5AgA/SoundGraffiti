@@ -12,9 +12,9 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json()
-    console.log('받은 데이터:', JSON.stringify(body))  // 추가
+    console.log('받은 데이터:', JSON.stringify(body)) 
 
-    const { userId, trackId, placeId, content } = body
+    const { userId, trackId, placeId, content, previewStartMs, previewEndMs } = body
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -28,6 +28,8 @@ Deno.serve(async (req) => {
         track_id: trackId,
         place_id: placeId,
         content: content,
+        preview_start_ms: previewStartMs, 
+        preview_end_ms: previewEndMs,
         status: 'published',
         post_created: new Date()
       })
