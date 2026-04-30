@@ -1,0 +1,307 @@
+@font-face {
+  font-family: "Akkordeon DEMO";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("https://db.onlinewebfonts.com/t/8f8e726d88e0082ae7fcb8537aab58c7.woff2")
+    format("woff2");
+}
+
+.homev1-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.homev1-phone {
+  width: 402px;
+  height: 874px;
+  border-radius: 40px;
+  position: relative;
+  overflow: hidden;
+  background: #f8fbff;
+}
+
+.homev1-bg-stack {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.homev1-bg-blur {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(38px);
+  opacity: 0.38;
+  transform: scale(1.1);
+}
+
+.homev1-bg-edge-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.homev1-bg-edge-fade--top {
+  top: 0;
+  height: 3.4cm;
+  background: linear-gradient(
+    180deg,
+    rgba(248, 251, 255, 0.92) 0%,
+    rgba(236, 242, 252, 0.55) 40%,
+    rgba(248, 251, 255, 0) 100%
+  );
+}
+
+.homev1-bg-edge-fade--bottom {
+  bottom: 0;
+  height: 1cm;
+  background: linear-gradient(
+    0deg,
+    rgba(248, 251, 255, 0.5) 0%,
+    rgba(248, 251, 255, 0) 100%
+  );
+}
+
+.homev1-bg-blur.no-image {
+  background: radial-gradient(circle at 20% 20%, #445, #1b1e27 65%);
+  filter: none;
+  opacity: 0.45;
+  transform: none;
+}
+
+.homev1-top-fade {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* 상단 블러·페이드 영역 확대 */
+  height: 200px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(255, 255, 255, 0.94) 22%,
+    rgba(240, 244, 252, 0.88) 38%,
+    rgba(248, 251, 255, 0.42) 62%,
+    rgba(248, 251, 255, 0) 100%
+  );
+  z-index: 4;
+  pointer-events: none;
+}
+
+.homev1-bottom-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* 상단보다 영역·강도 모두 약하게 */
+  height: 88px;
+  background: linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.72) 0%,
+    rgba(248, 251, 255, 0.28) 42%,
+    rgba(248, 251, 255, 0) 100%
+  );
+  z-index: 4;
+  pointer-events: none;
+}
+
+.homev1-header {
+  position: absolute;
+  left: 21px;
+  top: 58px;
+  z-index: 6;
+  text-align: left;
+}
+
+.homev1-header h1 {
+  margin: 0;
+  font-family: "Akkordeon DEMO", "Akkordeon", ui-serif, Georgia, serif;
+  font-size: 42px;
+  line-height: 1.2;
+  color: #000;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.homev1-card {
+  position: relative;
+  width: 344px;
+  height: 500px;
+  flex: 0 0 500px;
+  border-radius: 30px;
+  overflow: hidden;
+  color: #fff;
+  scroll-snap-align: center;
+}
+
+.homev1-feed-scroll {
+  position: absolute;
+  left: 29px;
+  top: 0;
+  bottom: 0;
+  width: 360px;
+  z-index: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  scroll-snap-type: y mandatory;
+  padding: 108px 12px 98px 0;
+  box-sizing: border-box;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.35) 0%,
+    rgba(0, 0, 0, 0.9) 2%,
+    #000 5%,
+    #000 95%,
+    rgba(0, 0, 0, 0.9) 98%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.35) 0%,
+    rgba(0, 0, 0, 0.9) 2%,
+    #000 5%,
+    #000 95%,
+    rgba(0, 0, 0, 0.9) 98%,
+    transparent 100%
+  );
+}
+
+.homev1-feed-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.homev1-card-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.homev1-card-image-empty {
+  background: linear-gradient(160deg, #31333e 0%, #191b22 100%);
+}
+
+.homev1-card-top-shadow {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 25%);
+}
+
+.homev1-card-bottom-shadow {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.6) 12%, rgba(0, 0, 0, 0) 32%);
+}
+
+.homev1-user {
+  position: absolute;
+  top: 16px;
+  left: 14px;
+  z-index: 1;
+  display: flex;
+  gap: 11px;
+  align-items: center;
+}
+
+.homev1-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #f1f1f1;
+  object-fit: cover;
+}
+
+.homev1-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.homev1-place {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.95;
+}
+
+.homev1-content {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 62px;
+  margin: 0;
+  z-index: 1;
+  font-size: 16px;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.homev1-actions {
+  position: absolute;
+  left: 18px;
+  bottom: 16px;
+  z-index: 1;
+  display: flex;
+  gap: 10px;
+}
+
+.homev1-actions button {
+  border: 0;
+  border-radius: 18px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.4);
+  color: #fff;
+}
+
+.homev1-nav {
+  position: absolute;
+  left: 120px;
+  top: 781px;
+  width: 163px;
+  height: 56px;
+  border-radius: 26.5px;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 6;
+  font-size: 20px;
+  color: #a9afb9;
+}
+
+.homev1-nav .is-active {
+  color: #000;
+  width: 45px;
+  height: 45px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: 50%;
+}
+
+.homev1-fab {
+  position: absolute;
+  right: 22px;
+  top: 781px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(255, 255, 255, 0.85);
+  color: #616875;
+  font-size: 32px;
+  line-height: 1;
+  z-index: 6;
+}
