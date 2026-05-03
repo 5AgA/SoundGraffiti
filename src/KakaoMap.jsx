@@ -36,6 +36,10 @@ function KakaoMap() {
     // put marker on map & perform clustering
     useEffect(() => {
         if (posts.length === 0) return;
+        if (!mapRef.current || !window.kakao?.maps?.load) {
+            console.warn("Kakao Maps SDK is not ready.");
+            return;
+        }
 
         window.kakao.maps.load(() => {
             const map = new window.kakao.maps.Map(mapRef.current, {
