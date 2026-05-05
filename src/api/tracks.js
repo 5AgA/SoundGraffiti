@@ -1,5 +1,11 @@
 import { supabase } from '../supabaseClient'
 
+const getLargestAlbumImageUrl = (images = []) => {
+  return [...images]
+    .sort((a, b) => (b.width ?? b.height ?? 0) - (a.width ?? a.height ?? 0))[0]
+    ?.url
+}
+
 export const saveTrack = async (track) => {
   // 중복 확인
   const { data: existing } = await supabase
@@ -21,7 +27,7 @@ export const saveTrack = async (track) => {
       track_title: track.name,
       artist_name: track.artists[0].name,
       album_name: track.album.name,
-      album_image_url: track.album.images[0]?.url,
+      album_image_url: getLargestAlbumImageUrl(track.album.images),
       duration_ms: track.duration_ms,
       preview_url: track.preview_url,
       cached_at: new Date()

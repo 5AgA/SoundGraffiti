@@ -1,6 +1,41 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "./supabaseClient";
 
+const escapeHtml = (value) =>
+    String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+
+const createAlbumPinElement = (post) => {
+    const element = document.createElement("button");
+    const albumImageUrl = post.Tracks?.album_image_url;
+    const trackTitle = post.Tracks?.track_title ?? "Unknown track";
+    const artistName = post.Tracks?.artist_name ?? "Unknown artist";
+
+    element.type = "button";
+    element.className = `album-map-pin${albumImageUrl ? "" : " is-empty"}`;
+    element.setAttribute("aria-label", `${trackTitle} - ${artistName}`);
+
+    if (albumImageUrl) {
+        const image = document.createElement("img");
+        image.src = albumImageUrl;
+        image.alt = "";
+        image.className = "album-map-pin__image";
+        element.appendChild(image);
+    }
+    else {
+        const fallback = document.createElement("span");
+        fallback.className = "album-map-pin__fallback";
+        fallback.textContent = "♪";
+        element.appendChild(fallback);
+    }
+
+    return element;
+};
+
 function KakaoMap() {
     const mapRef = useRef(null);
     const [posts, setPosts] = useState([]);
@@ -17,6 +52,11 @@ function KakaoMap() {
                     place_name,
                     latitude,
                     longitude
+                ),
+                Tracks (
+                    track_title,
+                    artist_name,
+                    album_image_url
                 )
             `)
             .eq("status", "published");
@@ -41,49 +81,75 @@ function KakaoMap() {
             return;
         }
 
+        let cancelled = false;
+        let overlays = [];
+        let infowindows = [];
+
         window.kakao.maps.load(() => {
+            if (cancelled) return;
+
             const map = new window.kakao.maps.Map(mapRef.current, {
                 center: new window.kakao.maps.LatLng(37.5665, 126.978),
                 level: 7,
             });
+            const bounds = new window.kakao.maps.LatLngBounds();
 
-            // create markers
-            const markers = posts
+            // create album image pins
+            overlays = posts
             .filter((post) => post.Places)
             .map((post) => {
-                const marker = new window.kakao.maps.Marker({
-                    position: new window.kakao.maps.LatLng(
-                        post.Places.latitude,
-                        post.Places.longitude
-                    ),
+                const position = new window.kakao.maps.LatLng(
+                    post.Places.latitude,
+                    post.Places.longitude
+                );
+                const pinElement = createAlbumPinElement(post);
+                const overlay = new window.kakao.maps.CustomOverlay({
+                    position,
+                    content: pinElement,
+                    xAnchor: 0.5,
+                    yAnchor: 0.5,
+                    zIndex: 10,
                 });
 
-                // when marker is clicked -> opens info window (temp)
                 const infowindow = new window.kakao.maps.InfoWindow({
-                    content: `<div style="padding:5px;font-size:12px;">${post.Places.place_name}<br/>${post.content}</div>`,
+                    position,
+                    content: `
+                        <div style="padding:8px 10px;font-size:12px;line-height:1.4;max-width:190px;">
+                            <strong>${escapeHtml(post.Places.place_name)}</strong><br/>
+                            ${escapeHtml(post.Tracks?.track_title ?? "Unknown track")}
+                            <span style="color:#777;">- ${escapeHtml(post.Tracks?.artist_name ?? "Unknown artist")}</span><br/>
+                            ${escapeHtml(post.content)}
+                        </div>
+                    `,
                 });
 
-                window.kakao.maps.event.addListener(marker, "click", () => {
-                    infowindow.open(map, marker);
+                overlay.setMap(map);
+                pinElement.addEventListener("click", () => {
+                    infowindows.forEach((info) => info.close());
+                    infowindow.open(map);
                 });
+                bounds.extend(position);
+                infowindows.push(infowindow);
 
-                return marker;
+                return overlay;
             });
 
-            // apply clusterer
-            new window.kakao.maps.MarkerClusterer({
-                map: map,
-                markers: markers,
-                gridSize: 60,
-                minLevel: 5,
-            });
+            if (overlays.length > 0) {
+                map.setBounds(bounds);
+            }
         });
+
+        return () => {
+            cancelled = true;
+            overlays.forEach((overlay) => overlay.setMap(null));
+            infowindows.forEach((info) => info.close());
+        };
     }, [posts]);
 
     return (
         <div
         ref={mapRef}
-        style={{ width: "100%", height: "500px" }}
+        className="sound-map"
         />
     );
 }

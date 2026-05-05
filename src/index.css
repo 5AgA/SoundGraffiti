@@ -109,3 +109,57 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+.sound-map {
+  width: 100%;
+  height: min(760px, 78svh);
+}
+
+.album-map-pin {
+  position: relative;
+  width: 55px;
+  height: 55px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  filter: drop-shadow(0 1px 1px rgba(20, 18, 28, 0.04));
+}
+
+.album-map-pin__image,
+.album-map-pin__fallback {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 55px;
+  height: 55px;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.album-map-pin__image {
+  display: block;
+  object-fit: cover;
+}
+
+.album-map-pin__fallback {
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  background: linear-gradient(135deg, #18b46b, #2c63d6);
+  font-size: 22px;
+  line-height: 1;
+}
+
+@media (max-width: 640px) {
+  #root {
+    width: 100%;
+    border-inline: 0;
+  }
+
+  .sound-map {
+    height: 100svh;
+  }
+}
