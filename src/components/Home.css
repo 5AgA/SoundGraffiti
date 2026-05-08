@@ -1,30 +1,33 @@
-.homev1-wrap {
+.home-wrap {
+  position: fixed;
+  inset: 0;
   display: flex;
+  align-items: stretch;
   justify-content: flex-start;
   width: 100%;
-  max-width: 402px;
+  height: 100lvh;
   margin: 0 auto;
   flex: 1;
+  overflow: visible;
 }
 
-.homev1-phone {
+.home-phone {
   width: 100%;
-  max-width: 402px;
   height: 100%;
-  position: relative;
-  overflow: hidden;
+  position: absolute;
+  overflow: visible;
   background: #f8fbff;
 }
 
-.homev1-bg-stack {
+.home-bg-stack {
   position: absolute;
   inset: 0;
   z-index: 0;
-  overflow: hidden;
+  overflow: visible;
   pointer-events: none;
 }
 
-.homev1-bg-blur {
+.home-bg-blur {
   position: absolute;
   inset: 0;
   background-size: cover;
@@ -34,7 +37,7 @@
   transform: scale(1.1);
 }
 
-.homev1-bg-edge-fade {
+.home-bg-edge-fade {
   position: absolute;
   left: 0;
   right: 0;
@@ -42,7 +45,7 @@
   pointer-events: none;
 }
 
-.homev1-bg-edge-fade--top {
+.home-bg-edge-fade--top {
   top: 0;
   height: 10%;
   background: linear-gradient(
@@ -53,20 +56,20 @@
   );
 }
 
-.homev1-bg-blur.no-image {
+.home-bg-blur.no-image {
   background: radial-gradient(circle at 20% 20%, #445, #1b1e27 65%);
   filter: none;
   opacity: 0.45;
   transform: none;
 }
 
-.homev1-top-fade {
+.home-top-fade {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   /* 기기 높이에 비례해 반응형으로 적용 */
-  height: 13%;
+  height: 20%;
   background: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0.96) 0%,
@@ -82,76 +85,75 @@
   pointer-events: none;
 }
 
-.homev1-header {
+.home-header {
   position: absolute;
   top: 0;
   left: 0;
-  width: 402px;
-  height: 72px;
+  width: 100%;
+  padding-top: env(safe-area-inset-top);
+  height: auto;
   z-index: 5;
   text-align: left;
 }
 
-.homev1-header h1 {
-  margin: 0;
-  font-family: "Pretendard", "Segoe UI", Roboto, sans-serif;
-  font-size: 42px;
-  line-height: 1.2;
-  color: #000;
-  letter-spacing: -0.02em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.homev1-logo {
-  position: absolute;
-  display: block;
+.home-logo {
+  position: relative;
   left: 21px;
-  top: 0px;
+  top: 10px;
   margin: 0;
   width: 148px;
   height: 50px;
-  object-fit: contain;
 }
 
-.homev1-card {
+.home-card {
   position: relative;
-  width: 344px;
+  width: 100%;
+  max-width: 344px;
   height: 450px;
-  flex: 0 0 500px;
   border-radius: 30px;
+  flex-shrink: 0;
   overflow: hidden;
   color: #fff;
   scroll-snap-align: center;
+  margin: 0 auto;
 }
 
-.homev1-feed-scroll {
+.home-feed-scroll {
   position: absolute;
-  left: 29px;
-  top: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   bottom: 0;
-  width: 360px;
+  margin-bottom: 0;
+
   z-index: 1;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  align-items: center;
+
   gap: 24px;
   scroll-snap-type: y mandatory;
-  padding: 92px 12px 116px 0;
+  /* 상단 첫 카드 시작 여백: 기기 높이 비율 기준으로 과한 여백 방지 */
+  padding-top: 35%;
+  /* 하단 네비/플로팅 버튼 + 안전영역 만큼 여백 확보 */
+  padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+
+  padding-left: 20px;
+  padding-right: 20px;
+
   /* 이전(위) 카드가 더 보이고, 다음(아래) 카드는 덜 보이도록 */
   scroll-padding-top: 92px;
   scroll-padding-bottom: 116px;
   box-sizing: border-box;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+
   -webkit-mask-image: linear-gradient(
     to bottom,
-    rgba(0, 0, 0, 0.35) 0%,
-    rgba(0, 0, 0, 0.9) 2%,
-    #000 5%,
-    #000 84%,
-    rgba(0, 0, 0, 0.7) 92%,
-    rgba(0, 0, 0, 0.25) 97%,
-    transparent 100%
+    transparent 0%,
+    black 10%,
+    black 100%
   );
   mask-image: linear-gradient(
     to bottom,
@@ -165,11 +167,11 @@
   );
 }
 
-.homev1-feed-scroll::-webkit-scrollbar {
+.home-feed-scroll::-webkit-scrollbar {
   display: none;
 }
 
-.homev1-card-image {
+.home-card-image {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -177,15 +179,15 @@
   object-fit: cover;
 }
 
-.homev1-card-image-empty {
+.home-card-image-empty {
   background: linear-gradient(160deg, #31333e 0%, #191b22 100%);
 }
 
-.homev1-card-image-skeleton {
+.home-card-image-skeleton {
   background: linear-gradient(160deg, #cfd5dd 0%, #bfc8d3 100%);
 }
 
-.homev1-card-top-shadow {
+.home-card-top-shadow {
   position: absolute;
   inset: 0;
   background: linear-gradient(
@@ -195,7 +197,7 @@
   );
 }
 
-.homev1-card-bottom-shadow {
+.home-card-bottom-shadow {
   position: absolute;
   inset: 0;
   /* 아래쪽 쉐이드: 60% 지점에서 페이드 종료 */
@@ -206,7 +208,7 @@
   );
 }
 
-.homev1-user {
+.home-user {
   position: absolute;
   top: 16px;
   left: 14px;
@@ -216,17 +218,17 @@
   align-items: center;
 }
 
-.homev1-user > div {
+.home-user > div {
   text-align: left;
 }
 
-.homev1-skeleton-user-lines {
+.home-skeleton-user-lines {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.homev1-avatar {
+.home-avatar {
   width: 42px;
   height: 42px;
   border-radius: 50%;
@@ -234,7 +236,7 @@
   object-fit: cover;
 }
 
-.homev1-name {
+.home-name {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
@@ -242,7 +244,7 @@
   font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
 }
 
-.homev1-place {
+.home-place {
   margin: 0;
   font-size: 12px;
   opacity: 0.95;
@@ -250,7 +252,7 @@
   font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
 }
 
-.homev1-content {
+.home-content {
   position: absolute;
   left: 18px;
   right: 18px;
@@ -263,65 +265,65 @@
   font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
 }
 
-.homev1-skeleton {
+.home-skeleton {
   border-radius: 12px;
 }
 
-.homev1-skeleton-avatar {
+.home-skeleton-avatar {
   background: #d7dce3;
 }
 
-.homev1-skeleton-name {
+.home-skeleton-name {
   width: 92px;
   height: 14px;
   background: #eef2f7;
 }
 
-.homev1-skeleton-place {
+.home-skeleton-place {
   width: 132px;
   height: 12px;
   background: #d9dee6;
 }
 
-.homev1-skeleton-content-wrap {
+.home-skeleton-content-wrap {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.homev1-skeleton-content-1 {
+.home-skeleton-content-1 {
   width: 86%;
   height: 14px;
   background: #e8ecf2;
 }
 
-.homev1-skeleton-content-2 {
+.home-skeleton-content-2 {
   width: 64%;
   height: 14px;
   background: #d5dbe4;
 }
 
-.homev1-skeleton-action {
+.home-skeleton-action {
   height: 30px;
   border-radius: 18px;
 }
 
-.homev1-skeleton-action-1 {
+.home-skeleton-action-1 {
   width: 62px;
   background: #eef2f7;
 }
 
-.homev1-skeleton-action-2 {
+.home-skeleton-action-2 {
   width: 62px;
   background: #dde3eb;
 }
 
-.homev1-skeleton-action-3 {
+.home-skeleton-action-3 {
   width: 46px;
   background: #cfd6e0;
 }
 
-.homev1-actions {
+.home-actions {
   position: absolute;
   left: 18px;
   bottom: 16px;
@@ -330,7 +332,7 @@
   gap: 10px;
 }
 
-.homev1-actions button {
+.home-actions button {
   border: 0;
   border-radius: 18px;
   padding: 6px 12px;
@@ -338,28 +340,28 @@
   color: #fff;
 }
 
-.homev1-action-btn {
+.home-action-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 
-.homev1-action-icon {
+.home-action-icon {
   width: 16px;
   height: 16px;
   display: block;
 }
 
-.homev1-action-icon--spotify {
+.home-action-icon--spotify {
   mix-blend-mode: color-dodge;
 }
 
-.homev1-nav {
-  position: absolute;
+.home-nav {
+  position: fixed;
   left: 50%;
   transform: translateX(-85px);
   top: auto;
-  bottom: 20px;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   width: 163px;
   height: 56px;
   border-radius: 26.5px;
@@ -383,13 +385,13 @@
     0 2px 8px rgba(27, 35, 54, 0.12);
 }
 
-.homev1-nav > span {
+.home-nav > span {
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
-.homev1-nav .is-active {
+.home-nav .is-active {
   color: #000;
   width: 45px;
   height: 45px;
@@ -400,31 +402,31 @@
   border-radius: 50%;
 }
 
-.homev1-nav-home-icon {
+.home-nav-home-icon {
   width: 28px;
   height: 23px;
   display: block;
 }
 
-.homev1-nav-map-icon {
+.home-nav-map-icon {
   width: 25px;
   height: 23px;
   display: block;
 }
 
-.homev1-nav-person-icon {
+.home-nav-person-icon {
   width: 22px;
   height: 23px;
   display: block;
   margin-left: 10px;
 }
 
-.homev1-fab {
-  position: absolute;
+.home-fab {
+  position: fixed;
   left: auto;
   right: 20px;
   top: auto;
-  bottom: 20px;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   width: 56px;
   height: 56px;
   border-radius: 50%;

@@ -42,8 +42,14 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const context = useContext(AuthContext)
+  // TEMP: 인증 플로우 작업 중에는 컨텍스트가 없더라도 화면이 깨지지 않게 기본값 반환
   if (!context) {
-    throw new Error('useAuth must be used within AuthProvider')
+    return {
+      session: null,
+      user: null,
+      spotifyToken: null,
+      loading: false,
+    }
   }
   return context
 }

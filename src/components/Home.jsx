@@ -86,11 +86,11 @@ function Home({ feed = [] }) {
   };
 
   return (
-    <section className="homev1-wrap">
-      <div className="homev1-phone">
-        <div className="homev1-bg-stack">
+    <section className="home-wrap">
+      <div className="home-phone">
+        <div className="home-bg-stack">
           <div
-            className={`homev1-bg-blur${blurBackground ? "" : " no-image"}`}
+            className={`home-bg-blur${blurBackground ? "" : " no-image"}`}
             style={
               blurBackground
                 ? { backgroundImage: `url(${blurBackground})` }
@@ -98,22 +98,22 @@ function Home({ feed = [] }) {
             }
           />
           <div
-            className="homev1-bg-edge-fade homev1-bg-edge-fade--top"
+            className="home-bg-edge-fade home-bg-edge-fade--top"
             aria-hidden
           />
         </div>
-        <div className="homev1-top-fade" />
+        <div className="home-top-fade" />
 
-        <header className="homev1-header">
+        <header className="home-header">
           <img
-            className="homev1-logo"
+            className="home-logo"
             src="/Soundgraffiti.svg"
             alt="Soundgraffiti"
           />
         </header>
 
         <div
-          className="homev1-feed-scroll"
+          className="home-feed-scroll"
           ref={feedScrollRef}
           onScroll={handleFeedScroll}
         >
@@ -148,96 +148,96 @@ function Home({ feed = [] }) {
 
             return (
               <article
-                className={`homev1-card${isActive ? " homev1-card--active" : ""}`}
+                className={`home-card${isActive ? " home-card--active" : ""}`}
                 key={post?.post_id || idx}
                 ref={(el) => {
                   cardRefs.current[idx] = el;
                 }}
               >
                 {isSkeleton ? (
-                  <div className="homev1-card-image homev1-card-image-skeleton" />
+                  <div className="home-card-image home-card-image-skeleton" />
                 ) : albumArt ? (
                   <img
-                    className="homev1-card-image"
+                    className="home-card-image"
                     src={albumArt}
                     alt={placeName}
                   />
                 ) : (
-                  <div className="homev1-card-image homev1-card-image-empty" />
+                  <div className="home-card-image home-card-image-empty" />
                 )}
                 {isActive && (
                   <>
-                    <div className="homev1-card-top-shadow" />
-                    <div className="homev1-card-bottom-shadow" />
+                    <div className="home-card-top-shadow" />
+                    <div className="home-card-bottom-shadow" />
 
                     {isSkeleton ? (
                       <>
-                        <div className="homev1-user">
-                          <div className="homev1-avatar homev1-skeleton homev1-skeleton-avatar" />
-                          <div className="homev1-skeleton-user-lines">
-                            <div className="homev1-skeleton homev1-skeleton-name" />
-                            <div className="homev1-skeleton homev1-skeleton-place" />
+                        <div className="home-user">
+                          <div className="home-avatar home-skeleton home-skeleton-avatar" />
+                          <div className="home-skeleton-user-lines">
+                            <div className="home-skeleton home-skeleton-name" />
+                            <div className="home-skeleton home-skeleton-place" />
                           </div>
                         </div>
 
-                        <div className="homev1-content homev1-skeleton-content-wrap">
-                          <div className="homev1-skeleton homev1-skeleton-content-1" />
-                          <div className="homev1-skeleton homev1-skeleton-content-2" />
+                        <div className="home-content home-skeleton-content-wrap">
+                          <div className="home-skeleton home-skeleton-content-1" />
+                          <div className="home-skeleton home-skeleton-content-2" />
                         </div>
 
-                        <div className="homev1-actions">
-                          <div className="homev1-skeleton homev1-skeleton-action homev1-skeleton-action-1" />
-                          <div className="homev1-skeleton homev1-skeleton-action homev1-skeleton-action-2" />
-                          <div className="homev1-skeleton homev1-skeleton-action homev1-skeleton-action-3" />
+                        <div className="home-actions">
+                          <div className="home-skeleton home-skeleton-action home-skeleton-action-1" />
+                          <div className="home-skeleton home-skeleton-action home-skeleton-action-2" />
+                          <div className="home-skeleton home-skeleton-action home-skeleton-action-3" />
                         </div>
                       </>
                     ) : (
                       <>
-                        <div className="homev1-user">
+                        <div className="home-user">
                           {avatar ? (
                             <img
-                              className="homev1-avatar"
+                              className="home-avatar"
                               src={avatar}
                               alt={userName}
                             />
                           ) : (
-                            <div className="homev1-avatar" />
+                            <div className="home-avatar" />
                           )}
                           <div>
-                            <p className="homev1-name">{userName}</p>
-                            <p className="homev1-place">{placeName}</p>
+                            <p className="home-name">{userName}</p>
+                            <p className="home-place">{placeName}</p>
                           </div>
                         </div>
 
-                        <p className="homev1-content">{content}</p>
+                        <p className="home-content">{content}</p>
 
-                        <div className="homev1-actions">
+                        <div className="home-actions">
                           <button
                             type="button"
-                            className="homev1-action-btn"
+                            className="home-action-btn"
                             onClick={() => handleLikeToggle(post)}
                             disabled={isLikePending}
                           >
                             <img
-                              className="homev1-action-icon"
+                              className="home-action-icon"
                               src={isLiked ? "/heart.fill.svg" : "/heart.empty.svg"}
                               alt=""
                               aria-hidden="true"
                             />
                             <span>{likeCount}</span>
                           </button>
-                          <button type="button" className="homev1-action-btn">
+                          <button type="button" className="home-action-btn">
                             <img
-                              className="homev1-action-icon"
+                              className="home-action-icon"
                               src="/bubble.fill.svg"
                               alt=""
                               aria-hidden="true"
                             />
                             <span>5</span>
                           </button>
-                          <button type="button" className="homev1-action-btn">
+                          <button type="button" className="home-action-btn">
                             <img
-                              className="homev1-action-icon homev1-action-icon--spotify"
+                              className="home-action-icon home-action-icon--spotify"
                               src="/spotify.btn.svg"
                               alt="Spotify"
                             />
@@ -252,26 +252,26 @@ function Home({ feed = [] }) {
           })}
         </div>
 
-        <nav className="homev1-nav">
+        <nav className="home-nav">
           <span className="is-active">
             <img
-              className="homev1-nav-home-icon"
+              className="home-nav-home-icon"
               src="/house.fill.svg"
               alt="Home"
             />
           </span>
           <span>
-            <img className="homev1-nav-map-icon" src="/map.svg" alt="Map" />
+            <img className="home-nav-map-icon" src="/map.svg" alt="Map" />
           </span>
           <span>
             <img
-              className="homev1-nav-person-icon"
+              className="home-nav-person-icon"
               src="/person.svg"
               alt="Profile"
             />
           </span>
         </nav>
-        <button type="button" className="homev1-fab">
+        <button type="button" className="home-fab">
           +
         </button>
       </div>
