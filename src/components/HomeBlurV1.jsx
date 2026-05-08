@@ -4,13 +4,12 @@ import { useAuth } from "../contexts/AuthContext";
 import "./HomeBlurV1.css";
 
 function HomeBlurV1({ feed = [] }) {
-  const posts = feed.length > 0 ? feed : [null];
+  const isLoading = feed.length === 0;
+  const posts = isLoading ? [null] : feed;
   const [activeIndex, setActiveIndex] = useState(0);
   const [likeStateByPostId, setLikeStateByPostId] = useState({});
-  const [controlsBlurred, setControlsBlurred] = useState(false);
   const cardRefs = useRef([]);
   const feedScrollRef = useRef(null);
-  const prevScrollTopRef = useRef(0);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -42,18 +41,7 @@ function HomeBlurV1({ feed = [] }) {
   };
 
   const handleFeedScroll = (e) => {
-    const root = e.currentTarget;
-    updateActiveFromScroll(root);
-
-    const currentTop = root.scrollTop;
-    const prevTop = prevScrollTopRef.current;
-    const delta = currentTop - prevTop;
-
-    // 스크롤 방향에 따라 하단 컨트롤 시각효과 전환
-    if (Math.abs(delta) > 2) {
-      setControlsBlurred(delta > 0);
-    }
-    prevScrollTopRef.current = currentTop;
+    updateActiveFromScroll(e.currentTarget);
   };
 
   useEffect(() => {
@@ -103,13 +91,18 @@ function HomeBlurV1({ feed = [] }) {
         <div className="homev1-bg-stack">
           <div
             className={`homev1-bg-blur${blurBackground ? "" : " no-image"}`}
-            style={blurBackground ? { backgroundImage: `url(${blurBackground})` } : undefined}
+            style={
+              blurBackground
+                ? { backgroundImage: `url(${blurBackground})` }
+                : undefined
+            }
           />
-          <div className="homev1-bg-edge-fade homev1-bg-edge-fade--top" aria-hidden />
-          <div className="homev1-bg-edge-fade homev1-bg-edge-fade--bottom" aria-hidden />
+          <div
+            className="homev1-bg-edge-fade homev1-bg-edge-fade--top"
+            aria-hidden
+          />
         </div>
         <div className="homev1-top-fade" />
-        <div className="homev1-bottom-fade" />
 
         <header className="homev1-header">
           <img
@@ -125,22 +118,28 @@ function HomeBlurV1({ feed = [] }) {
           onScroll={handleFeedScroll}
         >
           {posts.map((post, idx) => {
+            const isSkeleton = isLoading;
             const albumArt = post?.Tracks?.album_image_url || "";
+            const userData = Array.isArray(post?.Users)
+              ? post.Users[0]
+              : post?.Users;
             // Avatar는 user_profile_url을 최우선으로 사용
             const avatar =
-              post?.Users?.user_profile_url ||
+              userData?.user_profile_url ||
               post?.user_profile_url ||
-              post?.Users?.profile_image_url ||
+              userData?.profile_image_url ||
               post?.profile_image_url ||
               "";
-            const userName = post?.Users?.user_name || "UserId1234";
+            const userName = userData?.user_name || "annonymous";
             const placeName = post?.Places?.place_name || "서울 홍대입구역";
             const content =
               post?.content ||
               "이 공간에는 르세라핌 'Spaghetti'처럼 텐션 있는 음악이 어울려요.";
             const likes = Array.isArray(post?.Likes) ? post.Likes : [];
             const postId = post?.post_id;
-            const serverLiked = likes.some((like) => like?.user_id === user?.id);
+            const serverLiked = likes.some(
+              (like) => like?.user_id === user?.id,
+            );
             const localLikeState = postId ? likeStateByPostId[postId] : null;
             const likeCount = localLikeState?.count ?? likes.length ?? 12;
             const isLiked = localLikeState?.liked ?? serverLiked;
@@ -155,8 +154,14 @@ function HomeBlurV1({ feed = [] }) {
                   cardRefs.current[idx] = el;
                 }}
               >
-                {albumArt ? (
-                  <img className="homev1-card-image" src={albumArt} alt={placeName} />
+                {isSkeleton ? (
+                  <div className="homev1-card-image homev1-card-image-skeleton" />
+                ) : albumArt ? (
+                  <img
+                    className="homev1-card-image"
+                    src={albumArt}
+                    alt={placeName}
+                  />
                 ) : (
                   <div className="homev1-card-image homev1-card-image-empty" />
                 )}
@@ -165,52 +170,81 @@ function HomeBlurV1({ feed = [] }) {
                     <div className="homev1-card-top-shadow" />
                     <div className="homev1-card-bottom-shadow" />
 
-                    <div className="homev1-user">
-                      {avatar ? (
-                        <img className="homev1-avatar" src={avatar} alt={userName} />
-                      ) : (
-                        <div className="homev1-avatar" />
-                      )}
-                      <div>
-                        <p className="homev1-name">{userName}</p>
-                        <p className="homev1-place">{placeName}</p>
-                      </div>
-                    </div>
+                    {isSkeleton ? (
+                      <>
+                        <div className="homev1-user">
+                          <div className="homev1-avatar homev1-skeleton homev1-skeleton-avatar" />
+                          <div className="homev1-skeleton-user-lines">
+                            <div className="homev1-skeleton homev1-skeleton-name" />
+                            <div className="homev1-skeleton homev1-skeleton-place" />
+                          </div>
+                        </div>
 
-                    <p className="homev1-content">{content}</p>
+                        <div className="homev1-content homev1-skeleton-content-wrap">
+                          <div className="homev1-skeleton homev1-skeleton-content-1" />
+                          <div className="homev1-skeleton homev1-skeleton-content-2" />
+                        </div>
 
-                    <div className="homev1-actions">
-                      <button
-                        type="button"
-                        className="homev1-action-btn"
-                        onClick={() => handleLikeToggle(post)}
-                        disabled={isLikePending}
-                      >
-                        <img
-                          className="homev1-action-icon"
-                          src={isLiked ? "/heart.fill.svg" : "/heart.empty.svg"}
-                          alt=""
-                          aria-hidden="true"
-                        />
-                        <span>{likeCount}</span>
-                      </button>
-                      <button type="button" className="homev1-action-btn">
-                        <img
-                          className="homev1-action-icon"
-                          src="/bubble.fill.svg"
-                          alt=""
-                          aria-hidden="true"
-                        />
-                        <span>5</span>
-                      </button>
-                      <button type="button" className="homev1-action-btn">
-                        <img
-                          className="homev1-action-icon homev1-action-icon--spotify"
-                          src="/spotify.btn.svg"
-                          alt="Spotify"
-                        />
-                      </button>
-                    </div>
+                        <div className="homev1-actions">
+                          <div className="homev1-skeleton homev1-skeleton-action homev1-skeleton-action-1" />
+                          <div className="homev1-skeleton homev1-skeleton-action homev1-skeleton-action-2" />
+                          <div className="homev1-skeleton homev1-skeleton-action homev1-skeleton-action-3" />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="homev1-user">
+                          {avatar ? (
+                            <img
+                              className="homev1-avatar"
+                              src={avatar}
+                              alt={userName}
+                            />
+                          ) : (
+                            <div className="homev1-avatar" />
+                          )}
+                          <div>
+                            <p className="homev1-name">{userName}</p>
+                            <p className="homev1-place">{placeName}</p>
+                          </div>
+                        </div>
+
+                        <p className="homev1-content">{content}</p>
+
+                        <div className="homev1-actions">
+                          <button
+                            type="button"
+                            className="homev1-action-btn"
+                            onClick={() => handleLikeToggle(post)}
+                            disabled={isLikePending}
+                          >
+                            <img
+                              className="homev1-action-icon"
+                              src={isLiked ? "/heart.fill.svg" : "/heart.empty.svg"}
+                              alt=""
+                              aria-hidden="true"
+                            />
+                            <span>{likeCount}</span>
+                          </button>
+                          <button type="button" className="homev1-action-btn">
+                            <img
+                              className="homev1-action-icon"
+                              src="/bubble.fill.svg"
+                              alt=""
+                              aria-hidden="true"
+                            />
+                            <span>5</span>
+                          </button>
+                          <button type="button" className="homev1-action-btn">
+                            <img
+                              className="homev1-action-icon homev1-action-icon--spotify"
+                              src="/spotify.btn.svg"
+                              alt="Spotify"
+                            />
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
               </article>
@@ -218,7 +252,7 @@ function HomeBlurV1({ feed = [] }) {
           })}
         </div>
 
-        <nav className={`homev1-nav${controlsBlurred ? " is-blurred" : ""}`}>
+        <nav className="homev1-nav">
           <span className="is-active">
             <img
               className="homev1-nav-home-icon"
@@ -227,11 +261,7 @@ function HomeBlurV1({ feed = [] }) {
             />
           </span>
           <span>
-            <img
-              className="homev1-nav-map-icon"
-              src="/map.svg"
-              alt="Map"
-            />
+            <img className="homev1-nav-map-icon" src="/map.svg" alt="Map" />
           </span>
           <span>
             <img
@@ -241,7 +271,7 @@ function HomeBlurV1({ feed = [] }) {
             />
           </span>
         </nav>
-        <button type="button" className={`homev1-fab${controlsBlurred ? " is-blurred" : ""}`}>
+        <button type="button" className="homev1-fab">
           +
         </button>
       </div>
