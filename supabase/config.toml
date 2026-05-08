@@ -438,6 +438,12 @@ entrypoint = "./functions/get-feed/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/get-feed/*.html" ]
 
+[functions.get-user-posts]
+enabled = true
+verify_jwt = true
+import_map = "./functions/get-user-posts/deno.json"
+entrypoint = "./functions/get-user-posts/index.ts"
+
 [functions.recommend-track]
 enabled = true
 verify_jwt = true

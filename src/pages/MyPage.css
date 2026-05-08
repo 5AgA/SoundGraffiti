@@ -1,0 +1,396 @@
+.mypage-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+
+  box-sizing: border-box;
+  background: #f8fbff;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+
+  padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+  padding-top: calc(env(safe-area-inset-top, 0px) + 0px);
+}
+
+.mypage-inner {
+  max-width: 402px;
+  margin: 0 auto;
+
+  /* 홈 `.home-logo`과 동일: 왼쪽 21px · 상단 safe-area + 10px */
+  padding-left: max(21px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-top: 10px;
+}
+
+.mypage-header {
+  padding-left: 0;
+  margin-bottom: 11px;
+}
+
+.mypage-banner-error {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.35;
+  color: #8b2738;
+  background: rgba(230, 70, 90, 0.08);
+}
+
+.mypage-brand {
+  display: block;
+  width: 116px;
+  height: 50px;
+}
+
+.mypage-profile-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 76px;
+  padding: 13px 17px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 14px;
+  margin-bottom: 16px;
+}
+
+.mypage-avatar {
+  flex-shrink: 0;
+  width: 49px;
+  height: 49px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.mypage-avatar--empty {
+  background: linear-gradient(145deg, #dfe8f4 0%, #cfd9e8 100%);
+}
+
+.mypage-profile-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mypage-name {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: #000;
+  line-height: 1.2;
+}
+
+.mypage-handle {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: rgba(0, 0, 0, 0.3);
+  line-height: 1.2;
+}
+
+.mypage-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.mypage-count {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: rgba(0, 0, 0, 0.3);
+  line-height: 1.2;
+}
+
+.mypage-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: rgba(0, 0, 0, 0.3);
+  line-height: 1.2;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mypage-sort:active {
+  opacity: 0.75;
+}
+
+.mypage-sort__chev {
+  opacity: 1;
+  flex-shrink: 0;
+}
+
+.mypage-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 15px;
+  padding-bottom: 8px;
+}
+
+.mypage-grid-status {
+  grid-column: 1 / -1;
+  margin: 24px 0;
+  text-align: center;
+  font-family: var(--sans);
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.38);
+  line-height: 1.4;
+}
+
+.mypage-card {
+  margin: 0;
+  min-width: 0;
+}
+
+.mypage-card__media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 173 / 172;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #e8eef8;
+}
+
+.mypage-card__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mypage-card__placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(160deg, #dce6f5 0%, #b8c9df 45%, #9fb4ce 100%);
+}
+
+.mypage-card__shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(
+    180.4deg,
+    rgba(0, 0, 0, 0) 57.79%,
+    rgba(0, 0, 0, 0.6) 99.66%
+  );
+}
+
+.mypage-card__footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 14px 12px;
+  box-sizing: border-box;
+}
+
+.mypage-card__content {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.38;
+  color: rgba(255, 255, 255, 0.96);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.mypage-card__meta {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mypage-card__place {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1.2;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+.mypage-card__pin {
+  flex-shrink: 0;
+  color: #fff;
+}
+
+.mypage-card__time {
+  flex-shrink: 0;
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+}
+
+/* 로딩 스켈레톤 — 홈 카드와 유사한 회색 블록으로 영역 구분 */
+.mypage-skel {
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.mypage-profile-card--skeleton {
+  pointer-events: none;
+}
+
+.mypage-skel-avatar {
+  width: 49px;
+  height: 49px;
+  border-radius: 50%;
+  background: #d7dce3;
+}
+
+.mypage-skel-profile-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.mypage-skel-name {
+  width: 120px;
+  height: 16px;
+  background: #eef2f7;
+}
+
+.mypage-skel-handle {
+  width: 88px;
+  height: 12px;
+  background: #d9dee6;
+}
+
+.mypage-toolbar--skeleton {
+  pointer-events: none;
+}
+
+.mypage-skel-toolbar-count {
+  width: 92px;
+  height: 15px;
+  background: #d9dee6;
+}
+
+.mypage-skel-toolbar-sort {
+  width: 76px;
+  height: 15px;
+  background: #eef2f7;
+}
+
+.mypage-card--skeleton {
+  pointer-events: none;
+}
+
+.mypage-card__skel-image {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(160deg, #cfd5dd 0%, #bfc8d3 100%);
+}
+
+.mypage-card__skel-shade {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    180.4deg,
+    rgba(0, 0, 0, 0) 52%,
+    rgba(0, 0, 0, 0.07) 100%
+  );
+}
+
+.mypage-card__skel-footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px 14px 12px;
+  box-sizing: border-box;
+}
+
+.mypage-card__skel-bar {
+  height: 11px;
+  border-radius: 6px;
+  max-width: 100%;
+}
+
+.mypage-card__skel-bar--1 {
+  width: 88%;
+  background: #f4f6fa;
+}
+
+.mypage-card__skel-bar--2 {
+  width: 56%;
+  background: #e3e8ef;
+}
+
+.mypage-card__skel-meta-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.mypage-card__skel-chip {
+  height: 11px;
+  border-radius: 6px;
+  width: 70px;
+  background: #eef2f7;
+}
+
+.mypage-card__skel-chip--short {
+  width: 46px;
+  background: #dde3eb;
+}
+
+.mypage-card--skeleton:nth-child(even) .mypage-card__skel-bar--1 {
+  width: 76%;
+}
+
+.mypage-card--skeleton:nth-child(even) .mypage-card__skel-bar--2 {
+  width: 64%;
+}

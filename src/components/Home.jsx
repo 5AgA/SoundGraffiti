@@ -251,29 +251,6 @@ function Home({ feed = [] }) {
             );
           })}
         </div>
-
-        <nav className="home-nav">
-          <span className="is-active">
-            <img
-              className="home-nav-home-icon"
-              src="/house.fill.svg"
-              alt="Home"
-            />
-          </span>
-          <span>
-            <img className="home-nav-map-icon" src="/map.svg" alt="Map" />
-          </span>
-          <span>
-            <img
-              className="home-nav-person-icon"
-              src="/person.svg"
-              alt="Profile"
-            />
-          </span>
-        </nav>
-        <button type="button" className="home-fab">
-          +
-        </button>
       </div>
     </section>
   );

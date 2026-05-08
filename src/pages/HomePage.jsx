@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getFeed } from "../api/posts";
+import BottomNav from "../components/BottomNav";
 import Home from "../components/Home";
 
 export default function HomePage() {
@@ -52,6 +53,7 @@ export default function HomePage() {
         </div>
       )}
       <Home feed={feed} />
+      <BottomNav />
     </>
   );
 }
