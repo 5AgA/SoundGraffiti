@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap");
+
 @font-face {
   font-family: "Akkordeon DEMO";
   font-style: normal;
@@ -9,14 +11,14 @@
 
 .homev1-wrap {
   display: flex;
-  justify-content: center;
-  margin-bottom: 24px;
+  justify-content: flex-start;
+  width: 402px;
+  margin: 0 auto 24px;
 }
 
 .homev1-phone {
   width: 402px;
   height: 874px;
-  border-radius: 40px;
   position: relative;
   overflow: hidden;
   background: #f8fbff;
@@ -114,8 +116,10 @@
 
 .homev1-header {
   position: absolute;
-  left: 21px;
-  top: 58px;
+  top: 0;
+  left: 0;
+  width: 402px;
+  height: 140px;
   z-index: 6;
   text-align: left;
 }
@@ -129,6 +133,17 @@
   letter-spacing: -0.02em;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.homev1-logo {
+  position: absolute;
+  display: block;
+  left: 21px;
+  top: 58px;
+  margin: 0;
+  width: 148px;
+  height: 50px;
+  object-fit: contain;
 }
 
 .homev1-card {
@@ -196,13 +211,15 @@
 .homev1-card-top-shadow {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 25%);
+  /* 위쪽 쉐이드: 60% 지점에서 페이드 종료 */
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.65) 0%, rgba(0, 0, 0, 0) 60%);
 }
 
 .homev1-card-bottom-shadow {
   position: absolute;
   inset: 0;
-  background: linear-gradient(0deg, rgba(0, 0, 0, 0.6) 12%, rgba(0, 0, 0, 0) 32%);
+  /* 아래쪽 쉐이드: 60% 지점에서 페이드 종료 */
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.65) 0%, rgba(0, 0, 0, 0) 60%);
 }
 
 .homev1-user {
@@ -213,6 +230,10 @@
   display: flex;
   gap: 11px;
   align-items: center;
+}
+
+.homev1-user > div {
+  text-align: left;
 }
 
 .homev1-avatar {
@@ -227,12 +248,16 @@
   margin: 0;
   font-size: 16px;
   font-weight: 600;
+  text-align: left;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
 }
 
 .homev1-place {
   margin: 0;
   font-size: 12px;
   opacity: 0.95;
+  text-align: left;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
 }
 
 .homev1-content {
@@ -245,6 +270,7 @@
   font-size: 16px;
   line-height: 1.2;
   text-align: left;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
 }
 
 .homev1-actions {
@@ -260,8 +286,24 @@
   border: 0;
   border-radius: 18px;
   padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.4);
+  background: #ffffff66;
   color: #fff;
+}
+
+.homev1-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.homev1-action-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.homev1-action-icon--spotify {
+  mix-blend-mode: color-dodge;
 }
 
 .homev1-nav {
@@ -271,13 +313,25 @@
   width: 163px;
   height: 56px;
   border-radius: 26.5px;
-  background: rgba(255, 255, 255, 0.8);
+  background: #ffffffcc;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
-  justify-content: space-around;
+  justify-content: flex-start;
+  padding-left: 7px;
+  gap: 16px;
   z-index: 6;
   font-size: 20px;
   color: #a9afb9;
+  transition: filter 180ms ease, opacity 180ms ease;
+  box-sizing: border-box;
+}
+
+.homev1-nav > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .homev1-nav .is-active {
@@ -287,13 +341,32 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
+  background: #0075ff;
   border-radius: 50%;
+}
+
+.homev1-nav-home-icon {
+  width: 28px;
+  height: 23px;
+  display: block;
+}
+
+.homev1-nav-map-icon {
+  width: 25px;
+  height: 23px;
+  display: block;
+}
+
+.homev1-nav-person-icon {
+  width: 22px;
+  height: 23px;
+  display: block;
+  margin-left: 10px;
 }
 
 .homev1-fab {
   position: absolute;
-  right: 22px;
+  left: 324px;
   top: 781px;
   width: 56px;
   height: 56px;
@@ -304,4 +377,11 @@
   font-size: 32px;
   line-height: 1;
   z-index: 6;
+  transition: filter 180ms ease, opacity 180ms ease;
+}
+
+.homev1-nav.is-blurred,
+.homev1-fab.is-blurred {
+  filter: blur(6px);
+  opacity: 0.68;
 }

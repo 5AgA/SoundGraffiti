@@ -5,6 +5,10 @@ export const toggleLike = async (postId, userId) => {
     body: { postId, userId }
   })
 
-  if (error) console.error(error)
+  if (error) {
+    console.error(error)
+    return { error }
+  }
+
   return data
 }

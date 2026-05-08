@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
       post_id,
       content,
       post_created,
-      Users (user_name),
+      Users (user_name, user_profile_url),
       Places (place_name),
       Tracks (track_title, artist_name, album_image_url, preview_url, duration_ms),
       PostMedia (media_url),

@@ -1,11 +1,17 @@
 import { useEffect, useRef, useState } from "react";
+import { toggleLike } from "../api/likes";
+import { useAuth } from "../contexts/AuthContext";
 import "./HomeBlurV1.css";
 
 function HomeBlurV1({ feed = [] }) {
   const posts = feed.length > 0 ? feed : [null];
   const [activeIndex, setActiveIndex] = useState(0);
+  const [likeStateByPostId, setLikeStateByPostId] = useState({});
+  const [controlsBlurred, setControlsBlurred] = useState(false);
   const cardRefs = useRef([]);
   const feedScrollRef = useRef(null);
+  const prevScrollTopRef = useRef(0);
+  const { user } = useAuth();
 
   useEffect(() => {
     if (activeIndex > posts.length - 1) {
@@ -36,7 +42,18 @@ function HomeBlurV1({ feed = [] }) {
   };
 
   const handleFeedScroll = (e) => {
-    updateActiveFromScroll(e.currentTarget);
+    const root = e.currentTarget;
+    updateActiveFromScroll(root);
+
+    const currentTop = root.scrollTop;
+    const prevTop = prevScrollTopRef.current;
+    const delta = currentTop - prevTop;
+
+    // 스크롤 방향에 따라 하단 컨트롤 시각효과 전환
+    if (Math.abs(delta) > 2) {
+      setControlsBlurred(delta > 0);
+    }
+    prevScrollTopRef.current = currentTop;
   };
 
   useEffect(() => {
@@ -44,6 +61,41 @@ function HomeBlurV1({ feed = [] }) {
     if (!root) return;
     updateActiveFromScroll(root);
   }, [posts.length]);
+
+  const handleLikeToggle = async (post) => {
+    const postId = post?.post_id;
+    const userId = user?.id;
+    if (!postId || !userId) return;
+
+    const likes = Array.isArray(post?.Likes) ? post.Likes : [];
+    const serverLiked = likes.some((like) => like?.user_id === userId);
+    const serverCount = likes.length;
+    const currentState = likeStateByPostId[postId];
+    const isLiked = currentState?.liked ?? serverLiked;
+    const likeCount = currentState?.count ?? serverCount;
+    const nextLiked = !isLiked;
+    const nextCount = Math.max(0, likeCount + (nextLiked ? 1 : -1));
+
+    // Optimistic UI update: 아이콘/카운트 즉시 반영
+    setLikeStateByPostId((prev) => ({
+      ...prev,
+      [postId]: { liked: nextLiked, count: nextCount, pending: true },
+    }));
+
+    const result = await toggleLike(postId, userId);
+    if (result?.error) {
+      setLikeStateByPostId((prev) => ({
+        ...prev,
+        [postId]: { liked: isLiked, count: likeCount, pending: false },
+      }));
+      return;
+    }
+
+    setLikeStateByPostId((prev) => ({
+      ...prev,
+      [postId]: { liked: nextLiked, count: nextCount, pending: false },
+    }));
+  };
 
   return (
     <section className="homev1-wrap">
@@ -60,7 +112,11 @@ function HomeBlurV1({ feed = [] }) {
         <div className="homev1-bottom-fade" />
 
         <header className="homev1-header">
-          <h1>Soundgraffiti</h1>
+          <img
+            className="homev1-logo"
+            src="/Soundgraffiti.svg"
+            alt="Soundgraffiti"
+          />
         </header>
 
         <div
@@ -70,18 +126,25 @@ function HomeBlurV1({ feed = [] }) {
         >
           {posts.map((post, idx) => {
             const albumArt = post?.Tracks?.album_image_url || "";
+            // Avatar는 user_profile_url을 최우선으로 사용
             const avatar =
-              post?.user_profile_url ||
-              post?.profile_image_url ||
               post?.Users?.user_profile_url ||
+              post?.user_profile_url ||
               post?.Users?.profile_image_url ||
+              post?.profile_image_url ||
               "";
             const userName = post?.Users?.user_name || "UserId1234";
             const placeName = post?.Places?.place_name || "서울 홍대입구역";
             const content =
               post?.content ||
               "이 공간에는 르세라핌 'Spaghetti'처럼 텐션 있는 음악이 어울려요.";
-            const likeCount = post?.Likes?.length || 12;
+            const likes = Array.isArray(post?.Likes) ? post.Likes : [];
+            const postId = post?.post_id;
+            const serverLiked = likes.some((like) => like?.user_id === user?.id);
+            const localLikeState = postId ? likeStateByPostId[postId] : null;
+            const likeCount = localLikeState?.count ?? likes.length ?? 12;
+            const isLiked = localLikeState?.liked ?? serverLiked;
+            const isLikePending = localLikeState?.pending ?? false;
             const isActive = idx === activeIndex;
 
             return (
@@ -117,9 +180,36 @@ function HomeBlurV1({ feed = [] }) {
                     <p className="homev1-content">{content}</p>
 
                     <div className="homev1-actions">
-                      <button type="button">♥ {likeCount}</button>
-                      <button type="button">💬 5</button>
-                      <button type="button">🎵</button>
+                      <button
+                        type="button"
+                        className="homev1-action-btn"
+                        onClick={() => handleLikeToggle(post)}
+                        disabled={isLikePending}
+                      >
+                        <img
+                          className="homev1-action-icon"
+                          src={isLiked ? "/heart.fill.svg" : "/heart.empty.svg"}
+                          alt=""
+                          aria-hidden="true"
+                        />
+                        <span>{likeCount}</span>
+                      </button>
+                      <button type="button" className="homev1-action-btn">
+                        <img
+                          className="homev1-action-icon"
+                          src="/bubble.fill.svg"
+                          alt=""
+                          aria-hidden="true"
+                        />
+                        <span>5</span>
+                      </button>
+                      <button type="button" className="homev1-action-btn">
+                        <img
+                          className="homev1-action-icon homev1-action-icon--spotify"
+                          src="/spotify.btn.svg"
+                          alt="Spotify"
+                        />
+                      </button>
                     </div>
                   </>
                 )}
@@ -128,12 +218,30 @@ function HomeBlurV1({ feed = [] }) {
           })}
         </div>
 
-        <nav className="homev1-nav">
-          <span className="is-active">⌂</span>
-          <span>⌘</span>
-          <span>◦</span>
+        <nav className={`homev1-nav${controlsBlurred ? " is-blurred" : ""}`}>
+          <span className="is-active">
+            <img
+              className="homev1-nav-home-icon"
+              src="/house.fill.svg"
+              alt="Home"
+            />
+          </span>
+          <span>
+            <img
+              className="homev1-nav-map-icon"
+              src="/map.svg"
+              alt="Map"
+            />
+          </span>
+          <span>
+            <img
+              className="homev1-nav-person-icon"
+              src="/person.svg"
+              alt="Profile"
+            />
+          </span>
         </nav>
-        <button type="button" className="homev1-fab">
+        <button type="button" className={`homev1-fab${controlsBlurred ? " is-blurred" : ""}`}>
           +
         </button>
       </div>
