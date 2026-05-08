@@ -1,10 +1,12 @@
 import { supabase } from '../supabaseClient'
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./Login.css";
 
 export default function Login({ active = false }) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const navigate = useNavigate();
 
     const handleEmailPasswordLogin = async (e) => {
         e.preventDefault();
@@ -16,7 +18,10 @@ export default function Login({ active = false }) {
 
         if (error) {
             alert("사용자가 존재하지 않거나 비밀번호가 틀렸습니다.");
+            return;
         }
+
+        navigate("/home");
     };
 
     const handleEnterSubmit = async (e) => {
@@ -30,7 +35,7 @@ export default function Login({ active = false }) {
             provider: 'spotify',
             options: {
                 scopes: 'user-read-email user-read-private streaming user-modify-playback-state user-read-playback-state',
-                redirectTo: `${window.location.origin}/`,
+                redirectTo: `${window.location.origin}/home`,
             },
         })
         if (error) {
@@ -43,7 +48,7 @@ export default function Login({ active = false }) {
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: `${window.location.origin}/`,
+                redirectTo: `${window.location.origin}/home`,
             },
         })
         if (error) {
@@ -56,7 +61,7 @@ export default function Login({ active = false }) {
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'kakao',
             options: {
-                redirectTo: `${window.location.origin}/`,
+                redirectTo: `${window.location.origin}/home`,
             },
         })
         if (error) {

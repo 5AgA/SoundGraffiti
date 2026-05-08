@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { toggleLike } from "../api/likes";
 import { useAuth } from "../contexts/AuthContext";
-import "./HomeBlurV1.css";
+import "./Home.css";
 
-function HomeBlurV1({ feed = [] }) {
+function Home({ feed = [] }) {
   const isLoading = feed.length === 0;
   const posts = isLoading ? [null] : feed;
   const [activeIndex, setActiveIndex] = useState(0);
@@ -279,4 +279,4 @@ function HomeBlurV1({ feed = [] }) {
   );
 }
 
-export default HomeBlurV1;
+export default Home;

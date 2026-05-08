@@ -32,7 +32,7 @@
 
 .app-graffiti.at-landing {
   top: 50%;
-  width: 100vw;
+  width: min(480px, 100vw);
   transform: translate(-50%, -50%);
 }
 
