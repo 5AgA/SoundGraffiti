@@ -1,6 +1,30 @@
 import { supabase } from '../supabaseClient'
+import { useState } from "react";
+import "./Login.css";
 
-export default function Login() {
+export default function Login({ active = false }) {
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+
+    const handleEmailPasswordLogin = async (e) => {
+        e.preventDefault();
+
+        const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
+
+        if (error) {
+            alert("사용자가 존재하지 않거나 비밀번호가 틀렸습니다.");
+        }
+    };
+
+    const handleEnterSubmit = async (e) => {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        await handleEmailPasswordLogin(e);
+    };
+
     const handleSpotifyLogin = async () => {
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'spotify',
@@ -42,54 +66,62 @@ export default function Login() {
     }
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <button
-                onClick={handleSpotifyLogin}
-                style={{
-                    padding: '12px 24px',
-                    backgroundColor: '#1DB954',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '24px',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                }}
-            >
-                Spotify로 로그인
-            </button>
+      <section className="login-wrap">
+        <div className="login-phone">
+          <form className={`login-form${active ? " is-visible" : ""}`} onSubmit={handleEmailPasswordLogin}>
+            <input
+              className="login-input"
+              placeholder="이메일을 입력하세요."
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={handleEnterSubmit}
+              autoComplete="email"
+            />
+            <input
+              className="login-input"
+              placeholder="패스워드를 입력하세요."
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={handleEnterSubmit}
+              autoComplete="current-password"
+            />
+          </form>
 
-            <button
-                onClick={handleGoogleLogin}
-                style={{
-                    padding: '12px 24px',
-                    backgroundColor: '#fff',
-                    color: '#444',
-                    border: '1px solid #ddd',
-                    borderRadius: '24px',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                }}
-            >
-                Google로 로그인
-            </button>
+          <div className={`login-social${active ? " is-visible" : ""}`}>
+            <div className="login-social-item">
+              <button className="login-social-btn" onClick={handleKakaoLogin} type="button">
+                <img className="login-social-icon" src="/signup_kakao_light.svg" alt="Kakao 로그인" />
+              </button>
+              <p className="login-social-label">KAKAO로
+                <br />
+                로그인
+              </p>
+            </div>
 
-            <button
-                onClick={handleKakaoLogin}
-                style={{
-                    padding: '12px 24px',
-                    backgroundColor: '#FEE500',
-                    color: '#000',
-                    border: 'none',
-                    borderRadius: '24px',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                }}
-            >
-                카카오로 로그인
-            </button>
+            <div className="login-social-item">
+              <button className="login-social-btn" onClick={handleSpotifyLogin} type="button">
+                <img className="login-social-icon" src="/signup_spotify_light.svg" alt="Spotify 로그인" />
+              </button>
+              <p className="login-social-label">Spotify로
+                <br />
+                로그인
+              </p>
+            </div>
+
+            <div className="login-social-item">
+              <button className="login-social-btn" onClick={handleGoogleLogin} type="button">
+                <img className="login-social-icon" src="/signup_google_light.svg" alt="Google 로그인" />
+              </button>
+              <p className="login-social-label">Google로
+                <br />
+                로그인
+              </p>
+            </div>
+          </div>
+
         </div>
+      </section>
     )
 }

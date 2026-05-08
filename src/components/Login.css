@@ -1,0 +1,133 @@
+.login-wrap {
+  position: relative;
+  width: 100%;
+  min-height: 100dvh;
+  background: #e2eaf6;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+}
+
+.login-phone {
+  position: relative;
+  width: min(100%, 402px);
+  min-height: 100dvh;
+}
+
+.login-form {
+  position: absolute;
+  left: 50%;
+  top: 67%;
+  transform: translate(-50%, 26px);
+  width: 338px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  opacity: 0;
+  transition:
+    transform 700ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    opacity 500ms ease;
+}
+
+.login-input {
+  height: 56px;
+  border: 0;
+  border-radius: 8px;
+  background: #e5ebf1;
+  padding: 0 18px;
+  font-family: "Pretendard", "Segoe UI", Roboto, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.64px;
+  color: #302e42;
+}
+
+.login-input::placeholder {
+  color: #302e42;
+  opacity: 0.4;
+}
+
+.login-social {
+  position: absolute;
+  left: 50%;
+  top: 88%;
+  transform: translate(-50%, 22px);
+  display: flex;
+  gap: 26px;
+  opacity: 0;
+  transition:
+    transform 760ms cubic-bezier(0.22, 0.61, 0.36, 1) 90ms,
+    opacity 540ms ease 90ms;
+}
+
+.login-social-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.login-social-btn {
+  width: 33px;
+  height: 33px;
+  border-radius: 50%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-social-icon {
+  width: 33px;
+  height: 33px;
+  display: block;
+}
+
+.login-social-label {
+  margin: 0;
+  color: #302e42;
+  text-align: center;
+  font-family: "Pretendard", "Segoe UI", Roboto, sans-serif;
+  font-size: 8px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.32px;
+  opacity: 0.6;
+}
+
+.login-copy {
+  position: absolute;
+  bottom: 26px;
+  left: 50%;
+  transform: translate(-50%, 18px);
+  color: #fff;
+  opacity: 0.5;
+  text-align: center;
+  font-family: "Helvetica Neue LT Pro", "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: -0.48px;
+  transition: transform 700ms cubic-bezier(0.22, 0.61, 0.36, 1) 140ms;
+}
+
+.login-copy p {
+  margin: 0;
+}
+
+.login-form.is-visible {
+  transform: translate(-50%, 0);
+  opacity: 1;
+}
+
+.login-social.is-visible {
+  transform: translate(-50%, 0);
+  opacity: 1;
+}
+
+.login-copy.is-visible {
+  transform: translate(-50%, 0);
+}

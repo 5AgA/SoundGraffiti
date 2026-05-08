@@ -33,11 +33,14 @@
 }
 
 html,
-body {
-  height: 100dvh;
-  overflow: hidden;
+body,
+#root {
+  height: 100%;
+  width: 100%;
   margin: 0;
   padding: 0;
+  overflow: hidden;
+  background-color: var(--bg);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -61,16 +64,17 @@ body {
 }
 
 #root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  padding-top: env(safe-area-inset-top);
-  text-align: center;
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding-top: 0 !important;
+
   height: 100dvh;
-  overflow: hidden;
+  position: relative;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 h1,
