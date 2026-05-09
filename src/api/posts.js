@@ -35,6 +35,45 @@ export const getFeed = async () => {
 }
 
 /**
+ * 현재 위치 기준 주변 포스트 (Edge: get-nearby-posts → RPC get_nearby_posts, 기본 반경 200m)
+ * @param {number} latitude
+ * @param {number} longitude
+ * @returns {Promise<{ posts: unknown[], error?: string }>}
+ */
+export async function getNearbyPosts(latitude, longitude) {
+  const { data, error } = await supabase.functions.invoke('get-nearby-posts', {
+    body: { latitude, longitude },
+  })
+
+  if (error) {
+    console.error('get-nearby-posts:', error)
+    let message = error.message ?? '주변 피드를 불러오지 못했습니다.'
+    try {
+      const ctx = error.context
+      if (ctx != null) {
+        const parsed =
+          typeof ctx === 'object' && ctx.body != null
+            ? typeof ctx.body === 'string'
+              ? JSON.parse(ctx.body)
+              : ctx.body
+            : null
+        if (parsed?.error) message = String(parsed.error)
+      }
+    } catch {
+      /* keep message */
+    }
+    return { posts: [], error: message }
+  }
+
+  if (data && typeof data === 'object' && data.error) {
+    return { posts: [], error: String(data.error) }
+  }
+
+  const posts = Array.isArray(data?.posts) ? data.posts : []
+  return { posts, error: undefined }
+}
+
+/**
  * 특정 유저의 게시글 목록 (피드와 동일 조건). Edge Function 미배포·실패 시 클라이언트 직조회 폴백.
  * @param {number} userId
  */

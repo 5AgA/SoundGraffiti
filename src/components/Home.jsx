@@ -25,9 +25,10 @@ function commentsFromPost(post) {
   return Array.isArray(raw) ? raw : [raw];
 }
 
-function Home({ feed = [] }) {
-  const isLoading = feed.length === 0;
-  const posts = isLoading ? [null] : feed;
+/** feed 가 null 이면 로딩 중, 배열이면 로딩 완료(빈 배열 가능) */
+function Home({ feed = null, feedEmptyDetail = null }) {
+  const isLoading = feed === null;
+  const list = isLoading ? [null] : feed;
   const [activeIndex, setActiveIndex] = useState(0);
   const [likeStateByPostId, setLikeStateByPostId] = useState({});
   const cardRefs = useRef([]);
@@ -36,12 +37,12 @@ function Home({ feed = [] }) {
   const likeUserId = user?.id ?? TEMP_LIKE_USER_ID;
 
   useEffect(() => {
-    if (activeIndex > posts.length - 1) {
+    if (activeIndex > list.length - 1) {
       setActiveIndex(0);
     }
-  }, [activeIndex, posts.length]);
+  }, [activeIndex, list.length]);
 
-  const blurBackground = posts[activeIndex]?.Tracks?.album_image_url || "";
+  const blurBackground = list[activeIndex]?.Tracks?.album_image_url || "";
 
   const updateActiveFromScroll = (root) => {
     if (!root) return;
@@ -49,7 +50,7 @@ function Home({ feed = [] }) {
     const centerY = rootRect.top + rootRect.height / 2;
     let bestIdx = 0;
     let bestDist = Infinity;
-    posts.forEach((_, idx) => {
+    list.forEach((_, idx) => {
       const node = cardRefs.current[idx];
       if (!node) return;
       const r = node.getBoundingClientRect();
@@ -71,7 +72,7 @@ function Home({ feed = [] }) {
     const root = feedScrollRef.current;
     if (!root) return;
     updateActiveFromScroll(root);
-  }, [posts.length]);
+  }, [list.length]);
 
   const handleLikeToggle = async (post) => {
     const postId = post?.post_id;
@@ -140,7 +141,13 @@ function Home({ feed = [] }) {
           ref={feedScrollRef}
           onScroll={handleFeedScroll}
         >
-          {posts.map((post, idx) => {
+          {!isLoading && list.length === 0 ? (
+            <p className="home-feed-empty" role="status">
+              {feedEmptyDetail ??
+                "주변 200m 안에 포스트가 없어요."}
+            </p>
+          ) : null}
+          {list.map((post, idx) => {
             const isSkeleton = isLoading;
             const albumArt = post?.Tracks?.album_image_url || "";
             const userData = Array.isArray(post?.Users)
