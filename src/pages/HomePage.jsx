@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getNearbyPosts } from "../api/posts";
 import BottomNav from "../components/BottomNav";
 import Home from "../components/Home";
@@ -9,31 +9,49 @@ export default function HomePage() {
   const [feed, setFeed] = useState(null);
   const [feedLoadError, setFeedLoadError] = useState(null);
 
+  const coordsRef = useRef(null);
+  const isMountedRef = useRef(true);
+
   useEffect(() => {
-    let isMounted = true;
-
-    const runWithCoords = async (lat, lng) => {
-      setFeedLoadError(null);
-      const { posts, error } = await getNearbyPosts(lat, lng);
-      if (!isMounted) return;
-      if (error) {
-        console.error("Nearby feed:", error);
-        setFeedLoadError(error);
-        setFeed([]);
-        return;
-      }
-      setFeed(Array.isArray(posts) ? posts : []);
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
     };
+  }, []);
 
+  const applyPostsResult = (posts, error) => {
+    if (!isMountedRef.current) return;
+    if (error) {
+      console.error("Nearby feed:", error);
+      setFeedLoadError(error);
+      setFeed([]);
+      return;
+    }
+    setFeedLoadError(null);
+    setFeed(Array.isArray(posts) ? posts : []);
+  };
+
+  const fetchNearby = async (lat, lng) => {
+    coordsRef.current = { lat, lng };
+    const { posts, error } = await getNearbyPosts(lat, lng);
+    applyPostsResult(posts, error);
+  };
+
+  const refreshFeed = useCallback(async () => {
+    const c = coordsRef.current;
+    if (!c) return;
+    const { posts, error } = await getNearbyPosts(c.lat, c.lng);
+    applyPostsResult(posts, error);
+  }, []);
+
+  useEffect(() => {
     const insecure =
       typeof window !== "undefined" && !window.isSecureContext;
     const devCoords = getDevGeoCoordinates();
 
     if (insecure && devCoords) {
-      void runWithCoords(devCoords.lat, devCoords.lng);
-      return () => {
-        isMounted = false;
-      };
+      void fetchNearby(devCoords.lat, devCoords.lng);
+      return;
     }
 
     if (insecure && !devCoords) {
@@ -41,25 +59,21 @@ export default function HomePage() {
         "HTTP(비보안)에서는 위치 API를 쓸 수 없습니다. .env.local 에 VITE_DEV_GEO_COORDS=위도,경도 를 넣고 dev 서버를 다시 실행해 주세요.",
       );
       setFeed([]);
-      return () => {
-        isMounted = false;
-      };
+      return;
     }
 
     if (!navigator.geolocation) {
       setFeedLoadError("이 기기에서는 위치를 사용할 수 없습니다.");
       setFeed([]);
-      return () => {
-        isMounted = false;
-      };
+      return;
     }
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        void runWithCoords(pos.coords.latitude, pos.coords.longitude);
+        void fetchNearby(pos.coords.latitude, pos.coords.longitude);
       },
       () => {
-        if (!isMounted) return;
+        if (!isMountedRef.current) return;
         setFeedLoadError(
           "위치를 허용해야 주변 피드를 불러올 수 있습니다. 브라우저 설정에서 위치 권한을 확인해 주세요.",
         );
@@ -71,10 +85,6 @@ export default function HomePage() {
         maximumAge: 120000,
       },
     );
-
-    return () => {
-      isMounted = false;
-    };
   }, []);
 
   return (
@@ -106,6 +116,7 @@ export default function HomePage() {
             ? "위치·네트워크를 확인해 주세요. (상단 안내 참고)"
             : null
         }
+        onPullRefresh={refreshFeed}
       />
       <BottomNav />
     </>
