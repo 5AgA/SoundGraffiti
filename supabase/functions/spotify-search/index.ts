@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  const { query } = await req.json()
+  const { query, offset = 0 } = await req.json()
 
   const clientId = Deno.env.get('SPOTIFY_CLIENT_ID')
   const clientSecret = Deno.env.get('SPOTIFY_CLIENT_SECRET')
@@ -25,10 +25,11 @@ Deno.serve(async (req) => {
   const tokenData = await tokenResponse.json()
 
   const searchResponse = await fetch(
-    `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`,
+    `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10&offset=` + offset,
     {
       headers: {
-        'Authorization': `Bearer ${tokenData.access_token}`
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7'
       }
     }
   )

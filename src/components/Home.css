@@ -362,3 +362,247 @@
 .home-action-icon--spotify {
   mix-blend-mode: color-dodge;
 }
+
+.home-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 댓글 바텀시트 (Figma home ver.1 댓글 패널) */
+.home-comment-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.home-comment-overlay .home-comment-backdrop,
+.home-comment-overlay .home-comment-sheet {
+  pointer-events: auto;
+}
+
+.home-comment-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.home-comment-sheet {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  max-height: min(520px, 58vh);
+  width: 100%;
+  border-radius: 30px 30px 0 0;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 -8px 40px rgba(27, 35, 54, 0.12);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  will-change: transform;
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.home-comment-sheet--dragging {
+  transition: none;
+}
+
+.home-comment-handle-zone {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px 48px 10px;
+  touch-action: none;
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.home-comment-handle-zone:active {
+  cursor: grabbing;
+}
+
+.home-comment-handle {
+  align-self: center;
+  width: 46px;
+  height: 5px;
+  margin: 0;
+  border-radius: 2px;
+  background: #545454;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.home-comment-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 21px 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.home-comment-skel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.home-comment-skel-row {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 10px 0;
+}
+
+.home-comment-skel-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #d7dce3;
+}
+
+.home-comment-skel-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.home-comment-skel-side {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+  padding-top: 2px;
+}
+
+.home-comment-skel-line {
+  border-radius: 6px;
+}
+
+.home-comment-skel-line--name {
+  width: 72px;
+  height: 11px;
+  background: #dde3eb;
+}
+
+.home-comment-skel-line--body {
+  width: 92%;
+  height: 13px;
+  background: #e8ecf2;
+}
+
+.home-comment-skel-line--meta {
+  width: 38px;
+  height: 10px;
+  background: #dde3eb;
+}
+
+.home-comment-skel-line--meta2 {
+  width: 56px;
+  height: 11px;
+  background: #cfd6e0;
+}
+
+.home-comment-composer {
+  flex-shrink: 0;
+  background: #efeff0;
+  padding: 12px 15px calc(14px + env(safe-area-inset-bottom, 0px));
+}
+
+.home-comment-composer-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.home-comment-composer-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.home-comment-composer-avatar--empty {
+  background: #e2e4e8;
+}
+
+.home-comment-input-wrap {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.home-comment-input {
+  width: 100%;
+  min-height: 48px;
+  max-height: 120px;
+  resize: none;
+  border: 0;
+  border-radius: 22px;
+  padding: 14px 14px 14px 16px;
+  box-sizing: border-box;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  color: #565656;
+  background: #fff;
+  line-height: 1.25;
+}
+
+.home-comment-input::placeholder {
+  color: rgba(86, 86, 86, 0.4);
+}
+
+.home-comment-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 117, 255, 0.25);
+}
+
+.home-comment-send {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #545454;
+  color: #fff;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s ease;
+}
+
+.home-comment-send:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.home-comment-send:not(:disabled):active {
+  opacity: 0.85;
+}

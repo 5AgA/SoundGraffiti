@@ -6,6 +6,7 @@ import Home from "../components/Home";
 export default function HomePage() {
   const [feed, setFeed] = useState([]);
   const [feedLoadError, setFeedLoadError] = useState(null);
+  const [commentSheetOpen, setCommentSheetOpen] = useState(false);
 
   // TEMP: 로그인 미구현 상태라 홈 접근 가드는 잠시 비활성화
   // const { user } = useAuth();
@@ -52,8 +53,8 @@ export default function HomePage() {
           {feedLoadError}
         </div>
       )}
-      <Home feed={feed} />
-      <BottomNav />
+      <Home feed={feed} onCommentSheetOpenChange={setCommentSheetOpen} />
+      {!commentSheetOpen && <BottomNav />}
     </>
   );
 }
