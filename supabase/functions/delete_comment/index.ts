@@ -1,8 +1,17 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const corsHeaders = {
+const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, apikey, content-type, prefer, baggage, sentry-trace',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
 }
 
 Deno.serve(async (req) => {
@@ -13,19 +22,17 @@ Deno.serve(async (req) => {
   try {
     const { commentId, userId } = await req.json()
 
-    if (!commentId || !userId) {
-      return new Response(JSON.stringify({ error: '필수값 누락' }), {
-        status: 400,
-        headers: corsHeaders,
-      })
+    if (!commentId || userId == null || userId === '') {
+      return json({ error: '필수값 누락' }, 400)
     }
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
-    // 1. 댓글 조회
+    const actorId = Number(userId)
+
     const { data: comment, error: commentError } = await supabase
       .from('Comments')
       .select('comment_id, user_id, comment_deleted')
@@ -33,29 +40,18 @@ Deno.serve(async (req) => {
       .single()
 
     if (commentError || !comment) {
-      return new Response(JSON.stringify({ error: '댓글 없음' }), {
-        status: 404,
-        headers: corsHeaders,
-      })
+      return json({ error: '댓글 없음' }, 404)
     }
 
-    // 2. 이미 삭제된 경우
     if (comment.comment_deleted) {
-      return new Response(JSON.stringify({ error: '이미 삭제된 댓글' }), {
-        status: 400,
-        headers: corsHeaders,
-      })
+      return json({ error: '이미 삭제된 댓글' }, 400)
     }
 
-    // 3. 작성자 검증
-    if (comment.user_id !== userId) {
-      return new Response(JSON.stringify({ error: '삭제 권한 없음' }), {
-        status: 403,
-        headers: corsHeaders,
-      })
+    const ownerId = Number(comment.user_id)
+    if (!Number.isFinite(actorId) || actorId !== ownerId) {
+      return json({ error: '삭제 권한 없음' }, 403)
     }
 
-    // 4. soft delete
     const { data, error } = await supabase
       .from('Comments')
       .update({
@@ -67,19 +63,12 @@ Deno.serve(async (req) => {
       .single()
 
     if (error) {
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 400,
-        headers: corsHeaders,
-      })
+      return json({ error: error.message }, 400)
     }
 
-    return new Response(JSON.stringify(data), {
-      headers: corsHeaders,
-    })
+    return json(data, 200)
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), {
-      status: 500,
-      headers: corsHeaders,
-    })
+    const msg = e instanceof Error ? e.message : String(e)
+    return json({ error: msg }, 500)
   }
 })

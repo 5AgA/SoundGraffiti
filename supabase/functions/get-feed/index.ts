@@ -26,7 +26,15 @@ Deno.serve(async (req) => {
       Tracks (track_title, artist_name, album_image_url, preview_url, duration_ms),
       PostMedia (media_url),
       Likes (like_id, user_id, Users (user_name)),
-      Comments (comment_id, comment_deleted)
+      Comments (
+        comment_id,
+        user_id,
+        comment_deleted,
+        content,
+        comment_created,
+        parent_comment_id,
+        Users (user_id, user_name, user_profile_url)
+      )
     `)
     .is('post_deleted', null)
     .in('status', ['published', 'draft'])

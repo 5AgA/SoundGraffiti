@@ -3,6 +3,26 @@ import { supabase } from '../supabaseClient'
 
 const AuthContext = createContext(null)
 
+/** TEMP: 앱 Users.user_id 와 맞추기 위해 세션과 무관하게 id 고정 */
+const FIXED_APP_USER_ID = 3
+
+function resolveAuthUser(session) {
+  const base = session?.user ?? null
+
+  if (base) {
+    return { ...base, id: FIXED_APP_USER_ID }
+  }
+
+  return {
+    id: FIXED_APP_USER_ID,
+    aud: 'authenticated',
+    role: 'authenticated',
+    email: 'dev-local@soundgraffiti.invalid',
+    app_metadata: {},
+    user_metadata: {},
+  }
+}
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -27,7 +47,7 @@ export function AuthProvider({ children }) {
 
   const value = {
     session,
-    user: session?.user ?? null,
+    user: resolveAuthUser(session),
     // where to retrieve spotify access token for API calls
     spotifyToken: session?.provider_token ?? null,
     loading,

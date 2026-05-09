@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getFeed } from "../api/posts";
 import BottomNav from "../components/BottomNav";
 import Home from "../components/Home";
@@ -34,6 +34,15 @@ export default function HomePage() {
     };
   }, []);
 
+  const refreshFeed = useCallback(async () => {
+    try {
+      const data = await getFeed();
+      setFeed(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Failed to refresh feed:", error);
+    }
+  }, []);
+
   return (
     <>
       {feedLoadError && (
@@ -53,7 +62,11 @@ export default function HomePage() {
           {feedLoadError}
         </div>
       )}
-      <Home feed={feed} onCommentSheetOpenChange={setCommentSheetOpen} />
+      <Home
+        feed={feed}
+        onCommentSheetOpenChange={setCommentSheetOpen}
+        onCommentCreated={refreshFeed}
+      />
       {!commentSheetOpen && <BottomNav />}
     </>
   );
