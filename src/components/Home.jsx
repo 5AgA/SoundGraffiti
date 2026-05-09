@@ -3,6 +3,27 @@ import { toggleLike } from "../api/likes";
 import { useAuth } from "../contexts/AuthContext";
 import "./Home.css";
 
+const TEMP_LIKE_USER_ID = 1;
+
+/** Supabase 중첩 Likes: 배열 | 단일 행 | 없음 */
+function likesFromPost(post) {
+  const raw = post?.Likes ?? post?.likes;
+  if (raw == null) return [];
+  return Array.isArray(raw) ? raw : [raw];
+}
+
+function userMatchesLike(like, userId) {
+  if (userId == null || like?.user_id == null) return false;
+  return String(like.user_id) === String(userId);
+}
+
+/** Supabase 중첩 Comments: 배열 | 단일 행 | 없음 */
+function commentsFromPost(post) {
+  const raw = post?.Comments ?? post?.comments;
+  if (raw == null) return [];
+  return Array.isArray(raw) ? raw : [raw];
+}
+
 function Home({ feed = [] }) {
   const isLoading = feed.length === 0;
   const posts = isLoading ? [null] : feed;
@@ -11,6 +32,7 @@ function Home({ feed = [] }) {
   const cardRefs = useRef([]);
   const feedScrollRef = useRef(null);
   const { user } = useAuth();
+  const likeUserId = user?.id ?? TEMP_LIKE_USER_ID;
 
   useEffect(() => {
     if (activeIndex > posts.length - 1) {
@@ -52,11 +74,11 @@ function Home({ feed = [] }) {
 
   const handleLikeToggle = async (post) => {
     const postId = post?.post_id;
-    const userId = user?.id;
+    const userId = likeUserId;
     if (!postId || !userId) return;
 
-    const likes = Array.isArray(post?.Likes) ? post.Likes : [];
-    const serverLiked = likes.some((like) => like?.user_id === userId);
+    const likes = likesFromPost(post);
+    const serverLiked = likes.some((like) => userMatchesLike(like, userId));
     const serverCount = likes.length;
     const currentState = likeStateByPostId[postId];
     const isLiked = currentState?.liked ?? serverLiked;
@@ -135,15 +157,21 @@ function Home({ feed = [] }) {
             const content =
               post?.content ||
               "이 공간에는 르세라핌 'Spaghetti'처럼 텐션 있는 음악이 어울려요.";
-            const likes = Array.isArray(post?.Likes) ? post.Likes : [];
+            const likes = likesFromPost(post);
             const postId = post?.post_id;
-            const serverLiked = likes.some(
-              (like) => like?.user_id === user?.id,
+            const serverLiked = likes.some((like) =>
+              userMatchesLike(like, likeUserId),
             );
-            const localLikeState = postId ? likeStateByPostId[postId] : null;
-            const likeCount = localLikeState?.count ?? likes.length ?? 12;
+            const localLikeState =
+              postId != null ? likeStateByPostId[postId] : null;
+            const serverLikeCount = likes.length;
+            const likeCount =
+              typeof localLikeState?.count === "number"
+                ? localLikeState.count
+                : serverLikeCount;
             const isLiked = localLikeState?.liked ?? serverLiked;
             const isLikePending = localLikeState?.pending ?? false;
+            const commentCount = commentsFromPost(post).length;
             const isActive = idx === activeIndex;
 
             return (
@@ -233,9 +261,12 @@ function Home({ feed = [] }) {
                               alt=""
                               aria-hidden="true"
                             />
-                            <span>5</span>
+                            <span>{commentCount}</span>
                           </button>
-                          <button type="button" className="home-action-btn">
+                          <button
+                            type="button"
+                            className="home-action-btn home-action-btn--spotify"
+                          >
                             <img
                               className="home-action-icon home-action-icon--spotify"
                               src="/spotify.btn.svg"

@@ -336,8 +336,15 @@
   border: 0;
   border-radius: 18px;
   padding: 6px 12px;
-  background: #ffffff66;
+  background: #68676a;
   color: #fff;
+}
+
+.home-actions button.home-action-btn--spotify {
+  border-radius: 50px;
+  width: 28.8px;
+  height: 28.8px;
+  justify-content: center;
 }
 
 .home-action-btn {
