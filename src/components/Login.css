@@ -14,43 +14,10 @@
   min-height: 100dvh;
 }
 
-.login-form {
-  position: absolute;
-  left: 50%;
-  top: 67%;
-  transform: translate(-50%, 26px);
-  width: 338px;
-  display: flex;
-  flex-direction: column;
-  gap: 11px;
-  opacity: 0;
-  transition:
-    transform 700ms cubic-bezier(0.22, 0.61, 0.36, 1),
-    opacity 500ms ease;
-}
-
-.login-input {
-  height: 56px;
-  border: 0;
-  border-radius: 8px;
-  background: #e5ebf1;
-  padding: 0 18px;
-  font-family: "Pretendard", "Segoe UI", Roboto, sans-serif;
-  font-size: 16px;
-  font-weight: 500;
-  letter-spacing: -0.64px;
-  color: #302e42;
-}
-
-.login-input::placeholder {
-  color: #302e42;
-  opacity: 0.4;
-}
-
 .login-social {
   position: absolute;
   left: 50%;
-  top: 88%;
+  top: 74%;
   transform: translate(-50%, 22px);
   display: flex;
   gap: 26px;
@@ -80,6 +47,11 @@
   justify-content: center;
 }
 
+.login-social-btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
 .login-social-icon {
   width: 33px;
   height: 33px;
@@ -94,13 +66,27 @@
   font-size: 8px;
   font-weight: 500;
   line-height: 1.2;
-  letter-spacing: -0.32px;
+  letter-spacing: 0;
   opacity: 0.6;
 }
 
-.login-form.is-visible {
-  transform: translate(-50%, 0);
-  opacity: 1;
+.login-error {
+  position: absolute;
+  left: 50%;
+  top: 82%;
+  width: min(338px, calc(100% - 48px));
+  margin: 0;
+  transform: translate(-50%, 18px);
+  color: #c43344;
+  font-family: "Pretendard", "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: center;
+  opacity: 0;
+  transition:
+    transform 700ms cubic-bezier(0.22, 0.61, 0.36, 1) 150ms,
+    opacity 500ms ease 150ms;
 }
 
 .login-social.is-visible {
@@ -108,3 +94,7 @@
   opacity: 1;
 }
 
+.login-error.is-visible {
+  transform: translate(-50%, 0);
+  opacity: 1;
+}

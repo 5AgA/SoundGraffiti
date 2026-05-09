@@ -6,7 +6,7 @@ import {
 } from "../api/comments";
 import { toggleLike } from "../api/likes";
 import { getUserById } from "../api/users";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../contexts/AuthContextCore";
 import { resolvedProfileImageUrl } from "../utils/profileImage";
 import "./Home.css";
 

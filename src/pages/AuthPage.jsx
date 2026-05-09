@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import LandingPage from "../components/LandingPage";
 import Login from "../components/Login";
+import { useAuth } from "../contexts/AuthContextCore";
 
 function AuthFlowScreen({ phase }) {
   return (
@@ -25,19 +26,10 @@ function AuthFlowScreen({ phase }) {
 export default function AuthPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { loading, session } = useAuth();
   const path = location.pathname;
   const [phase, setPhase] = useState(path === "/login" ? "login" : "landing");
   const isAuthRoute = path === "/" || path === "/login";
-
-  useEffect(() => {
-    if (path === "/login") {
-      setPhase("login");
-      return;
-    }
-    if (path === "/") {
-      setPhase("landing");
-    }
-  }, [path]);
 
   useEffect(() => {
     if (!isAuthRoute) return;
@@ -61,9 +53,13 @@ export default function AuthPage() {
     if (!isAuthRoute) return;
     const nextPath = phase === "landing" ? "/" : "/login";
     if (path !== nextPath) {
-      navigate(nextPath);
+      navigate(nextPath, { replace: true });
     }
   }, [isAuthRoute, navigate, path, phase]);
+
+  if (!loading && session) {
+    return <Navigate to="/home" replace />;
+  }
 
   return <AuthFlowScreen phase={phase} />;
 }

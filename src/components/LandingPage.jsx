@@ -1,6 +1,6 @@
 import "./LandingPage.css";
 
-function LandingPage({ exiting = false, hideImage = false, moving = false }) {
+function LandingPage({ moving = false }) {
   return (
     <section className={`landing-wrap${moving ? " is-moving" : ""}`}>
       <div className="landing-copy">

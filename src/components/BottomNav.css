@@ -51,6 +51,11 @@
   transform: translateX(0);
 }
 
+.bottom-nav[data-active="map"] .bottom-nav__active-ring {
+  opacity: 1;
+  transform: translateX(50px);
+}
+
 /* 프로필 탭: 원만 세 번째 슬롯(아이콘 중심)으로 이동 */
 .bottom-nav[data-active="profile"] .bottom-nav__active-ring {
   opacity: 1;

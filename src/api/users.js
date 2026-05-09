@@ -18,6 +18,22 @@ export async function getUserById(userId) {
   return data ?? null;
 }
 
+export async function getCurrentUser() {
+  const { data, error } = await supabase.functions.invoke("get-current-user");
+
+  if (error) {
+    console.error("get-current-user:", error);
+    return null;
+  }
+
+  if (data && typeof data === "object" && data.error) {
+    console.warn("get-current-user:", data.error);
+    return null;
+  }
+
+  return data?.user ?? null;
+}
+
 /**
  * 피드와 동일하게 게시된·임시 글만 카운트 (삭제 제외)
  * @param {number} userId

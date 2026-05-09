@@ -32,11 +32,11 @@ export default function HomePage() {
     setFeed(Array.isArray(posts) ? posts : []);
   };
 
-  const fetchNearby = async (lat, lng) => {
+  const fetchNearby = useCallback(async (lat, lng) => {
     coordsRef.current = { lat, lng };
     const { posts, error } = await getNearbyPosts(lat, lng);
     applyPostsResult(posts, error);
-  };
+  }, []);
 
   const refreshFeed = useCallback(async () => {
     const c = coordsRef.current;
@@ -50,22 +50,28 @@ export default function HomePage() {
     const devCoords = getDevGeoCoordinates();
 
     if (insecure && devCoords) {
-      void fetchNearby(devCoords.lat, devCoords.lng);
-      return;
+      const timer = window.setTimeout(() => {
+        void fetchNearby(devCoords.lat, devCoords.lng);
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
 
     if (insecure && !devCoords) {
-      setFeedLoadError(
-        "HTTP(비보안)에서는 위치 API를 쓸 수 없습니다. .env.local 에 VITE_DEV_GEO_COORDS=위도,경도 를 넣고 dev 서버를 다시 실행해 주세요.",
-      );
-      setFeed([]);
-      return;
+      const timer = window.setTimeout(() => {
+        setFeedLoadError(
+          "HTTP(비보안)에서는 위치 API를 쓸 수 없습니다. .env.local 에 VITE_DEV_GEO_COORDS=위도,경도 를 넣고 dev 서버를 다시 실행해 주세요.",
+        );
+        setFeed([]);
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
 
     if (!navigator.geolocation) {
-      setFeedLoadError("이 기기에서는 위치를 사용할 수 없습니다.");
-      setFeed([]);
-      return;
+      const timer = window.setTimeout(() => {
+        setFeedLoadError("이 기기에서는 위치를 사용할 수 없습니다.");
+        setFeed([]);
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
 
     navigator.geolocation.getCurrentPosition(
@@ -85,7 +91,7 @@ export default function HomePage() {
         maximumAge: 120000,
       },
     );
-  }, []);
+  }, [fetchNearby]);
 
   return (
     <>

@@ -5,7 +5,7 @@ import { getPostsByUserId } from "../api/posts";
 import { getUserById, getUserPostCount } from "../api/users";
 import { resolvedProfileImageUrl } from "../utils/profileImage";
 import { supabase } from "../supabaseClient";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../contexts/AuthContextCore";
 import "./MyPage.css";
 
 /** public/MY graffiti.svg와 동일 path — 인라인 SVG(img 미사용) */
@@ -127,7 +127,7 @@ function PinIcon() {
 
 export default function MyPage() {
   const { user } = useAuth();
-  const pageUserId = user.id;
+  const pageUserId = user?.appUserId ?? user?.id ?? null;
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [postCount, setPostCount] = useState(null);
@@ -149,6 +149,19 @@ export default function MyPage() {
 
     (async () => {
       setLoadError(null);
+      setPostsLoaded(false);
+
+      if (!pageUserId) {
+        setProfile(null);
+        setPostCount(0);
+        setPosts([]);
+        setPostsLoaded(true);
+        setLoadError(
+          "로그인 계정과 연결된 사용자 정보를 찾지 못했습니다. Users.user_email을 확인해 주세요.",
+        );
+        return;
+      }
+
       const [profileUser, count, userPosts] = await Promise.all([
         getUserById(pageUserId),
         getUserPostCount(pageUserId),
@@ -169,9 +182,16 @@ export default function MyPage() {
     };
   }, [pageUserId]);
 
-  const displayName = profile?.user_name ?? "…";
-  const handle = `@userid${pageUserId}`;
-  const avatarSrc = resolvedProfileImageUrl(profile?.user_profile_url);
+  const authName =
+    user?.user_metadata?.user_name ||
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    (typeof user?.email === "string" ? user.email.split("@")[0] : "");
+  const displayName = profile?.user_name || authName || "…";
+  const handle = pageUserId ? `@userid${pageUserId}` : user?.email || "@unknown";
+  const avatarSrc = resolvedProfileImageUrl(
+    profile?.user_profile_url || user?.user_metadata?.user_profile_url,
+  );
   const isLoading = !postsLoaded;
 
   const handleLogout = async () => {

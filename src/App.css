@@ -39,3 +39,13 @@
   visibility: visible;
   pointer-events: auto;
 }
+
+.app-loading {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  color: #302e42;
+  background: #e2eaf6;
+  font-size: 14px;
+  font-weight: 600;
+}
