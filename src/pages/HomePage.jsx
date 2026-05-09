@@ -8,6 +8,7 @@ export default function HomePage() {
   /** null = 로딩 중, 배열 = 주변 피드 결과(빈 배열 가능) */
   const [feed, setFeed] = useState(null);
   const [feedLoadError, setFeedLoadError] = useState(null);
+  const [commentSheetOpen, setCommentSheetOpen] = useState(false);
 
   const coordsRef = useRef(null);
   const isMountedRef = useRef(true);
@@ -45,8 +46,7 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    const insecure =
-      typeof window !== "undefined" && !window.isSecureContext;
+    const insecure = typeof window !== "undefined" && !window.isSecureContext;
     const devCoords = getDevGeoCoordinates();
 
     if (insecure && devCoords) {

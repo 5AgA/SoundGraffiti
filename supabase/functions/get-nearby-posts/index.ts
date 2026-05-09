@@ -59,6 +59,7 @@ function alreadyHydratedLikeFeed(rows: RpcRow[]): boolean {
 }
 
 serve(async (req) => {
+  // CORS 프리플라이트 처리
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

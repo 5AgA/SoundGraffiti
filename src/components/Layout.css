@@ -7,6 +7,20 @@
   position: fixed;
   inset: 0;
   box-sizing: border-box;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* 입력·편집 영역은 선택·붙여넣기 허용 */
+.app-container :where(input:not([disabled]), textarea:not([disabled]), select:not([disabled])) {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.app-container [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 /* 2. 콘텐츠 영역 */
