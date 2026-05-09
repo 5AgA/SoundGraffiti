@@ -117,8 +117,10 @@ export default function HomePage() {
             : null
         }
         onPullRefresh={refreshFeed}
+        onCommentCreated={refreshFeed}
+        onCommentSheetOpenChange={setCommentSheetOpen}
       />
-      <BottomNav />
+      {!commentSheetOpen ? <BottomNav /> : null}
     </>
   );
 }

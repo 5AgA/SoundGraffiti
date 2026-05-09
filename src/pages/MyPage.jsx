@@ -5,9 +5,8 @@ import { getPostsByUserId } from "../api/posts";
 import { getUserById, getUserPostCount } from "../api/users";
 import { resolvedProfileImageUrl } from "../utils/profileImage";
 import { supabase } from "../supabaseClient";
+import { useAuth } from "../contexts/AuthContext";
 import "./MyPage.css";
-
-const MY_PAGE_USER_ID = 3;
 
 /** public/MY graffiti.svg와 동일 path — 인라인 SVG(img 미사용) */
 const MY_GRAFFITI_WORDMARK_PATH =
@@ -127,6 +126,8 @@ function PinIcon() {
 }
 
 export default function MyPage() {
+  const { user } = useAuth();
+  const pageUserId = user.id;
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [postCount, setPostCount] = useState(null);
@@ -148,16 +149,16 @@ export default function MyPage() {
 
     (async () => {
       setLoadError(null);
-      const [user, count, userPosts] = await Promise.all([
-        getUserById(MY_PAGE_USER_ID),
-        getUserPostCount(MY_PAGE_USER_ID),
-        getPostsByUserId(MY_PAGE_USER_ID),
+      const [profileUser, count, userPosts] = await Promise.all([
+        getUserById(pageUserId),
+        getUserPostCount(pageUserId),
+        getPostsByUserId(pageUserId),
       ]);
       if (cancelled) return;
-      if (!user) {
+      if (!profileUser) {
         setLoadError("사용자 정보를 불러오지 못했습니다.");
       }
-      setProfile(user);
+      setProfile(profileUser);
       setPostCount(count);
       setPosts(userPosts);
       setPostsLoaded(true);
@@ -166,10 +167,10 @@ export default function MyPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [pageUserId]);
 
   const displayName = profile?.user_name ?? "…";
-  const handle = `@userid${MY_PAGE_USER_ID}`;
+  const handle = `@userid${pageUserId}`;
   const avatarSrc = resolvedProfileImageUrl(profile?.user_profile_url);
   const isLoading = !postsLoaded;
 
