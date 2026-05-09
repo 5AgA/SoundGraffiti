@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { toggleLike } from "../api/likes";
 import { useAuth } from "../contexts/AuthContext";
+import { resolvedProfileImageUrl } from "../utils/profileImage";
 import "./Home.css";
 
 const TEMP_LIKE_USER_ID = 1;
@@ -145,13 +146,13 @@ function Home({ feed = [] }) {
             const userData = Array.isArray(post?.Users)
               ? post.Users[0]
               : post?.Users;
-            // Avatar는 user_profile_url을 최우선으로 사용
-            const avatar =
+            const avatarRaw =
               userData?.user_profile_url ||
               post?.user_profile_url ||
               userData?.profile_image_url ||
               post?.profile_image_url ||
               "";
+            const avatarSrc = resolvedProfileImageUrl(avatarRaw);
             const userName = userData?.user_name || "annonymous";
             const placeName = post?.Places?.place_name || "서울 홍대입구역";
             const content =
@@ -222,15 +223,11 @@ function Home({ feed = [] }) {
                     ) : (
                       <>
                         <div className="home-user">
-                          {avatar ? (
-                            <img
-                              className="home-avatar"
-                              src={avatar}
-                              alt={userName}
-                            />
-                          ) : (
-                            <div className="home-avatar" />
-                          )}
+                          <img
+                            className="home-avatar"
+                            src={avatarSrc}
+                            alt={userName}
+                          />
                           <div>
                             <p className="home-name">{userName}</p>
                             <p className="home-place">{placeName}</p>

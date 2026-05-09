@@ -28,6 +28,45 @@
   margin-bottom: 11px;
 }
 
+.mypage-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mypage-logout {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 8px 14px;
+  border: 1px solid rgba(50, 54, 70, 0.18);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: #323646;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.mypage-logout:hover {
+  background: rgba(255, 255, 255, 1);
+}
+
+.mypage-logout:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.mypage-logout:not(:disabled):active {
+  opacity: 0.85;
+}
+
 .mypage-banner-error {
   margin: 0 0 12px;
   padding: 10px 12px;

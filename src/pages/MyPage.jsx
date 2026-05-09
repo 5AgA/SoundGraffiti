@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import BottomNav from "../components/BottomNav";
 import { getPostsByUserId } from "../api/posts";
 import { getUserById, getUserPostCount } from "../api/users";
+import { resolvedProfileImageUrl } from "../utils/profileImage";
+import { supabase } from "../supabaseClient";
 import "./MyPage.css";
 
-const MY_PAGE_USER_ID = 1;
+const MY_PAGE_USER_ID = 3;
 
 /** public/MY graffiti.svg와 동일 path — 인라인 SVG(img 미사용) */
 const MY_GRAFFITI_WORDMARK_PATH =
@@ -124,11 +127,13 @@ function PinIcon() {
 }
 
 export default function MyPage() {
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [postCount, setPostCount] = useState(null);
   const [posts, setPosts] = useState([]);
   const [postsLoaded, setPostsLoaded] = useState(false);
   const [loadError, setLoadError] = useState(null);
+  const [logoutBusy, setLogoutBusy] = useState(false);
   const [sortOrder, setSortOrder] = useState(
     /** @type {'latest' | 'popular'} */ ("latest"),
   );
@@ -165,8 +170,23 @@ export default function MyPage() {
 
   const displayName = profile?.user_name ?? "…";
   const handle = `@userid${MY_PAGE_USER_ID}`;
-  const avatarUrl = profile?.user_profile_url?.trim() ?? "";
+  const avatarSrc = resolvedProfileImageUrl(profile?.user_profile_url);
   const isLoading = !postsLoaded;
+
+  const handleLogout = async () => {
+    if (logoutBusy) return;
+    setLogoutBusy(true);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        alert(error.message ?? "로그아웃하지 못했습니다.");
+        return;
+      }
+      navigate("/login", { replace: true });
+    } finally {
+      setLogoutBusy(false);
+    }
+  };
 
   return (
     <>
@@ -177,19 +197,29 @@ export default function MyPage() {
       >
         <div className="mypage-inner">
           <header className="mypage-header">
-            <svg
-              className="mypage-brand"
-              viewBox="0 0 114 31"
-              width={116}
-              height={50}
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden
-              focusable="false"
-              preserveAspectRatio="xMinYMid meet"
-            >
-              <path fill="#323646" d={MY_GRAFFITI_WORDMARK_PATH} />
-            </svg>
+            <div className="mypage-header-row">
+              <svg
+                className="mypage-brand"
+                viewBox="0 0 114 31"
+                width={116}
+                height={50}
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden
+                focusable="false"
+                preserveAspectRatio="xMinYMid meet"
+              >
+                <path fill="#323646" d={MY_GRAFFITI_WORDMARK_PATH} />
+              </svg>
+              <button
+                type="button"
+                className="mypage-logout"
+                onClick={() => void handleLogout()}
+                disabled={logoutBusy}
+              >
+                {logoutBusy ? "나가는 중…" : "로그아웃"}
+              </button>
+            </div>
           </header>
 
           {loadError ? (
@@ -211,20 +241,13 @@ export default function MyPage() {
             </div>
           ) : (
             <div className="mypage-profile-card">
-              {avatarUrl ? (
-                <img
-                  className="mypage-avatar"
-                  src={avatarUrl}
-                  alt=""
-                  width={49}
-                  height={49}
-                />
-              ) : (
-                <div
-                  className="mypage-avatar mypage-avatar--empty"
-                  aria-hidden
-                />
-              )}
+              <img
+                className="mypage-avatar"
+                src={avatarSrc}
+                alt=""
+                width={49}
+                height={49}
+              />
               <div className="mypage-profile-text">
                 <p className="mypage-name">{displayName}</p>
                 <p className="mypage-handle">{handle}</p>
