@@ -4,6 +4,7 @@ import "./BottomNav.css";
 export default function BottomNav() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  
   const onHome = pathname === "/home" || pathname.startsWith("/home/");
   const onMap = pathname === "/map" || pathname.startsWith("/map/");
   const onMyPage = pathname.startsWith("/mypage");
@@ -66,7 +67,14 @@ export default function BottomNav() {
           </Link>
         </span>
       </nav>
-      <button type="button" className="bottom-nav__fab" aria-label="작성">
+
+      {/* 💡 플러스(FAB) 버튼 클릭 시 /upload 경로로 이동! */}
+      <button 
+        type="button" 
+        className="bottom-nav__fab" 
+        aria-label="작성"
+        onClick={() => navigate("/upload")}
+      >
         +
       </button>
     </>

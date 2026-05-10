@@ -7,6 +7,7 @@ import AuthPage from "./pages/AuthPage";
 import HomePage from "./pages/HomePage";
 import MapPage from "./pages/MapPage";
 import MyPage from "./pages/MyPage";
+import UploadGraffiti from "./components/CreatePost";
 
 function ProtectedRoute({ children }) {
   const { loading, session } = useAuth();
@@ -49,6 +50,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <MyPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/upload"
+              element={
+                <ProtectedRoute>
+                  <UploadGraffiti />
                 </ProtectedRoute>
               }
             />
