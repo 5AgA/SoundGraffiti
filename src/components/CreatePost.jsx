@@ -89,7 +89,7 @@ function UploadGraffiti({ onGoToHome }) {
       const postData = {
         userId: 1, 
         trackId: selectedTrack.id, 
-        placeId: 5, 
+        placeId: 19, 
         content: content,
         previewStartMs: 0,        
         previewEndMs: 30000
