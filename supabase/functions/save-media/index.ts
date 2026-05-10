@@ -11,26 +11,22 @@ Deno.serve(async (req)=>{
   }
   try {
     const body = await req.json();
-    const { trackId, trackTitle, artistName, albumName, albumImageUrl, durationMs, previewUrl } = body;
+    const { postId, mediaUrl } = body;
+    if (!postId || !mediaUrl) {
+      throw new Error("postId와 mediaUrl이 필요합니다.");
+    }
     const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
-    // Tracks 테이블에 노래 저장 (이미 있으면 무시하는 Upsert)
-    const { error: trackError } = await supabase.from('Tracks').upsert({
-      track_id: trackId,
-      track_title: trackTitle,
-      artist_name: artistName,
-      album_name: albumName,
-      album_image_url: albumImageUrl,
-      duration_ms: durationMs,
-      preview_url: previewUrl,
-      cached_at: new Date()
-    }, {
-      onConflict: 'track_id'
+    // PostMedia 테이블에 사진 URL 저장!
+    const { error: mediaError } = await supabase.from('PostMedia').insert({
+      post_id: postId,
+      media_url: mediaUrl,
+      display_order: 1,
+      media_created: new Date()
     });
-    if (trackError) throw trackError;
-    // 성공하면 프론트엔드로 ok 사인 보냄!
+    if (mediaError) throw mediaError;
     return new Response(JSON.stringify({
       success: true,
-      message: "노래 저장 완료"
+      message: "사진 저장 완료"
     }), {
       headers: {
         ...corsHeaders,
@@ -50,4 +46,3 @@ Deno.serve(async (req)=>{
     });
   }
 });
->>>>>>> ef48364 (fix: create-post)
