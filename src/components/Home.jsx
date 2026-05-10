@@ -182,6 +182,11 @@ function trackFromPost(post) {
   return Array.isArray(raw) ? raw[0] : raw;
 }
 
+function spotifyTrackUrl(track) {
+  const id = typeof track?.track_id === "string" ? track.track_id.trim() : "";
+  return id ? `https://open.spotify.com/track/${encodeURIComponent(id)}` : "";
+}
+
 /** feed 가 null 이면 로딩 중, 배열이면 로딩 완료(빈 배열 가능) */
 function Home({
   feed = null,
@@ -892,6 +897,16 @@ function Home({
     setPlaybackNotice(`${title}은(는) Spotify에서 재생할 수 없어요.`);
   }, []);
 
+  const openTrackInSpotify = useCallback((track) => {
+    const url = spotifyTrackUrl(track);
+    if (!url) {
+      setPlaybackNotice("Spotify에서 열 수 있는 트랙 정보가 없어요.");
+      return;
+    }
+
+    window.open(url, "_blank", "noopener,noreferrer");
+  }, []);
+
   useSpotifyAutoPreview(activePost, spotifyToken, {
     onUnavailable: showPlaybackUnavailable,
   });
@@ -1348,11 +1363,18 @@ function Home({
                             <button
                               type="button"
                               className="home-action-btn home-action-btn--spotify"
+                              onClick={() => openTrackInSpotify(track)}
+                              aria-label={
+                                trackTitle
+                                  ? `${trackTitle} Spotify에서 열기`
+                                  : "Spotify에서 열기"
+                              }
                             >
                               <img
                                 className="home-action-icon home-action-icon--spotify"
                                 src="/spotify.btn.svg"
-                                alt="Spotify"
+                                alt=""
+                                aria-hidden="true"
                               />
                             </button>
                           </div>

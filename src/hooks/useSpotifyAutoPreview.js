@@ -13,21 +13,30 @@ function getTrackFromPost(post) {
 function getPlaybackWindow(post) {
   const track = getTrackFromPost(post);
   const durationMs = Number(track?.duration_ms);
-  const hasStart = post?.preview_start_ms != null;
-  const hasEnd = post?.preview_end_ms != null;
-  const startMs = hasStart ? Math.max(0, Number(post.preview_start_ms) || 0) : 0;
+  const hasValidDuration = Number.isFinite(durationMs) && durationMs > 0;
+  const rawStartMs = Number(post?.preview_start_ms);
   const rawEndMs = Number(post?.preview_end_ms);
-  const fallbackEnd = Number.isFinite(durationMs) && durationMs > startMs
+  const hasCustomWindow =
+    post?.preview_start_ms != null &&
+    post?.preview_end_ms != null &&
+    Number.isFinite(rawStartMs) &&
+    Number.isFinite(rawEndMs) &&
+    rawStartMs >= 0 &&
+    rawEndMs > rawStartMs &&
+    (!hasValidDuration || rawStartMs < durationMs);
+  const startMs = hasCustomWindow ? rawStartMs : 0;
+  const fallbackEnd = hasValidDuration
     ? durationMs
     : startMs + DEFAULT_LOOP_MS;
-  const endMs = hasEnd && Number.isFinite(rawEndMs) && rawEndMs > startMs
-    ? rawEndMs
+  const endMs = hasCustomWindow
+    ? Math.min(rawEndMs, fallbackEnd)
     : fallbackEnd;
 
   return {
     trackId: track?.track_id,
     startMs,
     endMs,
+    usesCustomWindow: hasCustomWindow,
   };
 }
 
@@ -150,7 +159,8 @@ export function useSpotifyAutoPreview(activePost, spotifyToken, options = {}) {
 
   useEffect(() => {
     const player = playerRef.current;
-    const { trackId, startMs, endMs } = getPlaybackWindow(activePost);
+    const { trackId, startMs, endMs, usesCustomWindow } =
+      getPlaybackWindow(activePost);
     const requestId = playbackRequestRef.current + 1;
     playbackRequestRef.current = requestId;
     notifiedUnavailableRef.current = "";
@@ -258,6 +268,23 @@ export function useSpotifyAutoPreview(activePost, spotifyToken, options = {}) {
       return false;
     };
 
+    const requestPlay = (positionMs) =>
+      fetch(
+        `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(deviceId)}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${spotifyToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            uris: [`spotify:track:${trackId}`],
+            position_ms: positionMs,
+          }),
+          signal: abortController.signal,
+        },
+      );
+
     const playTrack = async () => {
       if (playbackRequestRef.current !== requestId) return;
 
@@ -268,42 +295,30 @@ export function useSpotifyAutoPreview(activePost, spotifyToken, options = {}) {
       if (!transferred) return;
       if (playbackRequestRef.current !== requestId) return;
 
-      const response = await fetch(
-        `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(deviceId)}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${spotifyToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            uris: [`spotify:track:${trackId}`],
-            position_ms: startMs,
-          }),
-          signal: abortController.signal,
-        },
-      );
+      let response = await requestPlay(startMs);
+      let playbackStartMs = startMs;
+      let playbackEndMs = endMs;
+
+      if (response.status === 403 && usesCustomWindow && startMs > 0) {
+        response = await requestPlay(0);
+        playbackStartMs = 0;
+        playbackEndMs = Number.POSITIVE_INFINITY;
+      }
 
       if (response.status === 404) {
         activatedDeviceRef.current = null;
         const retried = await transferPlayback();
         if (!retried) return;
 
-        const retryResponse = await fetch(
-          `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(deviceId)}`,
-          {
-            method: "PUT",
-            headers: {
-              Authorization: `Bearer ${spotifyToken}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              uris: [`spotify:track:${trackId}`],
-              position_ms: startMs,
-            }),
-            signal: abortController.signal,
-          },
-        );
+        let retryResponse = await requestPlay(startMs);
+        playbackStartMs = startMs;
+        playbackEndMs = endMs;
+
+        if (retryResponse.status === 403 && usesCustomWindow && startMs > 0) {
+          retryResponse = await requestPlay(0);
+          playbackStartMs = 0;
+          playbackEndMs = Number.POSITIVE_INFINITY;
+        }
 
         if (!retryResponse.ok && retryResponse.status !== 204) {
           if (retryResponse.status === 403) {
@@ -342,8 +357,8 @@ export function useSpotifyAutoPreview(activePost, spotifyToken, options = {}) {
           await player.resume();
         }
 
-        if (state.position >= endMs - 250) {
-          await player.seek(startMs);
+        if (state.position >= playbackEndMs - 250) {
+          await player.seek(playbackStartMs);
         }
       }, 500);
     };
