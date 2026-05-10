@@ -72,6 +72,7 @@ export function useSpotifyAutoPreview(activePost, spotifyToken, options = {}) {
   const activatedDeviceRef = useRef(null);
   const abortControllerRef = useRef(null);
   const playbackRequestRef = useRef(0);
+  const userInteractedRef = useRef(false);
   const notifiedUnavailableRef = useRef("");
   const onUnavailableRef = useRef(options.onUnavailable);
   const warningKeyRef = useRef("");
@@ -99,6 +100,10 @@ export function useSpotifyAutoPreview(activePost, spotifyToken, options = {}) {
 
         player.addListener("ready", ({ device_id }) => {
           setDeviceId(device_id);
+          if (userInteractedRef.current) {
+            player.activateElement?.();
+            setBrowserPlaybackActivated(true);
+          }
         });
 
         player.addListener("not_ready", ({ device_id }) => {
@@ -136,6 +141,7 @@ export function useSpotifyAutoPreview(activePost, spotifyToken, options = {}) {
     if (!spotifyToken || browserPlaybackActivated) return undefined;
 
     const activatePlayback = () => {
+      userInteractedRef.current = true;
       const player = playerRef.current;
       if (!player) return;
 
@@ -143,10 +149,9 @@ export function useSpotifyAutoPreview(activePost, spotifyToken, options = {}) {
       setBrowserPlaybackActivated(true);
     };
 
-    window.addEventListener("pointerdown", activatePlayback, { once: true });
-    window.addEventListener("keydown", activatePlayback, { once: true });
+    window.addEventListener("pointerdown", activatePlayback);
+    window.addEventListener("keydown", activatePlayback);
     window.addEventListener("touchstart", activatePlayback, {
-      once: true,
       passive: true,
     });
 

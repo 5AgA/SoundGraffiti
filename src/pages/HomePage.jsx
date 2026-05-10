@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { getNearbyPosts } from "../api/posts";
 import BottomNav from "../components/BottomNav";
 import Home from "../components/Home";
 import { getDevGeoCoordinates } from "../utils/devGeoCoords";
 
 export default function HomePage() {
+  const [searchParams] = useSearchParams();
+  const focusPostId = searchParams.get("postId");
   /** null = 로딩 중, 배열 = 주변 피드 결과(빈 배열 가능) */
   const [feed, setFeed] = useState(null);
   const [feedLoadError, setFeedLoadError] = useState(null);
@@ -117,6 +120,7 @@ export default function HomePage() {
       )}
       <Home
         feed={feed}
+        focusPostId={focusPostId}
         feedEmptyDetail={
           feedLoadError
             ? "위치·네트워크를 확인해 주세요. (상단 안내 참고)"

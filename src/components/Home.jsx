@@ -190,6 +190,7 @@ function spotifyTrackUrl(track) {
 /** feed 가 null 이면 로딩 중, 배열이면 로딩 완료(빈 배열 가능) */
 function Home({
   feed = null,
+  focusPostId = null,
   feedEmptyDetail = null,
   onPullRefresh,
   onCommentSheetOpenChange,
@@ -950,6 +951,27 @@ function Home({
     if (!root) return;
     updateActiveFromScroll(root);
   }, [list.length]);
+
+  useEffect(() => {
+    if (!focusPostId || !Array.isArray(feed) || feed.length === 0) {
+      return undefined;
+    }
+
+    const targetIndex = feed.findIndex(
+      (post) => String(post?.post_id) === String(focusPostId),
+    );
+    if (targetIndex < 0) return undefined;
+
+    setActiveIndex(targetIndex);
+    const frame = window.requestAnimationFrame(() => {
+      cardRefs.current[targetIndex]?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [feed, focusPostId]);
 
   useEffect(() => {
     const root = feedScrollRef.current;

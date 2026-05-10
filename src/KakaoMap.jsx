@@ -1,8 +1,94 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { supabase } from "./supabaseClient";
+import { useNavigate } from "react-router-dom";
+import { getMapPosts } from "./api/posts";
 import "./KakaoMap.css";
+import { getDevGeoCoordinates } from "./utils/devGeoCoords";
 
 const SEOUL_CENTER = { latitude: 37.5665, longitude: 126.978 };
+const KAKAO_MAP_SDK_SRC = "https://dapi.kakao.com/v2/maps/sdk.js";
+
+let kakaoMapsSdkPromise = null;
+
+function buildKakaoMapsSdkSrc() {
+  const appKey = import.meta.env.VITE_KAKAO_MAP_KEY;
+  const params = new URLSearchParams({
+    appkey: appKey ?? "",
+    libraries: "clusterer",
+    autoload: "false",
+  });
+
+  return `${KAKAO_MAP_SDK_SRC}?${params.toString()}`;
+}
+
+function waitForKakaoMapsSdk() {
+  if (window.kakao?.maps?.load) {
+    return Promise.resolve(window.kakao);
+  }
+
+  if (kakaoMapsSdkPromise) return kakaoMapsSdkPromise;
+
+  kakaoMapsSdkPromise = new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      if (window.kakao?.maps?.load) {
+        settled = true;
+        resolve(window.kakao);
+      }
+    };
+    const fail = () => {
+      if (settled) return;
+      settled = true;
+      reject(new Error("Failed to load Kakao Maps SDK."));
+    };
+    const interval = window.setInterval(finish, 50);
+    const timeout = window.setTimeout(() => {
+      window.clearInterval(interval);
+      fail();
+    }, 10000);
+    const cleanup = () => {
+      window.clearInterval(interval);
+      window.clearTimeout(timeout);
+    };
+
+    const script =
+      document.querySelector('script[src*="dapi.kakao.com/v2/maps/sdk.js"]') ??
+      document.createElement("script");
+
+    script.addEventListener(
+      "load",
+      () => {
+        finish();
+        if (settled) cleanup();
+      },
+      { once: true },
+    );
+    script.addEventListener(
+      "error",
+      () => {
+        cleanup();
+        fail();
+      },
+      { once: true },
+    );
+
+    if (!script.parentNode) {
+      script.type = "text/javascript";
+      script.src = buildKakaoMapsSdkSrc();
+      document.head.appendChild(script);
+    }
+
+    const existingCheck = window.setInterval(() => {
+      finish();
+      if (settled) {
+        window.clearInterval(existingCheck);
+        cleanup();
+      }
+    }, 50);
+  });
+
+  return kakaoMapsSdkPromise;
+}
 
 const getPlaceKey = (post) => {
   const place = post?.Places;
@@ -55,6 +141,7 @@ const createAlbumPinElement = (placeGroup) => {
 };
 
 function KakaoMap() {
+  const navigate = useNavigate();
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const carouselRef = useRef(null);
@@ -139,77 +226,96 @@ function KakaoMap() {
   }, [placeGroups, zoomLevel]);
 
   useEffect(() => {
-    async function fetchPosts() {
-      const { data, error } = await supabase
-        .from("Posts")
-        .select(
-          `
-            post_id,
-            content,
-            Users (
-              user_name
-            ),
-            Places (
-              place_name,
-              latitude,
-              longitude
-            ),
-            Tracks (
-              track_title,
-              artist_name,
-              album_image_url
-            )
-          `,
-        )
-        .eq("status", "published");
+    let cancelled = false;
 
+    async function fetchPosts(coords = null) {
+      const { posts: mapPosts, error } = await getMapPosts(
+        coords?.lat,
+        coords?.lng,
+      );
+
+      if (cancelled) return;
       if (error) {
-        console.error("Failed to receive data:", error);
+        console.error("Failed to receive map posts:", error);
+        setPosts([]);
         return;
       }
 
-      setPosts(Array.isArray(data) ? data : []);
+      setPosts(Array.isArray(mapPosts) ? mapPosts : []);
     }
 
-    fetchPosts();
+    const insecure = typeof window !== "undefined" && !window.isSecureContext;
+    const devCoords = getDevGeoCoordinates();
+
+    if (insecure && devCoords) {
+      void fetchPosts(devCoords);
+    } else if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          void fetchPosts({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          });
+        },
+        () => {
+          void fetchPosts();
+        },
+        {
+          enableHighAccuracy: false,
+          timeout: 15000,
+          maximumAge: 120000,
+        },
+      );
+    } else {
+      void fetchPosts();
+    }
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    if (!mapContainerRef.current || !window.kakao?.maps?.load) {
-      console.warn("Kakao Maps SDK is not ready.");
-      return undefined;
-    }
-
     let cancelled = false;
     let removeZoomListener = null;
 
-    window.kakao.maps.load(() => {
-      if (cancelled || !mapContainerRef.current) return;
+    waitForKakaoMapsSdk()
+      .then((kakao) => {
+        if (cancelled || !mapContainerRef.current) return;
 
-      const center = new window.kakao.maps.LatLng(
-        SEOUL_CENTER.latitude,
-        SEOUL_CENTER.longitude,
-      );
-      const map = new window.kakao.maps.Map(mapContainerRef.current, {
-        center,
-        level: 7,
+        kakao.maps.load(() => {
+          if (cancelled || !mapContainerRef.current) return;
+
+          const center = new kakao.maps.LatLng(
+            SEOUL_CENTER.latitude,
+            SEOUL_CENTER.longitude,
+          );
+          const map = new kakao.maps.Map(mapContainerRef.current, {
+            center,
+            level: 7,
+          });
+          const handleZoomChanged = () => {
+            setZoomLevel(map.getLevel());
+          };
+
+          mapInstanceRef.current = map;
+          setZoomLevel(map.getLevel());
+          setIsMapReady(true);
+          kakao.maps.event.addListener(map, "zoom_changed", handleZoomChanged);
+          removeZoomListener = () => {
+            kakao.maps.event.removeListener(
+              map,
+              "zoom_changed",
+              handleZoomChanged,
+            );
+          };
+        });
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error("Kakao Maps SDK is not ready.", error);
+        }
       });
-      const handleZoomChanged = () => {
-        setZoomLevel(map.getLevel());
-      };
-
-      mapInstanceRef.current = map;
-      setZoomLevel(map.getLevel());
-      setIsMapReady(true);
-      window.kakao.maps.event.addListener(map, "zoom_changed", handleZoomChanged);
-      removeZoomListener = () => {
-        window.kakao.maps.event.removeListener(
-          map,
-          "zoom_changed",
-          handleZoomChanged,
-        );
-      };
-    });
 
     return () => {
       cancelled = true;
@@ -318,6 +424,15 @@ function KakaoMap() {
     setActiveTrackIndex(index);
   };
 
+  const handleTrackCardClick = (post, index) => {
+    if (post?.within_feed_radius && post?.post_id != null) {
+      navigate(`/home?postId=${encodeURIComponent(post.post_id)}`);
+      return;
+    }
+
+    scrollToTrack(index);
+  };
+
   const handleSheetPointerDown = (event) => {
     event.currentTarget.setPointerCapture?.(event.pointerId);
     dragStartYRef.current = event.clientY;
@@ -387,9 +502,16 @@ function KakaoMap() {
 
               return (
                 <article
-                  className="map-track-card"
+                  className={`map-track-card${
+                    post?.within_feed_radius ? " is-feed-link" : ""
+                  }`}
                   key={post.post_id}
-                  onClick={() => scrollToTrack(index)}
+                  onClick={() => handleTrackCardClick(post, index)}
+                  title={
+                    post?.within_feed_radius
+                      ? "피드에서 이 게시물 보기"
+                      : undefined
+                  }
                 >
                   <div className="map-track-art-wrap">
                     {albumImageUrl ? (

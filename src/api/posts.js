@@ -73,6 +73,34 @@ export async function getNearbyPosts(latitude, longitude) {
   return { posts, error: undefined }
 }
 
+export async function getMapPosts(latitude, longitude) {
+  const lat = Number(latitude)
+  const lng = Number(longitude)
+  const body =
+    Number.isFinite(lat) && Number.isFinite(lng)
+      ? { latitude: lat, longitude: lng }
+      : {}
+
+  const { data, error } = await supabase.functions.invoke('get-map-posts', {
+    body,
+  })
+
+  if (error) {
+    console.error('get-map-posts:', error)
+    return {
+      posts: [],
+      error: error.message ?? '지도 게시물을 불러오지 못했습니다.',
+    }
+  }
+
+  if (data && typeof data === 'object' && data.error) {
+    return { posts: [], error: String(data.error) }
+  }
+
+  const posts = Array.isArray(data?.posts) ? data.posts : []
+  return { posts, error: undefined }
+}
+
 /**
  * 특정 유저의 게시글 목록 (피드와 동일 조건). Edge Function 미배포·실패 시 클라이언트 직조회 폴백.
  * @param {number} userId
