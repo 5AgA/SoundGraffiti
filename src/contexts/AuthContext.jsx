@@ -57,8 +57,10 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let cancelled = false;
 
-    const applySession = async (nextSession) => {
-      setLoading(true);
+    const applySession = async (nextSession, { showLoading = false } = {}) => {
+      if (showLoading) {
+        setLoading(true);
+      }
       const resolvedUser = await resolveSessionUser(nextSession);
       if (cancelled) return;
       setSession(nextSession);
@@ -67,7 +69,7 @@ export function AuthProvider({ children }) {
     };
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      void applySession(session);
+      void applySession(session, { showLoading: true });
     });
 
     const {

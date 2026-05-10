@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   checkCommentAccess,
   createComment,
@@ -7,6 +7,7 @@ import {
 import { toggleLike } from "../api/likes";
 import { getUserById } from "../api/users";
 import { useAuth } from "../contexts/AuthContextCore";
+import { useSpotifyAutoPreview } from "../hooks/useSpotifyAutoPreview";
 import { resolvedProfileImageUrl } from "../utils/profileImage";
 import "./Home.css";
 
@@ -256,14 +257,15 @@ function Home({
   const [removedSheetCommentIds, setRemovedSheetCommentIds] = useState([]);
   const [commentDeletePrompt, setCommentDeletePrompt] = useState(null);
   const [commentDeleteSubmitting, setCommentDeleteSubmitting] = useState(false);
-  const { user } = useAuth();
+  const [playbackNotice, setPlaybackNotice] = useState("");
+  const { spotifyToken, user } = useAuth();
   /** Auth 메타데이터에 없을 때 Users 테이블 프로필 (고정 id·OAuth 병행) */
   const [dbUserProfileUrl, setDbUserProfileUrl] = useState(null);
 
   useEffect(() => {
     activeIndexRef.current = activeIndex;
   }, [activeIndex]);
-  const likeUserId = user.id;
+  const likeUserId = user?.id;
 
   useEffect(() => {
     const id = Number(likeUserId);
@@ -880,6 +882,25 @@ function Home({
   }, [activeIndex, list.length]);
 
   const blurBackground = list[activeIndex]?.Tracks?.album_image_url || "";
+  const activePost = !isLoading ? list[activeIndex] ?? null : null;
+
+  const showPlaybackUnavailable = useCallback(({ track }) => {
+    const title =
+      typeof track?.track_title === "string" && track.track_title.trim()
+        ? track.track_title.trim()
+        : "이 노래";
+    setPlaybackNotice(`${title}은(는) Spotify에서 재생할 수 없어요.`);
+  }, []);
+
+  useSpotifyAutoPreview(activePost, spotifyToken, {
+    onUnavailable: showPlaybackUnavailable,
+  });
+
+  useEffect(() => {
+    if (!playbackNotice) return undefined;
+    const timer = window.setTimeout(() => setPlaybackNotice(""), 2800);
+    return () => window.clearTimeout(timer);
+  }, [playbackNotice]);
 
   const updateActiveFromScroll = (root) => {
     if (!root) return;
@@ -1100,6 +1121,11 @@ function Home({
 
   return (
     <section className="home-wrap">
+      {playbackNotice ? (
+        <div className="home-playback-notice" role="status">
+          {playbackNotice}
+        </div>
+      ) : null}
       <div className="home-phone">
         <div className="home-bg-stack">
           <div

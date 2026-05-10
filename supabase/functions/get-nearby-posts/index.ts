@@ -13,9 +13,11 @@ const FEED_POST_SELECT = `
   post_id,
   content,
   post_created,
+  preview_start_ms,
+  preview_end_ms,
   Users (user_name, user_profile_url),
   Places (place_name),
-  Tracks (track_title, artist_name, album_image_url, preview_url, duration_ms),
+  Tracks (track_id, track_title, artist_name, album_image_url, preview_url, duration_ms),
   PostMedia (media_url),
   Likes (like_id, user_id, Users (user_name)),
   Comments (
@@ -50,9 +52,14 @@ function extractPostIdsOrdered(rows: RpcRow[] | null): unknown[] {
 function alreadyHydratedLikeFeed(rows: RpcRow[]): boolean {
   if (!rows.length) return false;
   const r = rows[0];
+  const track = Array.isArray(r?.Tracks) ? r.Tracks[0] : r?.Tracks;
   return (
     r != null &&
     typeof r === "object" &&
+    Object.prototype.hasOwnProperty.call(r, "preview_start_ms") &&
+    track != null &&
+    typeof track === "object" &&
+    Object.prototype.hasOwnProperty.call(track, "track_id") &&
     (Object.prototype.hasOwnProperty.call(r, "Tracks") ||
       Object.prototype.hasOwnProperty.call(r, "Users"))
   );
