@@ -4,6 +4,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { useAuth } from "./contexts/AuthContextCore";
 import Layout from "./components/Layout";
 import AuthPage from "./pages/AuthPage";
+import AuthCallbackPage from "./pages/AuthCallbackPage";
 import HomePage from "./pages/HomePage";
 import MapPage from "./pages/MapPage";
 import MyPage from "./pages/MyPage";
@@ -61,6 +62,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/login" element={<AuthPage />} />
             <Route path="/" element={<AuthPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />

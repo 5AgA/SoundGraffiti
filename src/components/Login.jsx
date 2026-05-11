@@ -2,8 +2,8 @@ import { useState } from "react";
 import { supabase } from "../supabaseClient";
 import "./Login.css";
 
-const HOME_PATH = "/home";
-const getRedirectUrl = () => `${window.location.origin}${HOME_PATH}`;
+const AUTH_CALLBACK_PATH = "/auth/callback";
+const getRedirectUrl = () => `${window.location.origin}${AUTH_CALLBACK_PATH}`;
 
 export default function Login({ active = false }) {
   const [errorMessage, setErrorMessage] = useState("");
