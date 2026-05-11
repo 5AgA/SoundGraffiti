@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
         })
       }
     }
-
+    const now = new Date().toISOString();
     // 2. 댓글 생성
     const { data, error } = await supabase
       .from('Comments')
@@ -67,6 +67,7 @@ Deno.serve(async (req) => {
         user_id: userId,
         content: content,
         parent_comment_id: parentCommentId ?? null,
+        comment_created: now,
       })
       .select()
       .single()

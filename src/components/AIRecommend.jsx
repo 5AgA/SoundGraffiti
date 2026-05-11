@@ -39,7 +39,7 @@ function AIRecommend({ onSelect }) {
         { role: 'user', content: userMsg },
         { 
           role: 'ai', 
-          content: `앗, 에러가 발생했어요 😥\n이유: ${errorMessage}`, // 화면에 에러 이유 출력!
+          content: `앗, 에러가 발생했어요.. 다시 시도해주세요`, // 화면에 에러 이유 출력!
           tracks: [] 
         }
       ]);
