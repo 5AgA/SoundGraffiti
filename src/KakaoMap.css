@@ -88,7 +88,7 @@
   bottom: calc(88px + env(safe-area-inset-bottom, 0px));
   z-index: 16;
   width: min(552px, calc(100% - 48px));
-  padding: 18px 0 28px;
+  padding: 16px 0 24px;
   transform: translate(-50%, var(--sheet-drag-y, 0));
   border-radius: 24px;
   background: rgba(241, 242, 245, 0.92);
@@ -116,7 +116,7 @@
   display: block;
   width: 68px;
   height: 7px;
-  margin: 0 auto 20px;
+  margin: 0 auto 16px;
   border: 0;
   border-radius: 999px;
   background: rgba(32, 34, 39, 0.58);
@@ -133,7 +133,7 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
-  margin: 0 24px 18px;
+  margin: 0 24px 14px;
   color: rgba(47, 51, 60, 0.68);
   font-size: 16px;
   font-weight: 600;
@@ -145,14 +145,28 @@
   font-size: 13px;
 }
 
+.map-sheet-notice {
+  width: fit-content;
+  max-width: calc(100% - 48px);
+  margin: -4px auto 10px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: rgba(15, 18, 24, 0.72);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+}
+
 .map-track-carousel {
-  --track-card-width: min(282px, 74%);
+  --track-card-width: min(214px, 60%);
   display: flex;
-  gap: 34px;
+  gap: 24px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scroll-padding-inline: calc((100% - var(--track-card-width)) / 2);
-  padding: 0 0 12px;
+  padding: 0 0 4px;
   scrollbar-width: none;
 }
 
@@ -177,7 +191,7 @@
   position: relative;
   width: 100%;
   aspect-ratio: 1;
-  margin: 0 auto 20px;
+  margin: 0 auto 14px;
   overflow: hidden;
   border-radius: 10px;
   background: #d9dde4;
@@ -210,22 +224,26 @@
   color: #ffffff;
   font-size: 12px;
   font-weight: 800;
-  line-height: 1;
+  line-height: 1.25;
   text-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
 }
 
 .map-track-user span:last-child {
   min-width: 0;
+  padding-bottom: 1px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.map-track-user-dot {
+.map-track-user-avatar {
   flex: 0 0 auto;
-  width: 20px;
-  height: 20px;
+  display: block;
+  width: 22px;
+  height: 22px;
+  border: 2px solid rgba(255, 255, 255, 0.92);
   border-radius: 50%;
+  object-fit: cover;
   background: #ffffff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
 }
@@ -240,7 +258,7 @@
 }
 
 .map-track-artist {
-  margin: 0 12px;
+  margin: 0 12px 2px;
   color: rgba(38, 41, 48, 0.34);
   font-size: 16px;
   font-weight: 800;
@@ -254,7 +272,7 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
-  margin: 16px auto 0;
+  margin: 5px auto 0;
 }
 
 .map-track-dots span {
@@ -266,6 +284,11 @@
 
 .map-track-dots span.is-active {
   background: rgba(33, 35, 40, 0.72);
+}
+
+.map-track-dots span.is-faded {
+  opacity: 0.28;
+  transform: scale(0.78);
 }
 
 @keyframes map-sheet-enter {

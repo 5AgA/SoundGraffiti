@@ -3,9 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { getMapPosts } from "./api/posts";
 import "./KakaoMap.css";
 import { getDevGeoCoordinates } from "./utils/devGeoCoords";
+import { resolvedProfileImageUrl } from "./utils/profileImage";
 
 const SEOUL_CENTER = { latitude: 37.5665, longitude: 126.978 };
 const KAKAO_MAP_SDK_SRC = "https://dapi.kakao.com/v2/maps/sdk.js";
+const MAX_VISIBLE_DOTS = 5;
 
 let kakaoMapsSdkPromise = null;
 
@@ -100,6 +102,33 @@ const getUserName = (post) => {
   return user?.user_name || post?.user_name || "anonymous";
 };
 
+const getUserProfileImage = (post) => {
+  const user = Array.isArray(post?.Users) ? post.Users[0] : post?.Users;
+  return resolvedProfileImageUrl(
+    user?.user_profile_url ||
+      post?.user_profile_url ||
+      user?.profile_image_url ||
+      post?.profile_image_url,
+  );
+};
+
+const getVisibleDotRange = (total, activeIndex) => {
+  if (total <= MAX_VISIBLE_DOTS) {
+    return { start: 0, end: total };
+  }
+
+  const half = Math.floor(MAX_VISIBLE_DOTS / 2);
+  let start = Math.max(0, activeIndex - half);
+  let end = start + MAX_VISIBLE_DOTS;
+
+  if (end > total) {
+    end = total;
+    start = Math.max(0, end - MAX_VISIBLE_DOTS);
+  }
+
+  return { start, end };
+};
+
 const getPinSize = (postCount) => {
   const scale = Math.log2(Math.max(postCount, 1));
   return Math.round(48 + Math.min(scale * 9, 32));
@@ -155,6 +184,7 @@ function KakaoMap() {
   const [sheetDragY, setSheetDragY] = useState(0);
   const [isSheetDragging, setIsSheetDragging] = useState(false);
   const [isSheetClosing, setIsSheetClosing] = useState(false);
+  const [mapNotice, setMapNotice] = useState("");
 
   const placeGroups = useMemo(() => {
     const groups = new Map();
@@ -430,8 +460,15 @@ function KakaoMap() {
       return;
     }
 
+    setMapNotice("현재 위치에서 200m 밖이라 피드로 이동할 수 없어요.");
     scrollToTrack(index);
   };
+
+  useEffect(() => {
+    if (!mapNotice) return undefined;
+    const timer = window.setTimeout(() => setMapNotice(""), 2400);
+    return () => window.clearTimeout(timer);
+  }, [mapNotice]);
 
   const handleSheetPointerDown = (event) => {
     event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -460,6 +497,8 @@ function KakaoMap() {
   };
 
   const selectedTracks = selectedPlace?.posts ?? [];
+  const dotRange = getVisibleDotRange(selectedTracks.length, activeTrackIndex);
+  const visibleDotTracks = selectedTracks.slice(dotRange.start, dotRange.end);
 
   return (
     <div className="sound-map-shell">
@@ -506,6 +545,12 @@ function KakaoMap() {
             {selectedPlace.place.place_name ?? "Unknown place"}
           </p>
 
+          {mapNotice ? (
+            <div className="map-sheet-notice" role="status">
+              {mapNotice}
+            </div>
+          ) : null}
+
           <div
             ref={carouselRef}
             className="map-track-carousel"
@@ -515,6 +560,8 @@ function KakaoMap() {
               const albumImageUrl = post?.Tracks?.album_image_url;
               const trackTitle = post?.Tracks?.track_title ?? "Unknown track";
               const artistName = post?.Tracks?.artist_name ?? "Unknown artist";
+              const userName = getUserName(post);
+              const profileImageUrl = getUserProfileImage(post);
 
               return (
                 <article
@@ -540,8 +587,13 @@ function KakaoMap() {
                       <div className="map-track-art map-track-art-empty">♪</div>
                     )}
                     <div className="map-track-user">
-                      <span className="map-track-user-dot" />
-                      <span>{getUserName(post)}</span>
+                      <img
+                        className="map-track-user-avatar"
+                        src={profileImageUrl}
+                        alt=""
+                        draggable={false}
+                      />
+                      <span>{userName}</span>
                     </div>
                   </div>
                   <h2 className="map-track-title">{trackTitle}</h2>
@@ -552,12 +604,22 @@ function KakaoMap() {
           </div>
 
           <div className="map-track-dots" aria-hidden="true">
-            {selectedTracks.map((post, index) => (
-              <span
-                className={index === activeTrackIndex ? "is-active" : ""}
-                key={post.post_id}
-              />
-            ))}
+            {visibleDotTracks.map((post, offset) => {
+              const index = dotRange.start + offset;
+              const fadesLeft = dotRange.start > 0 && offset === 0;
+              const fadesRight =
+                dotRange.end < selectedTracks.length &&
+                offset === visibleDotTracks.length - 1;
+
+              return (
+                <span
+                  className={`${index === activeTrackIndex ? "is-active" : ""}${
+                    fadesLeft || fadesRight ? " is-faded" : ""
+                  }`}
+                  key={post.post_id}
+                />
+              );
+            })}
           </div>
         </section>
       )}
