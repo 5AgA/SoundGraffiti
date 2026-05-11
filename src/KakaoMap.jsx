@@ -465,6 +465,15 @@ function KakaoMap() {
     <div className="sound-map-shell">
       <div ref={mapContainerRef} className="sound-map" />
 
+      <header className="map-header" aria-label="Graffiti Map">
+        <img
+          className="map-logo"
+          src="/GraffitiMap.svg"
+          alt="Graffiti Map"
+          draggable={false}
+        />
+      </header>
+
       {selectedPlace && (
         <button
           type="button"
