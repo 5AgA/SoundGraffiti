@@ -696,7 +696,7 @@
 
 .upload-close-btn {
   position: absolute;
-  right: 0; /* 💡 헤더의 맨 오른쪽에 찰싹 붙음 */
+  left: 0; /* 💡 헤더의 맨 오른쪽에 찰싹 붙음 */
   top: 50%;
   transform: translateY(-50%); /* 💡 타이틀과 완벽하게 세로 중앙 정렬 */
   background: none;

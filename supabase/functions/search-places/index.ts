@@ -26,7 +26,7 @@ serve(async (req) => {
     // 💡 [수정] 좌표가 들어오면 URL에 포함하고, 거리순(sort=distance) 적용!
     let kakaoApiUrl = `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(keyword)}`
     if (x && y) {
-      kakaoApiUrl += `&x=${x}&y=${y}&sort=distance`
+      kakaoApiUrl += `&x=${x}&y=${y}&radius=20000`
     }
 
     // 카카오 장소 검색 REST API 호출
