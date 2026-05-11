@@ -465,7 +465,14 @@ function KakaoMap() {
     <div className="sound-map-shell">
       <div ref={mapContainerRef} className="sound-map" />
 
-      {selectedPlace && <div className="map-sheet-backdrop" />}
+      {selectedPlace && (
+        <button
+          type="button"
+          className="map-sheet-backdrop"
+          aria-label="Close music popup"
+          onClick={closeSheet}
+        />
+      )}
 
       {selectedPlace && (
         <section

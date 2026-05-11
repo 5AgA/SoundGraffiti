@@ -56,8 +56,11 @@
   position: absolute;
   inset: 0;
   z-index: 15;
-  pointer-events: none;
+  padding: 0;
+  border: 0;
+  appearance: none;
   background: rgba(33, 38, 48, 0.28);
+  cursor: default;
 }
 
 .map-music-sheet {
