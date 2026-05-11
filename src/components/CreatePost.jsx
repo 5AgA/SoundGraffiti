@@ -1,10 +1,11 @@
 import React, { useState, useRef } from 'react';
 import './CreatePost.css';
-import spotifyIcon from '../../public/spotify.svg';
-import aiicon from '../../public/AI.svg';
 import TrackSearch from './TrackSearch';
 import AIRecommend from './AIRecommend';
-import { supabase } from '../supabaseClient'; 
+import { supabase } from '../supabaseClient';
+
+const spotifyIcon = '/spotify.svg';
+const aiicon = '/AI.svg';
 
 function UploadGraffiti({ onGoToHome }) {
   const [content, setContent] = useState('');
