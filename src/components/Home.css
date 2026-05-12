@@ -455,54 +455,50 @@
   text-align: center;
 }
 
-.home-track-meta--above .home-track-title {
+/* 앨범 아트 샘플: 어두운 배경 → 흰 글자 */
+.home-track-meta--above--dark-bg .home-track-title {
   margin: 0 0 4px;
   font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
   font-size: 22px;
   font-weight: 800;
   letter-spacing: -0.05em;
   line-height: 1.2;
-  /* 회색 기운 없이 — 살구·버터톤 */
-  color: #fff0e3;
-  word-break: break-word;
+  color: #ffffff;
   text-shadow:
-    0 1px 2px rgba(72, 38, 28, 0.42),
-    0 4px 18px rgba(110, 52, 36, 0.22);
+    0 1px 2px rgba(0, 0, 0, 0.45),
+    0 0 20px rgba(0, 0, 0, 0.25);
 }
 
-.home-track-meta--above .home-track-artist {
+.home-track-meta--above--dark-bg .home-track-artist {
   margin: 0;
   font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: -0.03em;
   line-height: 1.35;
-  color: rgba(255, 214, 188, 0.97);
-  word-break: break-word;
-  text-shadow:
-    0 1px 2px rgba(72, 38, 28, 0.38),
-    0 3px 14px rgba(100, 48, 32, 0.18);
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
-@supports (mix-blend-mode: exclusion) {
-  .home-track-meta--above {
-    /*
-     * 슬롯 안 로컬 블러(::before)와만 블렌딩 — 상위 overflow/z-index 로
-     * 전역 배경과 직접 섞이지 않을 때도 톤이 따라가게 함.
-     * exclusion: difference 보다 대비가 부드럽고 눈이 덜 피로한 편.
-     */
-    mix-blend-mode: exclusion;
-  }
+/* 앨범 아트 샘플: 밝은 배경 → 검정 글자 */
+.home-track-meta--above--light-bg .home-track-title {
+  margin: 0 0 4px;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 1.2;
+  color: #0a0a0a;
+}
 
-  .home-track-meta--above .home-track-title {
-    color: #fff0e3;
-    text-shadow: none;
-  }
-
-  .home-track-meta--above .home-track-artist {
-    color: rgba(255, 200, 168, 0.97);
-    text-shadow: none;
-  }
+.home-track-meta--above--light-bg .home-track-artist {
+  margin: 0;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.35;
+  color: rgba(10, 10, 10, 0.82);
 }
 
 .home-feed-scroll::-webkit-scrollbar {

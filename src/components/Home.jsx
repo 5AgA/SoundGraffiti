@@ -404,6 +404,8 @@ function Home({
   const [commentDeletePrompt, setCommentDeletePrompt] = useState(null);
   const [commentDeleteSubmitting, setCommentDeleteSubmitting] = useState(false);
   const [playbackNotice, setPlaybackNotice] = useState("");
+  /** 앨범 커버 색감 기준: 밝으면 상단 트랙 타이틀·가수를 검정, 어두우면 흰색 */
+  const [trackMetaOnLightBg, setTrackMetaOnLightBg] = useState(false);
   const { spotifyToken, user } = useAuth();
   /** Auth 메타데이터에 없을 때 Users 테이블 프로필 (고정 id·OAuth 병행) */
   const [dbUserProfileUrl, setDbUserProfileUrl] = useState(null);
@@ -1095,6 +1097,50 @@ function Home({
     typeof blurTrack?.album_image_url === "string"
       ? blurTrack.album_image_url.trim()
       : "";
+
+  useEffect(() => {
+    if (!feedFocused || !blurBackground) {
+      setTrackMetaOnLightBg(false);
+      return;
+    }
+    let cancelled = false;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      if (cancelled) return;
+      try {
+        const w = 28;
+        const h = 28;
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0, w, h);
+        const { data } = ctx.getImageData(0, 0, w, h);
+        let sum = 0;
+        const pixels = data.length / 4;
+        for (let i = 0; i < data.length; i += 4) {
+          sum +=
+            0.2126 * data[i] +
+            0.7152 * data[i + 1] +
+            0.0722 * data[i + 2];
+        }
+        const avg = sum / pixels / 255;
+        if (!cancelled) setTrackMetaOnLightBg(avg > 0.48);
+      } catch {
+        if (!cancelled) setTrackMetaOnLightBg(false);
+      }
+    };
+    img.onerror = () => {
+      if (!cancelled) setTrackMetaOnLightBg(false);
+    };
+    img.src = blurBackground;
+    return () => {
+      cancelled = true;
+    };
+  }, [feedFocused, blurBackground]);
+
   const activePost = !isLoading ? list[activeIndex] ?? null : null;
 
   const showPlaybackUnavailable = useCallback(({ track }) => {
@@ -1578,7 +1624,13 @@ function Home({
               >
                 {showTrackAbove ? (
                   <div className="home-feed-item-track-slot">
-                    <div className="home-track-meta home-track-meta--above">
+                    <div
+                      className={`home-track-meta home-track-meta--above${
+                        trackMetaOnLightBg
+                          ? " home-track-meta--above--light-bg"
+                          : " home-track-meta--above--dark-bg"
+                      }`}
+                    >
                       {trackTitle ? (
                         <p className="home-track-title">{trackTitle}</p>
                       ) : null}
