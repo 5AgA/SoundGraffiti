@@ -623,21 +623,30 @@
   right: 18px;
   top: 44%;
   transform: translateY(-50%);
+  flex-shrink: 0;
   width: 34px;
   height: 34px;
-  background: #545454;
-  color: #FFF;
-  border: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: #545454;
+  color: #fff;
   cursor: pointer;
-  font-size: 16px;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s ease;
 }
 
 .ai-submit-btn:disabled {
-  background: #D1D5DB;
+  opacity: 0.35;
+  cursor: default;
+}
+
+.ai-submit-btn:not(:disabled):active {
+  opacity: 0.85;
 }
 
 .ai-loading-text {
