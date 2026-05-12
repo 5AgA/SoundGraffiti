@@ -1,0 +1,70 @@
+.auth-callback-screen {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background: #e2eaf6;
+  color: #302e42;
+  font-family: "Pretendard", "Segoe UI", Roboto, sans-serif;
+}
+
+.auth-callback-panel {
+  width: min(100%, 320px);
+  padding: 26px 22px 24px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: 0 18px 50px rgba(36, 42, 58, 0.14);
+  text-align: center;
+}
+
+.auth-callback-panel h1 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.auth-callback-panel p {
+  margin: 0;
+  color: rgba(48, 46, 66, 0.72);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.auth-callback-code {
+  margin-top: 10px !important;
+  color: rgba(48, 46, 66, 0.46) !important;
+  font-size: 11px !important;
+  overflow-wrap: anywhere;
+}
+
+.auth-callback-panel button {
+  margin-top: 18px;
+  padding: 10px 15px;
+  border: 0;
+  border-radius: 999px;
+  background: #302e42;
+  color: #ffffff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.auth-callback-spinner {
+  width: 28px;
+  height: 28px;
+  margin: 0 auto 16px;
+  border: 3px solid rgba(48, 46, 66, 0.18);
+  border-top-color: #302e42;
+  border-radius: 50%;
+  animation: auth-callback-spin 760ms linear infinite;
+}
+
+@keyframes auth-callback-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

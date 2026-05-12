@@ -1,95 +1,106 @@
-import { supabase } from '../supabaseClient'
+import { useState } from "react";
+import { supabase } from "../supabaseClient";
+import {
+  authOptionsForProvider,
+  clearPendingOAuth,
+  rememberPendingOAuth,
+} from "../utils/authProviders";
+import "./Login.css";
 
-export default function Login() {
-    const handleSpotifyLogin = async () => {
-        const { error } = await supabase.auth.signInWithOAuth({
-            provider: 'spotify',
-            options: {
-                scopes: 'user-read-email user-read-private streaming user-modify-playback-state user-read-playback-state',
-                redirectTo: `${window.location.origin}/`,
-            },
-        })
-        if (error) {
-            console.error('Spotify 로그인 실패:', error.message)
-            alert('로그인에 실패했습니다: ' + error.message)
-        }
+export default function Login({ active = false }) {
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleOAuthLogin = async (provider) => {
+    setErrorMessage("");
+    setIsSubmitting(true);
+    rememberPendingOAuth(provider, "/home");
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: authOptionsForProvider(provider),
+    });
+
+    setIsSubmitting(false);
+
+    if (error) {
+      clearPendingOAuth();
+      console.error(`${provider} login failed:`, error.message);
+      setErrorMessage("로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.");
     }
+  };
 
-    const handleGoogleLogin = async () => {
-        const { error } = await supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: {
-                redirectTo: `${window.location.origin}/`,
-            },
-        })
-        if (error) {
-            console.error('Google 로그인 실패:', error.message)
-            alert('로그인에 실패했습니다: ' + error.message)
-        }
-    }
-
-    const handleKakaoLogin = async () => {
-        const { error } = await supabase.auth.signInWithOAuth({
-            provider: 'kakao',
-            options: {
-                redirectTo: `${window.location.origin}/`,
-            },
-        })
-        if (error) {
-            console.error('Kakao 로그인 실패:', error.message)
-            alert('로그인에 실패했습니다: ' + error.message)
-        }
-    }
-
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+  return (
+    <section className="login-wrap">
+      <div className="login-phone">
+        <div className={`login-social${active ? " is-visible" : ""}`}>
+          <div className="login-social-item">
             <button
-                onClick={handleSpotifyLogin}
-                style={{
-                    padding: '12px 24px',
-                    backgroundColor: '#1DB954',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '24px',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                }}
+              className="login-social-btn"
+              onClick={() => handleOAuthLogin("kakao")}
+              type="button"
+              disabled={isSubmitting}
             >
-                Spotify로 로그인
+              <img
+                className="login-social-icon"
+                src="/signup_kakao_light.svg"
+                alt="Kakao 로그인"
+              />
             </button>
+            <p className="login-social-label">
+              KAKAO로
+              <br />
+              로그인
+            </p>
+          </div>
 
+          <div className="login-social-item">
             <button
-                onClick={handleGoogleLogin}
-                style={{
-                    padding: '12px 24px',
-                    backgroundColor: '#fff',
-                    color: '#444',
-                    border: '1px solid #ddd',
-                    borderRadius: '24px',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                }}
+              className="login-social-btn"
+              onClick={() => handleOAuthLogin("spotify")}
+              type="button"
+              disabled={isSubmitting}
             >
-                Google로 로그인
+              <img
+                className="login-social-icon"
+                src="/signup_spotify_light.svg"
+                alt="Spotify 로그인"
+              />
             </button>
+            <p className="login-social-label">
+              Spotify로
+              <br />
+              로그인
+            </p>
+          </div>
 
+          <div className="login-social-item">
             <button
-                onClick={handleKakaoLogin}
-                style={{
-                    padding: '12px 24px',
-                    backgroundColor: '#FEE500',
-                    color: '#000',
-                    border: 'none',
-                    borderRadius: '24px',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                }}
+              className="login-social-btn"
+              onClick={() => handleOAuthLogin("google")}
+              type="button"
+              disabled={isSubmitting}
             >
-                카카오로 로그인
+              <img
+                className="login-social-icon"
+                src="/signup_google_light.svg"
+                alt="Google 로그인"
+              />
             </button>
+            <p className="login-social-label">
+              Google로
+              <br />
+              로그인
+            </p>
+          </div>
         </div>
-    )
+
+        {errorMessage && (
+          <p className={`login-error${active ? " is-visible" : ""}`}>
+            {errorMessage}
+          </p>
+        )}
+      </div>
+    </section>
+  );
 }

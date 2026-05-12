@@ -1,0 +1,318 @@
+.sound-map-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 100lvh;
+  overflow: hidden;
+  background: #d8dde6;
+}
+
+.sound-map {
+  width: 100%;
+  height: 100%;
+}
+
+.map-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 12;
+  padding-top: env(safe-area-inset-top, 0px);
+  pointer-events: none;
+}
+
+.map-logo {
+  display: block;
+  width: 128px;
+  height: auto;
+  margin-left: max(21px, env(safe-area-inset-left, 0px));
+  margin-top: 21px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.album-map-pin {
+  position: relative;
+  width: var(--pin-size, 55px);
+  height: var(--pin-size, 55px);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  filter:
+    drop-shadow(0 2px 3px rgba(20, 18, 28, 0.12))
+    drop-shadow(0 8px 14px rgba(20, 18, 28, 0.08));
+}
+
+.album-map-pin__image,
+.album-map-pin__fallback {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: var(--pin-size, 55px);
+  height: var(--pin-size, 55px);
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.album-map-pin__image {
+  display: block;
+  object-fit: cover;
+}
+
+.album-map-pin__fallback {
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  background: linear-gradient(135deg, #18b46b, #2c63d6);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.map-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  padding: 0;
+  border: 0;
+  appearance: none;
+  background: rgba(33, 38, 48, 0.28);
+  cursor: default;
+}
+
+.map-music-sheet {
+  position: absolute;
+  left: 50%;
+  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  z-index: 16;
+  width: min(552px, calc(100% - 48px));
+  padding: 16px 0 24px;
+  transform: translate(-50%, var(--sheet-drag-y, 0));
+  border-radius: 24px;
+  background: rgba(241, 242, 245, 0.92);
+  box-shadow: 0 24px 70px rgba(24, 28, 38, 0.3);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: #101217;
+  overflow: hidden;
+  animation: map-sheet-enter 260ms ease-out;
+  transition:
+    opacity 220ms ease,
+    transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.map-music-sheet.is-dragging {
+  transition: none;
+}
+
+.map-music-sheet.is-closing {
+  opacity: 0;
+  transform: translate(-50%, calc(100% + 44px));
+}
+
+.map-sheet-handle {
+  display: block;
+  width: 68px;
+  height: 7px;
+  margin: 0 auto 16px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(32, 34, 39, 0.58);
+  cursor: grab;
+  touch-action: none;
+}
+
+.map-sheet-handle:active {
+  cursor: grabbing;
+}
+
+.map-sheet-place {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin: 0 24px 14px;
+  color: rgba(47, 51, 60, 0.68);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.map-sheet-place span {
+  color: rgba(47, 51, 60, 0.66);
+  font-size: 13px;
+}
+
+.map-sheet-notice {
+  width: fit-content;
+  max-width: calc(100% - 48px);
+  margin: -4px auto 10px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: rgba(15, 18, 24, 0.72);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.map-track-carousel {
+  --track-card-width: min(214px, 60%);
+  display: flex;
+  gap: 24px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: calc((100% - var(--track-card-width)) / 2);
+  padding: 0 0 4px;
+  scrollbar-width: none;
+}
+
+.map-track-carousel::before,
+.map-track-carousel::after {
+  content: "";
+  flex: 0 0 calc((100% - var(--track-card-width)) / 2);
+}
+
+.map-track-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.map-track-card {
+  flex: 0 0 var(--track-card-width);
+  scroll-snap-align: center;
+  text-align: center;
+  cursor: pointer;
+}
+
+.map-track-art-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  margin: 0 auto 14px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #d9dde4;
+  box-shadow: 0 18px 36px rgba(37, 38, 45, 0.2);
+}
+
+.map-track-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.map-track-art-empty {
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  background: linear-gradient(135deg, #18b46b, #2c63d6);
+  font-size: 54px;
+}
+
+.map-track-user {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: calc(100% - 20px);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
+}
+
+.map-track-user span:last-child {
+  min-width: 0;
+  padding-bottom: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-track-user-avatar {
+  flex: 0 0 auto;
+  display: block;
+  width: 22px;
+  height: 22px;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  border-radius: 50%;
+  object-fit: cover;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+}
+
+.map-track-title {
+  margin: 0 12px 4px;
+  color: #08090c;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.map-track-artist {
+  margin: 0 12px 2px;
+  color: rgba(38, 41, 48, 0.34);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.15;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.map-track-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin: 5px auto 0;
+}
+
+.map-track-dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(54, 57, 65, 0.14);
+}
+
+.map-track-dots span.is-active {
+  background: rgba(33, 35, 40, 0.72);
+}
+
+.map-track-dots span.is-faded {
+  opacity: 0.28;
+  transform: scale(0.78);
+}
+
+@keyframes map-sheet-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 28px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, var(--sheet-drag-y, 0));
+  }
+}
+
+@media (max-width: 640px) {
+  .map-music-sheet {
+    width: calc(100% - 24px);
+    border-radius: 24px;
+  }
+
+  .map-track-title {
+    font-size: 22px;
+  }
+
+  .map-track-artist {
+    font-size: 15px;
+  }
+}

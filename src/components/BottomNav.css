@@ -1,0 +1,149 @@
+.bottom-nav {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-85px);
+  top: auto;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  width: 163px;
+  height: 56px;
+  border-radius: 26.5px;
+  background: #ffffffcc;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-left: 7px;
+  gap: 16px;
+  z-index: 6;
+  font-size: 20px;
+  color: #a9afb9;
+  transition:
+    filter 180ms ease,
+    opacity 180ms ease;
+  box-sizing: border-box;
+  box-shadow:
+    0 10px 24px rgba(27, 35, 54, 0.22),
+    0 2px 8px rgba(27, 35, 54, 0.12);
+}
+
+/* 활성 원: 아이콘 레이아웃과 분리 (프로필 아이콘 크기·위치 고정) */
+.bottom-nav__active-ring {
+  position: absolute;
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  background: #0075ff;
+  top: 50%;
+  margin-top: -22.5px;
+  /* 패딩 7px과 예전 .home-nav .is-active(45×45) 슬롯 시작선 정렬 */
+  left: 7px;
+  z-index: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    opacity 160ms ease;
+}
+
+.bottom-nav[data-active="home"] .bottom-nav__active-ring {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.bottom-nav[data-active="map"] .bottom-nav__active-ring {
+  opacity: 1;
+  transform: translateX(50px);
+}
+
+/* 프로필 탭: 원만 세 번째 슬롯(아이콘 중심)으로 이동 */
+.bottom-nav[data-active="profile"] .bottom-nav__active-ring {
+  opacity: 1;
+  transform: translateX(100px);
+}
+
+.bottom-nav[data-active="none"] .bottom-nav__active-ring {
+  opacity: 0;
+}
+
+.bottom-nav__item {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 예전 home-nav: 활성 탭 span이 45×45 — 첫 슬롯 폭을 동일하게 두어 지도/프로필 위치 복구 */
+.bottom-nav > .bottom-nav__item:nth-child(2) {
+  flex: 0 0 45px;
+  min-width: 45px;
+}
+
+.bottom-nav__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bottom-nav__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bottom-nav__icon {
+  display: block;
+}
+
+.bottom-nav__icon--home {
+  width: 28px;
+  height: 23px;
+}
+
+.bottom-nav__icon--map {
+  width: 25px;
+  height: 23px;
+}
+
+.bottom-nav__icon--profile {
+  width: 22px;
+  height: 23px;
+  margin-left: 10px;
+}
+
+.bottom-nav__fab {
+  position: fixed;
+  left: auto;
+  right: 20px;
+  top: auto;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 0;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.85);
+  color: #616875;
+  font-size: 32px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 6;
+  transition:
+    filter 180ms ease,
+    opacity 180ms ease;
+  box-shadow:
+    0 12px 26px rgba(27, 35, 54, 0.24),
+    0 2px 8px rgba(27, 35, 54, 0.12);
+}

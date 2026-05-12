@@ -4,7 +4,7 @@ export const uploadMedia = async (file, postId) => {
   const fileExt = file.name.split('.').pop()
   const filePath = `${postId}/${Date.now()}.${fileExt}`
 
-  const { data, error } = await supabase.storage
+  const { error } = await supabase.storage
     .from('post-media')
     .upload(filePath, file)
 

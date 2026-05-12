@@ -1,0 +1,1332 @@
+.home-wrap {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-start;
+  width: 100%;
+  height: 100lvh;
+  margin: 0 auto;
+  flex: 1;
+  overflow: visible;
+}
+
+.home-playback-notice {
+  position: fixed;
+  left: 50%;
+  top: calc(18px + env(safe-area-inset-top, 0px));
+  z-index: 20;
+  width: min(340px, calc(100% - 32px));
+  padding: 10px 14px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: rgba(28, 32, 42, 0.88);
+  color: #ffffff;
+  box-shadow: 0 10px 26px rgba(19, 26, 38, 0.2);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  pointer-events: none;
+}
+
+.home-phone {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  overflow: visible;
+  background: #f8fbff;
+}
+
+/* 플립+한 장 모드에서 댓글 시트: 카드 축소·상단 정렬 → 시트 위로 전부 노출 */
+.home-phone--flip-comment .home-feed-scroll--focused {
+  justify-content: flex-start;
+  padding-top: max(36px, calc(env(safe-area-inset-top, 0px) + 24px));
+}
+
+.home-phone--flip-comment
+  .home-feed-scroll--focused
+  .home-feed-item:not(.home-feed-item--focus-hidden) {
+  transform: translateY(22px) scale(0.76);
+  transform-origin: center top;
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media (min-height: 720px) {
+  .home-phone--flip-comment
+    .home-feed-scroll--focused
+    .home-feed-item:not(.home-feed-item--focus-hidden) {
+    transform: translateY(22px) scale(0.82);
+  }
+}
+
+.home-phone--flip-comment--expanded
+  .home-feed-scroll--focused
+  .home-feed-item:not(.home-feed-item--focus-hidden) {
+  transform: translateY(18px) scale(0.64);
+}
+
+.home-bg-stack {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.home-bg-blur {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(20px);
+  opacity: 0.65;
+  transform: scale(1.1);
+}
+
+.home-bg-edge-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.home-bg-edge-fade--top {
+  top: 0;
+  height: 10%;
+  background: linear-gradient(
+    180deg,
+    rgba(248, 251, 255, 0.92) 0%,
+    rgba(236, 242, 252, 0.55) 10%,
+    rgba(248, 251, 255, 0) 100%
+  );
+}
+
+.home-bg-blur.no-image {
+  background: radial-gradient(circle at 20% 20%, #445, #1b1e27 65%);
+  filter: none;
+  opacity: 0.45;
+  transform: none;
+}
+
+.home-top-fade {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* 기기 높이에 비례해 반응형으로 적용 */
+  height: 7%;
+  /* 화면 배경(#f8fbff)과 동일 색 — 알파만 내려가게 해 경계가 덜 드러남 */
+  background: linear-gradient(
+    180deg,
+    rgba(248, 251, 255, 0.9) 0%,
+    rgba(248, 251, 255, 0.52) 38%,
+    rgba(248, 251, 255, 0.22) 68%,
+    rgba(248, 251, 255, 0.06) 88%,
+    rgba(248, 251, 255, 0) 100%
+  );
+  z-index: 4;
+  pointer-events: none;
+}
+
+.home-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding-top: env(safe-area-inset-top);
+  height: auto;
+  z-index: 5;
+  text-align: left;
+}
+
+.home-logo-btn {
+  position: relative;
+  left: 21px;
+  top: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  display: block;
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.home-logo-btn:focus-visible {
+  outline: 2px solid #0075ff;
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+.home-logo {
+  display: block;
+  width: 148px;
+  height: 50px;
+  pointer-events: none;
+}
+
+.home-feed-refresh-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 72px);
+  pointer-events: none;
+  background: transparent;
+}
+
+.home-feed-refresh-overlay--pull .home-feed-refresh-spinner {
+  width: 26px;
+  height: 26px;
+  border-width: 2.5px;
+  opacity: 0.92;
+  animation-duration: 0.82s;
+}
+
+.home-feed-refresh-spinner {
+  width: 30px;
+  height: 30px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 3px solid rgba(92, 112, 148, 0.26);
+  border-top-color: #0075ff;
+  animation: home-feed-refresh-spin 0.72s linear infinite;
+}
+
+@keyframes home-feed-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.home-feed-item {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  max-width: 344px;
+  flex-shrink: 0;
+  scroll-snap-align: center;
+  margin: 0 auto;
+}
+
+/* 현재 카드보다 위(이전): 보이게 — 살짝만 흐리게 해 활성 카드와 구분 */
+.home-feed-item--past {
+  opacity: 0.52;
+  transform: scale(0.96);
+  transform-origin: center bottom;
+  filter: saturate(0.88);
+  cursor: pointer;
+}
+
+/* 현재 카드보다 아래(다음): 이전 카드와 같은 톤으로 흐리게 */
+.home-feed-item--next {
+  opacity: 0.52;
+  transform: scale(0.96);
+  transform-origin: center top;
+  filter: saturate(0.88);
+  cursor: pointer;
+}
+
+.home-card {
+  position: relative;
+  width: 100%;
+  max-width: 344px;
+  height: 450px;
+  border-radius: 30px;
+  flex-shrink: 0;
+  overflow: visible;
+  color: #fff;
+  margin: 0 auto;
+  perspective: 1100px;
+}
+
+.home-card.home-card--no-flip {
+  overflow: hidden;
+  perspective: none;
+}
+
+.home-card-flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.58s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.home-card--flipped .home-card-flip-inner {
+  transform: rotateY(180deg);
+}
+
+.home-card-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 30px;
+  overflow: hidden;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.home-card-face--back {
+  transform: rotateY(180deg);
+  background: #151820;
+  cursor: pointer;
+}
+
+.home-card-back-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+/* 첨부 사진 없이 앨범만: 살짝 흰기 도는 베일 */
+.home-card-back-bg:has(> .home-card-image--album-cover)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  z-index: 1;
+  pointer-events: none;
+  background: rgba(228, 232, 242, 0.38);
+}
+
+.home-card:not(.home-card--flipped) .home-card-face--back {
+  pointer-events: none;
+}
+
+.home-card--flipped .home-card-face--front .home-card-flip-trigger {
+  pointer-events: none;
+}
+
+.home-card-flip-trigger {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 0;
+  border: 0;
+  margin: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.home-card-flip-trigger:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: -4px;
+}
+
+.home-card-flip-trigger-media {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.home-feed-empty {
+  flex-shrink: 0;
+  max-width: 280px;
+  margin: 0 auto;
+  padding: 32px 16px 48px;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: -0.03em;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.home-feed-scroll {
+  --home-feed-card-h: 450px;
+  --home-feed-track-slot: 0px;
+  --home-feed-track-gap: 24px;
+  --home-feed-item-h: calc(
+    var(--home-feed-track-slot) + var(--home-feed-track-gap) +
+      var(--home-feed-card-h)
+  );
+  --home-feed-item-half: calc(var(--home-feed-item-h) / 2);
+  --home-feed-pad-y: max(32px, calc(50dvh - var(--home-feed-item-half)));
+  --home-feed-nav-space: calc(120px + env(safe-area-inset-bottom, 0px));
+
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  bottom: 0;
+  margin-bottom: 0;
+
+  z-index: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  gap: 24px;
+  scroll-snap-type: y mandatory;
+  padding-top: var(--home-feed-pad-y);
+  /* 트레일 스페이서(.home-feed-scroll-tail)가 상단과 같은 여백을 주므로 하단은 네비·안전영역만 */
+  padding-bottom: var(--home-feed-nav-space);
+
+  padding-left: 20px;
+  padding-right: 20px;
+
+  scroll-padding-top: max(24px, calc(env(safe-area-inset-top, 0px) + 48px));
+  /* 고정 바텀 네비(56px + 10px) + 여유 — 스냅 중심이 중간 카드와 동일하게 유지 */
+  scroll-padding-bottom: calc(118px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  background: transparent;
+  overscroll-behavior-y: contain;
+}
+
+.home-feed-scroll--focused {
+  overflow: hidden !important;
+  scroll-snap-type: none;
+  justify-content: center;
+  gap: 0;
+  padding-top: max(8px, env(safe-area-inset-top, 0px));
+  padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px));
+}
+
+.home-feed-item--focus-hidden {
+  display: none !important;
+}
+
+.home-feed-scroll-tail--hidden {
+  display: none !important;
+}
+
+.home-feed-item-track-slot {
+  width: 100%;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding-bottom: var(--home-feed-track-gap);
+  box-sizing: border-box;
+  min-height: 76px;
+}
+
+/*
+ * 한 장 보기: mix-blend 가 상위 overflow 스택에서 끊기지 않도록,
+ * 슬롯 안에 전역과 같은 앨범 블러를 깔고 isolation 으로 이 구역만 블렌딩.
+ */
+.home-feed-scroll--focused .home-feed-item-track-slot {
+  position: relative;
+  isolation: isolate;
+}
+
+.home-feed-scroll--focused .home-feed-item-track-slot::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: var(
+    --home-blur-url,
+    radial-gradient(circle at 20% 20%, #445, #1b1e27 65%)
+  );
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  filter: blur(20px);
+  opacity: 0.65;
+  transform: scale(1.1);
+}
+
+.home-track-meta--above {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 0 12px;
+  text-align: center;
+}
+
+/* 앨범 아트 샘플: 어두운 배경 → 흰 글자 */
+.home-track-meta--above--dark-bg .home-track-title {
+  margin: 0 0 4px;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 1.2;
+  color: #ffffff;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.45),
+    0 0 20px rgba(0, 0, 0, 0.25);
+}
+
+.home-track-meta--above--dark-bg .home-track-artist {
+  margin: 0;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* 앨범 아트 샘플: 밝은 배경 → 검정 글자 */
+.home-track-meta--above--light-bg .home-track-title {
+  margin: 0 0 4px;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 1.2;
+  color: #0a0a0a;
+}
+
+.home-track-meta--above--light-bg .home-track-artist {
+  margin: 0;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.35;
+  color: rgba(10, 10, 10, 0.82);
+}
+
+.home-feed-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* 마지막 카드 아래 스크롤 여유: 첫 카드 위는 padding만, 여기는 flex gap(24px)이 하나 더 있어 상쇄 */
+.home-feed-scroll-tail {
+  flex-shrink: 0;
+  width: 100%;
+  height: max(0px, calc(var(--home-feed-pad-y) - 24px));
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.home-card-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 첨부 사진 없음 → 앨범 커버만: 반전 없음, 살짝 흰끼(오버레이는 부모 ::after) */
+.home-card-image--album-cover {
+  transform: none;
+  opacity: 1;
+  /* 투명 PNG — 아래로 비치는 톤도 살짝 밝게 */
+  background-color: rgba(240, 243, 249, 0.35);
+}
+
+.home-card-image-empty {
+  background: linear-gradient(160deg, #31333e 0%, #191b22 100%);
+}
+
+/* 포스트 첨부 사진: 가로 스냅 스크롤 (여러 장) */
+.home-card-media-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.home-card-media-strip {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  height: 100%;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+}
+
+.home-card-media-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.home-card-media-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  position: relative;
+}
+
+.home-card-media-slide .home-card-image {
+  position: absolute;
+  inset: 0;
+}
+
+.home-card-media-dots {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 96px;
+  z-index: 3;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+  pointer-events: none;
+}
+
+.home-card-media-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.38);
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease;
+}
+
+.home-card-media-dot--active {
+  background: #fff;
+  transform: scale(1.18);
+}
+
+.home-card-image-skeleton {
+  background: linear-gradient(160deg, #cfd5dd 0%, #bfc8d3 100%);
+}
+
+.home-card-top-shadow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.65) 0%,
+    rgba(0, 0, 0, 0) 50%
+  );
+}
+
+.home-card-bottom-shadow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* 아래쪽 쉐이드: 60% 지점에서 페이드 종료 */
+  background: linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.65) 0%,
+    rgba(0, 0, 0, 0) 50%
+  );
+}
+
+.home-user {
+  position: absolute;
+  top: 16px;
+  left: 14px;
+  z-index: 3;
+  display: flex;
+  gap: 11px;
+  align-items: center;
+}
+
+.home-user > div {
+  text-align: left;
+}
+
+.home-skeleton-user-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.home-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #f1f1f1;
+  object-fit: cover;
+}
+
+.home-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: left;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  color: #fff;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.88),
+    0 2px 14px rgba(0, 0, 0, 0.45);
+}
+
+.home-place {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.98;
+  text-align: left;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  color: rgba(255, 255, 255, 0.96);
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.85),
+    0 2px 12px rgba(0, 0, 0, 0.4);
+}
+
+.home-content {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 62px;
+  margin: 0;
+  z-index: 3;
+  font-size: 16px;
+  line-height: 1.2;
+  text-align: left;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  color: #fff;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.92),
+    0 2px 18px rgba(0, 0, 0, 0.5);
+}
+
+.home-skeleton {
+  border-radius: 12px;
+}
+
+.home-skeleton-avatar {
+  background: #d7dce3;
+}
+
+.home-skeleton-name {
+  width: 92px;
+  height: 14px;
+  background: #eef2f7;
+}
+
+.home-skeleton-place {
+  width: 132px;
+  height: 12px;
+  background: #d9dee6;
+}
+
+.home-skeleton-content-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.home-skeleton-content-1 {
+  width: 86%;
+  height: 14px;
+  background: #e8ecf2;
+}
+
+.home-skeleton-content-2 {
+  width: 64%;
+  height: 14px;
+  background: #d5dbe4;
+}
+
+.home-skeleton-action {
+  height: 30px;
+  border-radius: 18px;
+}
+
+.home-skeleton-action-1 {
+  width: 62px;
+  background: #eef2f7;
+}
+
+.home-skeleton-action-2 {
+  width: 62px;
+  background: #dde3eb;
+}
+
+.home-skeleton-action-3 {
+  width: 46px;
+  background: #cfd6e0;
+}
+
+.home-actions {
+  position: absolute;
+  left: 18px;
+  bottom: 16px;
+  z-index: 3;
+  display: flex;
+  gap: 10px;
+}
+
+.home-actions button {
+  border: 0;
+  border-radius: 18px;
+  padding: 6px 12px;
+  background: #68676a;
+  color: #fff;
+}
+
+.home-actions button.home-action-btn--spotify {
+  border-radius: 50px;
+  width: 28.8px;
+  height: 28.8px;
+  justify-content: center;
+}
+
+.home-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.home-action-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.home-action-icon--spotify {
+  mix-blend-mode: color-dodge;
+}
+
+.home-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 댓글 바텀시트 (Figma home ver.1 댓글 패널) */
+.home-comment-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.home-comment-overlay .home-comment-backdrop,
+.home-comment-overlay .home-comment-sheet,
+.home-comment-overlay .home-comment-delete-layer {
+  pointer-events: auto;
+}
+
+.home-comment-delete-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.home-comment-delete-layer__backdrop {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: rgba(0, 0, 0, 0.38);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.home-comment-delete-dialog {
+  position: relative;
+  width: min(320px, 100%);
+  padding: 22px 20px 18px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow:
+    0 18px 48px rgba(27, 35, 54, 0.22),
+    0 0 1px rgba(27, 35, 54, 0.06);
+}
+
+.home-comment-delete-dialog__title {
+  margin: 0 0 18px;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: #2e2e2e;
+  text-align: center;
+}
+
+.home-comment-delete-dialog__actions {
+  display: flex;
+  gap: 10px;
+}
+
+.home-comment-delete-dialog__btn {
+  flex: 1;
+  min-height: 46px;
+  margin: 0;
+  border-radius: 12px;
+  border: 0;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s ease;
+}
+
+.home-comment-delete-dialog__btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.home-comment-delete-dialog__btn:not(:disabled):active {
+  opacity: 0.82;
+}
+
+.home-comment-delete-dialog__btn--ghost {
+  background: #eceef2;
+  color: #555;
+}
+
+.home-comment-delete-dialog__btn--danger {
+  background: #005eff;
+  color: #fff;
+}
+
+.home-comment-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 카드 뒷면(한 장+플립)에서 댓글: Figma node 194:2947 — 상단 카드 비치는 낮은 시트 */
+.home-comment-overlay--flip-context .home-comment-backdrop {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.home-comment-overlay--flip-context
+  .home-comment-sheet:not(.home-comment-sheet--expanded) {
+  --comment-sheet-h: min(380px, 40.5dvh);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 -6px 32px rgba(27, 35, 54, 0.1);
+}
+
+@supports not (height: 40.5dvh) {
+  .home-comment-overlay--flip-context
+    .home-comment-sheet:not(.home-comment-sheet--expanded) {
+    --comment-sheet-h: min(380px, 40.5vh);
+  }
+}
+
+.home-comment-overlay--flip-context
+  .home-comment-sheet.home-comment-sheet--expanded {
+  --comment-sheet-h: min(
+    92vh,
+    calc(100vh - env(safe-area-inset-top, 0px) - 12px)
+  );
+}
+
+@supports (height: 100dvh) {
+  .home-comment-overlay--flip-context
+    .home-comment-sheet.home-comment-sheet--expanded {
+    --comment-sheet-h: min(
+      92dvh,
+      calc(100dvh - env(safe-area-inset-top, 0px) - 12px)
+    );
+  }
+}
+
+.home-comment-sheet {
+  --comment-sheet-h: min(520px, 58vh);
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: var(--comment-sheet-h);
+  max-height: var(--comment-sheet-h);
+  width: 100%;
+  border-radius: 30px 30px 0 0;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 -8px 40px rgba(27, 35, 54, 0.12);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  will-change: transform;
+  transition:
+    transform 0.32s cubic-bezier(0.32, 0.72, 0, 1),
+    max-height 0.38s cubic-bezier(0.28, 0.82, 0.32, 1),
+    height 0.38s cubic-bezier(0.28, 0.82, 0.32, 1);
+}
+
+/* 상단 핸들 위로 스와이프 시: 거의 전체 높이로 확장 (height까지 바꿔야 flex 시트가 실제로 커짐) */
+.home-comment-sheet--expanded {
+  --comment-sheet-h: min(
+    92vh,
+    calc(100vh - env(safe-area-inset-top, 0px) - 12px)
+  );
+}
+
+@supports (height: 100dvh) {
+  .home-comment-sheet--expanded {
+    --comment-sheet-h: min(
+      92dvh,
+      calc(100dvh - env(safe-area-inset-top, 0px) - 12px)
+    );
+  }
+}
+
+.home-comment-sheet--dragging {
+  transition: none;
+}
+
+.home-comment-handle-zone {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px 48px 10px;
+  touch-action: none;
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.home-comment-handle-zone:active {
+  cursor: grabbing;
+}
+
+.home-comment-handle {
+  align-self: center;
+  width: 46px;
+  height: 5px;
+  margin: 0;
+  border-radius: 2px;
+  background: #545454;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.home-comment-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 21px 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.home-comment-empty {
+  margin: 28px 0 20px;
+  padding: 0 12px;
+  text-align: center;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: -0.03em;
+  color: rgba(88, 96, 112, 0.82);
+}
+
+.home-comment-thread {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.home-comment-item {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 10px 0;
+}
+
+.home-comment-item--own {
+  user-select: none;
+}
+
+.home-comment-item__avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #e8eaee;
+}
+
+.home-comment-item__main {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.home-comment-item__name {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 400;
+  color: #aaa;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+}
+
+.home-comment-item__text {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #565656;
+  word-break: break-word;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+}
+
+.home-comment-item__aside {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  padding-top: 2px;
+  min-width: 52px;
+}
+
+.home-comment-item__time {
+  font-size: 12px;
+  color: #565656;
+  opacity: 0.35;
+  white-space: nowrap;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  text-align: right;
+}
+
+.home-comment-item__reply {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: #aaa;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.home-comment-item__reply:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.home-comment-item__reply:not(:disabled):active {
+  opacity: 0.65;
+}
+
+.home-comment-reply-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 15px 10px;
+}
+
+.home-comment-reply-bar__label {
+  margin: 0;
+  min-width: 0;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  color: #565656;
+  opacity: 0.88;
+}
+
+.home-comment-reply-bar__name {
+  font-weight: 700;
+  color: #3a3a3a;
+}
+
+.home-comment-reply-bar__cancel {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: #888;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.home-comment-reply-bar__cancel:active {
+  opacity: 0.65;
+}
+
+.home-comment-skel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.home-comment-skel-row {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 10px 0;
+}
+
+.home-comment-skel-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #d7dce3;
+}
+
+.home-comment-skel-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.home-comment-skel-side {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+  padding-top: 2px;
+}
+
+.home-comment-skel-line {
+  border-radius: 6px;
+}
+
+.home-comment-skel-line--name {
+  width: 72px;
+  height: 11px;
+  background: #dde3eb;
+}
+
+.home-comment-skel-line--body {
+  width: 92%;
+  height: 13px;
+  background: #e8ecf2;
+}
+
+.home-comment-skel-line--meta {
+  width: 38px;
+  height: 10px;
+  background: #dde3eb;
+}
+
+.home-comment-skel-line--meta2 {
+  width: 56px;
+  height: 11px;
+  background: #cfd6e0;
+}
+
+.home-comment-composer {
+  flex-shrink: 0;
+  background: #efeff0;
+  padding: 8px 0 calc(14px + env(safe-area-inset-bottom, 0px));
+}
+
+.home-comment-composer-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 15px;
+}
+
+.home-comment-composer-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #e2e4e8;
+}
+
+.home-comment-input-wrap {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.home-comment-input {
+  width: 100%;
+  min-height: 48px;
+  max-height: 120px;
+  resize: none;
+  border: 0;
+  border-radius: 22px;
+  padding: 14px 14px 14px 16px;
+  box-sizing: border-box;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  color: #565656;
+  background: #fff;
+  line-height: 1.25;
+}
+
+.home-comment-input::placeholder {
+  color: rgba(86, 86, 86, 0.4);
+}
+
+.home-comment-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 117, 255, 0.25);
+}
+
+.home-comment-send {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #545454;
+  color: #fff;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s ease;
+}
+
+.home-comment-send:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.home-comment-send:not(:disabled):active {
+  opacity: 0.85;
+}

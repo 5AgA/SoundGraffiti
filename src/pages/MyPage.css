@@ -1,0 +1,758 @@
+.mypage-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+
+  box-sizing: border-box;
+  background: #f8fbff;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+
+  padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+  /* 상단은 `.mypage-header`(홈 `.home-header`와 동일 계열) + `.mypage-inner` 패딩으로 처리 */
+  padding-top: 0;
+}
+
+.mypage-inner {
+  max-width: 402px;
+  margin: 0 auto;
+
+  /* 본문만 좌우 인셋 — 로고는 헤더에서 화면 좌측(홈과 동일 21px) */
+  padding-left: max(21px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  /* 홈 로고 행: safe-area + 10px + 로고(50px) + 아래 여백(11px) */
+  padding-top: calc(env(safe-area-inset-top, 0px) + 10px + 50px + 11px);
+}
+
+.mypage-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding-top: env(safe-area-inset-top, 0px);
+  height: auto;
+  z-index: 5;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.mypage-logout {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  right: max(16px, env(safe-area-inset-right, 0px));
+  margin: 0;
+  padding: 8px 14px;
+  border: 1px solid rgba(50, 54, 70, 0.18);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: #323646;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.mypage-logout:hover {
+  background: rgba(255, 255, 255, 1);
+}
+
+.mypage-logout:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.mypage-logout:not(:disabled):active {
+  opacity: 0.85;
+}
+
+.mypage-banner-error {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.35;
+  color: #8b2738;
+  background: rgba(230, 70, 90, 0.08);
+}
+
+.mypage-brand {
+  display: block;
+  width: 116px;
+  height: 50px;
+  pointer-events: none;
+}
+
+.mypage-brand-btn {
+  position: relative;
+  left: 21px;
+  top: 10px;
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mypage-brand-btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.mypage-brand-btn:focus-visible {
+  outline: 2px solid #0075ff;
+  outline-offset: 3px;
+}
+
+.mypage-profile-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 76px;
+  padding: 13px 17px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 14px;
+  margin-bottom: 16px;
+}
+
+.mypage-avatar {
+  flex-shrink: 0;
+  width: 49px;
+  height: 49px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.mypage-avatar--empty {
+  background: linear-gradient(145deg, #dfe8f4 0%, #cfd9e8 100%);
+}
+
+.mypage-profile-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mypage-name {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: #000;
+  line-height: 1.2;
+}
+
+.mypage-handle {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: rgba(0, 0, 0, 0.3);
+  line-height: 1.2;
+}
+
+.mypage-account {
+  box-sizing: border-box;
+  margin: 0 0 16px;
+  padding: 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.mypage-account__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.mypage-account__header h2 {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.25;
+  color: #202332;
+}
+
+.mypage-account__header p {
+  margin: 3px 0 0;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.3;
+  color: rgba(32, 35, 50, 0.45);
+}
+
+.mypage-account__notice {
+  margin: 0 0 10px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.35;
+  color: #24613b;
+  background: rgba(30, 215, 96, 0.11);
+}
+
+.mypage-account__notice--error {
+  color: #9d3140;
+  background: rgba(220, 63, 80, 0.09);
+}
+
+.mypage-account__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mypage-account__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  min-width: 0;
+  padding: 11px 0;
+  border-top: 1px solid rgba(50, 54, 70, 0.08);
+}
+
+.mypage-account__row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.mypage-account__row:last-child {
+  padding-bottom: 0;
+}
+
+.mypage-account__icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: block;
+}
+
+.mypage-account__body {
+  min-width: 0;
+  flex: 1;
+}
+
+.mypage-account__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mypage-account__name {
+  margin: 0;
+  min-width: 0;
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.25;
+  color: #202332;
+}
+
+.mypage-account__status {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 21px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+  color: rgba(50, 54, 70, 0.58);
+  background: #edf2f8;
+}
+
+.mypage-account__status--current {
+  color: #0c4725;
+  background: rgba(30, 215, 96, 0.2);
+}
+
+.mypage-account__status--warning {
+  color: #8a5a14;
+  background: rgba(245, 175, 43, 0.18);
+}
+
+.mypage-account__meta {
+  margin: 4px 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.3;
+  color: rgba(32, 35, 50, 0.45);
+}
+
+.mypage-account__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.mypage-account__actions button {
+  min-height: 30px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 12px;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: #202332;
+  background: #e8eef8;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mypage-account__actions button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.mypage-account__unlink {
+  color: rgba(32, 35, 50, 0.58) !important;
+  background: rgba(50, 54, 70, 0.08) !important;
+}
+
+.mypage-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.mypage-count {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: rgba(0, 0, 0, 0.3);
+  line-height: 1.2;
+}
+
+.mypage-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: rgba(0, 0, 0, 0.3);
+  line-height: 1.2;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mypage-sort:active {
+  opacity: 0.75;
+}
+
+.mypage-sort__chev {
+  opacity: 1;
+  flex-shrink: 0;
+}
+
+.mypage-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 15px;
+  padding-bottom: 8px;
+}
+
+.mypage-grid-status {
+  grid-column: 1 / -1;
+  margin: 24px 0;
+  text-align: center;
+  font-family: var(--sans);
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.38);
+  line-height: 1.4;
+}
+
+.mypage-card {
+  margin: 0;
+  min-width: 0;
+}
+
+.mypage-card--longpress {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.mypage-card__media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 173 / 172;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #e8eef8;
+}
+
+.mypage-card__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mypage-card__placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(160deg, #dce6f5 0%, #b8c9df 45%, #9fb4ce 100%);
+}
+
+.mypage-card__shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(
+    180.4deg,
+    rgba(0, 0, 0, 0) 57.79%,
+    rgba(0, 0, 0, 0.6) 99.66%
+  );
+}
+
+.mypage-card__footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 14px 12px;
+  box-sizing: border-box;
+}
+
+.mypage-card__content {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.38;
+  color: rgba(255, 255, 255, 0.96);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.mypage-card__meta {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mypage-card__place {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1.2;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+.mypage-card__pin {
+  flex-shrink: 0;
+  color: #fff;
+}
+
+.mypage-card__time {
+  flex-shrink: 0;
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+}
+
+/* 로딩 스켈레톤 — 홈 카드와 유사한 회색 블록으로 영역 구분 */
+.mypage-skel {
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.mypage-profile-card--skeleton {
+  pointer-events: none;
+}
+
+.mypage-skel-avatar {
+  width: 49px;
+  height: 49px;
+  border-radius: 50%;
+  background: #d7dce3;
+}
+
+.mypage-skel-profile-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.mypage-skel-name {
+  width: 120px;
+  height: 16px;
+  background: #eef2f7;
+}
+
+.mypage-skel-handle {
+  width: 88px;
+  height: 12px;
+  background: #d9dee6;
+}
+
+.mypage-toolbar--skeleton {
+  pointer-events: none;
+}
+
+.mypage-skel-toolbar-count {
+  width: 92px;
+  height: 15px;
+  background: #d9dee6;
+}
+
+.mypage-skel-toolbar-sort {
+  width: 76px;
+  height: 15px;
+  background: #eef2f7;
+}
+
+.mypage-card--skeleton {
+  pointer-events: none;
+}
+
+.mypage-card__skel-image {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(160deg, #cfd5dd 0%, #bfc8d3 100%);
+}
+
+.mypage-card__skel-shade {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    180.4deg,
+    rgba(0, 0, 0, 0) 52%,
+    rgba(0, 0, 0, 0.07) 100%
+  );
+}
+
+.mypage-card__skel-footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px 14px 12px;
+  box-sizing: border-box;
+}
+
+.mypage-card__skel-bar {
+  height: 11px;
+  border-radius: 6px;
+  max-width: 100%;
+}
+
+.mypage-card__skel-bar--1 {
+  width: 88%;
+  background: #f4f6fa;
+}
+
+.mypage-card__skel-bar--2 {
+  width: 56%;
+  background: #e3e8ef;
+}
+
+.mypage-card__skel-meta-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.mypage-card__skel-chip {
+  height: 11px;
+  border-radius: 6px;
+  width: 70px;
+  background: #eef2f7;
+}
+
+.mypage-card__skel-chip--short {
+  width: 46px;
+  background: #dde3eb;
+}
+
+.mypage-card--skeleton:nth-child(even) .mypage-card__skel-bar--1 {
+  width: 76%;
+}
+
+.mypage-card--skeleton:nth-child(even) .mypage-card__skel-bar--2 {
+  width: 64%;
+}
+
+/* 상단 당김 새로고침 (게시글 그리드) */
+.mypage-refresh-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 72px);
+  pointer-events: none;
+  background: transparent;
+}
+
+.mypage-refresh-spinner {
+  width: 30px;
+  height: 30px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 3px solid rgba(92, 112, 148, 0.26);
+  border-top-color: #0075ff;
+  animation: mypage-refresh-spin 0.72s linear infinite;
+}
+
+@keyframes mypage-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 길게 눌러 삭제 확인 */
+.mypage-delete-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(20px, env(safe-area-inset-left, 0px))
+    max(20px, env(safe-area-inset-right, 0px))
+    max(28px, env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  background: rgba(18, 22, 32, 0.48);
+}
+
+.mypage-delete-dialog {
+  width: 100%;
+  max-width: 300px;
+  padding: 22px 20px 18px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 16px 48px rgba(20, 30, 50, 0.22);
+  box-sizing: border-box;
+}
+
+.mypage-delete-dialog__title {
+  margin: 0 0 18px;
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1.45;
+  color: #323646;
+  text-align: center;
+}
+
+.mypage-delete-dialog__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: stretch;
+}
+
+.mypage-delete-dialog__btn {
+  flex: 1;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  cursor: pointer;
+  border: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.mypage-delete-dialog__btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.mypage-delete-dialog__btn--secondary {
+  background: rgba(50, 54, 70, 0.08);
+  color: #323646;
+}
+
+.mypage-delete-dialog__btn--secondary:not(:disabled):active {
+  background: rgba(50, 54, 70, 0.12);
+}
+
+.mypage-delete-dialog__btn--danger {
+  background: #005eff;
+  color: #fff;
+}
+
+.mypage-delete-dialog__btn--danger:not(:disabled):active {
+  opacity: 0.92;
+}

@@ -1,4 +1,4 @@
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../contexts/AuthContextCore'
 import { supabase } from '../supabaseClient'
 import Login from './Login'
 

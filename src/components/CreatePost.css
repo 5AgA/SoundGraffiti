@@ -1,0 +1,930 @@
+@import url("https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap");
+
+@font-face {
+  font-family: "Akkordeon DEMO";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("https://db.onlinewebfonts.com/t/8f8e726d88e0082ae7fcb8537aab58c7.woff2") format("woff2");
+}
+
+.upload-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: clamp(16px, 3vh, 24px);
+}
+
+/* 전체 모바일 컨테이너 */
+.upload-wrap {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center; /* 가로 중앙 정렬 */
+  align-items: stretch;
+  background: #f8fbff; /* MyPage와 동일한 배경색 */
+  z-index: 9999;
+}
+/* 💡 2. 화면에 꽉 찼을 때 노치(M자 탈모)나 홈바에 글씨가 안 가려지게 방어 */
+.upload-phone {
+  width: 100%;
+  max-width: 402px; 
+  height: 100%;
+  position: relative;
+  background: #f8fbff; /* 안쪽 배경색 */
+  margin: 0 auto; 
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.upload-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch; /* 아이폰 쫀득한 스크롤 */
+  display: flex;
+  flex-direction: column;
+  /* 안전 영역(노치, 홈바) 패딩을 스크롤 영역 안으로 이동! */
+  padding: calc(env(safe-area-inset-top) + 20px) 20px calc(env(safe-area-inset-bottom) + 20px) 20px;
+  scrollbar-width: none;
+}
+
+.upload-scroll-area::-webkit-scrollbar {
+  display: none;
+}
+
+.upload-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 21px; /* MyPage와 동일한 좌우 여백 */
+}
+
+/* 상단 타이틀 (영문 전용 폰트) */
+.upload-title {
+  font-family: "Akkordeon DEMO", "Akkordeon", sans-serif;
+  font-size: clamp(32px, 8vw, 42px);
+  line-height: 120%;
+  text-transform: uppercase;
+  color: #005EFF;
+  margin: 0;
+  text-align: center;
+  letter-spacing: 0.008em;
+  flex-shrink: 0;
+}
+
+/* 상단 버튼 2개 그룹 */
+.upload-btn-group {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+  margin-bottom: 20px;
+  flex-shrink: 0;
+}
+
+/* 다크 버튼 (Spotify, AI) */
+.upload-dark-btn {
+  flex: 1;
+  height: 48px;
+  background: #272729;
+  border-radius: 20px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.upload-dark-btn:active {
+  opacity: 0.8;
+}
+
+.upload-dark-btn span {
+  font-family: "Pretendard", sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  color: #FFFFFF;
+}
+
+.btn-icon-circle {
+  width: 27px;
+  height: 27px;
+  background: #FFFFFF;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* 중앙 이미지 추가 영역 */
+.upload-image-area {
+  width: 100%;
+  flex: 0 0 auto; /* ⬅️ 쓸데없이 안 늘어나고 딱 내 비율만큼만 차지함! */
+  aspect-ratio: 1 / 1.2;
+  background: #272729;
+  border-radius: 26.4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  cursor: pointer;
+  margin-bottom: 20px;
+  position: relative; 
+  overflow: hidden;
+}
+
+.upload-image-area .plus-icon {
+  font-family: "SF Pro", sans-serif;
+  font-size: 30px;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 300;
+}
+
+.upload-image-area p {
+  font-family: "Pretendard", sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: -0.04em;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+}
+
+.image-remove-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px); /* 뒤쪽 사진이 예쁘게 번져보임 */
+  color: #FFFFFF;
+  border: none;
+  border-radius: 50%;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 20; /* 음악 스티커나 다른 요소보다 무조건 위에 오도록! */
+  transition: background 0.2s;
+}
+
+.image-remove-btn:active {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.selected-track-overlay {
+  position: absolute;
+  bottom: 24px; /* 사진 하단에서 살짝 띄움 */
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px 10px 10px;
+  
+  /* 피그마 Glassmorphism 효과 */
+  background: rgba(0, 0, 0, 0.3);
+  box-shadow: 0px 0px 30px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10.45px);
+  border-radius: 60px; /* 양끝 완전 둥글게 */
+  
+  min-width: 180px;
+  max-width: 90%;
+  box-sizing: border-box;
+  z-index: 10;
+}
+
+/* 앨범 커버 썸네일 */
+.selected-track-img {
+  width: 38.75px;
+  height: 38.75px;
+  border-radius: 50%; /* 피그마처럼 완전한 원형 */
+  object-fit: cover;
+}
+
+/* 텍스트 컨테이너 */
+.selected-track-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* 노래 제목 */
+.selected-track-title {
+  font-family: 'Pretendard', sans-serif;
+  font-weight: 500;
+  font-size: 16px; /* 피그마 17.5px 기반으로 살짝 조정 */
+  line-height: 120%;
+  color: #FFFFFF;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+}
+
+/* 가수 이름 */
+.selected-track-artist {
+  font-family: 'Pretendard', sans-serif;
+  font-weight: 500;
+  font-size: 12.5px;
+  line-height: 120%;
+  color: rgba(255, 255, 255, 0.5); /* 피그마 opacity 반영 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* 삭제 버튼 (xmark) */
+.selected-track-remove {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 텍스트 입력 영역 */
+.upload-input-area {
+  width: 100%;
+  flex: 0 0 auto;
+  height: clamp(90px, 12vh, 120px); /* 높이 유동화 */
+  background: #EAF2FD;
+  border-radius: 14px;
+  border: none;
+  padding: 16px 20px;
+  box-sizing: border-box;
+  font-family: "Pretendard", sans-serif;
+  font-size: 15px;
+  color: #272729;
+  resize: none;
+  margin-bottom: clamp(16px, 2.5vh, 20px);
+}
+
+.upload-input-area::placeholder {
+  color: rgba(39, 39, 41, 0.3);
+}
+
+.upload-input-area:focus {
+  outline: 2px solid #005EFF;
+}
+
+/* 하단 공유 버튼 */
+.upload-share-btn {
+  width: 100%;
+  height: 53px;
+  
+  flex-shrink: 0; /* 💡 핵심! "화면 좁아도 나 절대 찌그러뜨리지 마!" 선언 */
+  
+  background: #005EFF;
+  border-radius: 19px;
+  border: none;
+  font-family: "Pretendard", sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: -0.04em;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-bottom: 20px; /* 💡 폰트 밑에 너무 딱 붙지 않게 여백도 살짝 추가 */
+}
+
+.upload-share-btn:active {
+  background: #004ecc;
+}
+
+/* 뒤에 깔리는 반투명 검은 배경 (서서히 나타남) */
+.sheet-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.2); /* Home 스타일 */
+  z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.32s ease;
+}
+
+.sheet-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* 밑에서 쑥 올라오는 시트 본체 */
+.bottom-sheet {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 85vh; /* Home의 expanded 높이 참고 */
+  max-height: 85vh;
+  
+  /* 💡 핵심: 반투명 유리 효과 */
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  
+  border-radius: 30px 30px 0 0;
+  transform: translateY(100%);
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  z-index: 101;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 -8px 40px rgba(27, 35, 54, 0.12);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.bottom-sheet.dragging {
+  transition: none !important;
+}
+
+.bottom-sheet.active {
+  transform: translateY(0);
+  visibility: visible;
+}
+/* 상단 드래그 핸들 (회색 막대기) */
+.sheet-handle-zone {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px 48px 10px;
+  cursor: pointer;
+}
+
+.sheet-handle {
+  width: 46px;
+  height: 5px;
+  background: #545454; /* Home 핸들 색상 */
+  border-radius: 2px;
+}
+
+/* 안쪽 컨텐츠가 스크롤 되도록 영역 지정 */
+.sheet-content-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 21px 8px; /* Home 패딩 참고 */
+  -webkit-overflow-scrolling: touch;
+}
+
+
+
+/* =========================================
+   TrackSearch (스포티파이 홈 UI 디자인)
+========================================= */
+
+.ts-header {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  align-items: center;
+}
+
+.ts-profile {
+  width: 32px; height: 32px;
+  background: #1DB954; 
+  border-radius: 50%;
+  display: flex; justify-content: center; align-items: center;
+  color: #000; font-weight: 700; font-size: 14px;
+}
+
+.ts-pill {
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px; font-weight: 500;
+  color: #fff; background: #2A2A2A;
+  border: none; cursor: pointer;
+  font-family: "Pretendard", sans-serif;
+}
+.ts-pill.active { background: #1DB954; color: #000; }
+
+.ts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 32px;
+}
+
+.ts-grid-item {
+  background: #2A2A2A;
+  border-radius: 4px;
+  display: flex; align-items: center;
+  height: 56px; overflow: hidden; cursor: pointer;
+  transition: background 0.2s;
+}
+.ts-grid-item:active { background: #3a3a3a; }
+.ts-grid-item img { width: 56px; height: 56px; object-fit: cover; }
+.ts-grid-item span { 
+  padding: 0 10px; font-size: 13px; color: #fff; font-weight: 600; 
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
+}
+
+.ts-section { margin-bottom: 32px; }
+.ts-section-title { 
+  color: #fff; font-size: 18px; font-weight: 700; 
+  margin-bottom: 16px; font-family: "Pretendard", sans-serif;
+}
+
+.ts-scroll-row {
+  display: flex; gap: 16px; overflow-x: auto;
+  padding-bottom: 10px; scrollbar-width: none;
+}
+.ts-scroll-row::-webkit-scrollbar { display: none; }
+
+.ts-card { flex: 0 0 140px; display: flex; flex-direction: column; cursor: pointer; }
+.ts-card img { 
+  width: 140px; height: 140px; 
+  border-radius: 8px; margin-bottom: 8px; object-fit: cover; 
+}
+.ts-card.radio img { border-radius: 50%; } 
+
+.ts-card-title { 
+  color: #fff; font-size: 14px; font-weight: 600; margin-bottom: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ts-card-desc { 
+  color: #B3B3B3; font-size: 12px; 
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* =========================================
+   AI 추천 바텀 시트 전용 UI
+========================================= */
+.ai-recommend-wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%; /* 부모 높이 꽉 채우기 */
+  min-height: 0;
+}
+
+.ai-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #272729;
+  margin-bottom: 24px;
+}
+
+.ai-icon-bg {
+  width: 24px;
+  height: 24px;
+  background: #272729;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ai-chat-area {
+  flex: 1;
+  overflow-y: auto;
+  display: flex; /* 💡 이걸 넣어야 좌우 정렬이 먹힘! */
+  flex-direction: column;
+  gap: 16px; /* 채팅 말풍선 간격 */
+  padding: 24px 20px 120px 20px; /* 💡 좌우 20px 여백 추가! (하단은 입력창만큼 띄움) */
+  -webkit-overflow-scrolling: touch;
+}
+.ai-chat-area::-webkit-scrollbar { display: none; }
+
+/* 유저가 입력한 감정 말풍선 */
+.ai-user-bubble {
+  background: #EAF2FD;
+  color: #272729;
+  padding: 14px 20px;
+  border-radius: 20px 20px 0 20px; /* 💡 오른쪽 말풍선 꼬리 느낌 */
+  align-self: flex-end; /* 💡 오른쪽 찰싹 붙기 */
+  width: fit-content; /* 💡 글자 수만큼만 뚱뚱해지기 */
+  max-width: 85%;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* AI 추천 결과 다크 박스 */
+.ai-result-box {
+  background: #272729;
+  border-radius: 20px 20px 20px 0; /* 💡 왼쪽 말풍선 꼬리 느낌 */
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-self: flex-start; /* 💡 왼쪽 찰싹 붙기 */
+  width: fit-content; /* 💡 내용물 크기만큼만 넓어지기 */
+  max-width: 90%;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+.ai-result-title {
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  text-align: left;
+  line-height: 1.4;
+}
+
+/* AI 추천 트랙 아이템 */
+.ai-track-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ai-track-img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.ai-track-info {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.ai-track-title {
+  color: #FFFFFF;
+  font-size: 15.5px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  text-align: left;
+}
+
+.ai-track-artist {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  text-align: left;
+}
+
+/* 선택 버튼 */
+.ai-select-btn {
+  background: #545454;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: "Pretendard", sans-serif;
+  transition: background 0.2s;
+}
+
+.ai-select-btn:active {
+  background: #333333;
+}
+
+/* 하단 입력창 영역 */
+.ai-input-wrap {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  /* background: #F8FBFF; ⬅️ 이 녀석이 하얀 사각형의 범인이었어! 제거함 */
+  background: transparent; 
+  padding: 10px 16px calc(15px + env(safe-area-inset-bottom)); /* 홈바 공간 확보 */
+  z-index: 10;
+}
+
+.ai-input-inner {
+  position: relative;
+  width: 100%;
+}
+
+.ai-input {
+  width: 100%;
+  background: #FFFFFF;
+  border: 1px solid #EAF2FD;
+  border-radius: 30px;
+  padding: 16px 50px 16px 20px;
+  font-size: 15px;
+  color: #272729;
+  outline: none;
+  box-sizing: border-box;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  font-family: "Pretendard", sans-serif;
+  width: 100%;
+  text-align: left;
+}
+
+.ai-submit-btn {
+  position: absolute;
+  right: 25px;
+  top: 47%;
+  transform: translateY(-50%);
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #545454;
+  color: #fff;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s ease;
+}
+
+.ai-submit-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.ai-submit-btn:not(:disabled):active {
+  opacity: 0.85;
+}
+
+.ai-loading-text {
+  color: #fff;
+  margin: 0;
+  font-size: 14px;
+}
+
+.ai-loading-text .dot {
+  display: inline-block; /* 💡 위아래로 움직이려면 inline-block이 필수! */
+  animation: loadingBlink 1.4s infinite both;
+  font-weight: 700;
+  margin-left: 2px;
+}
+
+/* 💡 각 점마다 0.2초씩 애니메이션 시작 시간을 늦춰서 파도타기 효과 만들기 */
+.ai-loading-text .dot:nth-child(1) { animation-delay: 0s; }
+.ai-loading-text .dot:nth-child(2) { animation-delay: 0.2s; }
+.ai-loading-text .dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* 💡 투명해졌다 밝아지면서 살짝 위로 튀어오르는 키프레임 */
+@keyframes loadingBlink {
+  0% { 
+    opacity: 0.2; 
+    transform: translateY(0); 
+  }
+  20% { 
+    opacity: 1; 
+    transform: translateY(-2px); 
+  }
+  100% { 
+    opacity: 0.2; 
+    transform: translateY(0); 
+  }
+}
+
+.upload-close-btn {
+  position: absolute;
+  left: 0; /* 💡 헤더의 맨 오른쪽에 찰싹 붙음 */
+  top: 50%;
+  transform: translateY(-50%); /* 💡 타이틀과 완벽하게 세로 중앙 정렬 */
+  background: none;
+  border: none;
+  color: #005EFF;
+  font-size: 24px;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 10;
+  padding: 0 8px; 
+  transition: opacity 0.3s ease;
+}
+
+.upload-close-btn:active {
+  opacity: 0.5;
+}
+
+.upload-close-btn:disabled {
+  pointer-events: none; /* 클릭 완전히 차단 */
+}
+
+.upload-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 26.4px;
+}
+
+/* =========================================
+   장소 표시 및 검색 트리거 (메인 화면)
+========================================= */
+.place-display-wrap {
+  width: 100%;
+  max-width: 362px;
+  margin: 0 -1px 20px;
+}
+.place-icon {
+  width: 18px; 
+  height: 18px;
+  flex-shrink: 0; 
+  filter: brightness(0) invert(1); /* 💡 검은색 이미지를 완전한 하얀색으로 싹 덮어씌움! */
+}
+
+/* 검색을 열기 위한 가짜 인풋(버튼) */
+.place-search-trigger {
+  width: 100%;
+  height: 52px;
+  background: #EAF2FD;
+  border: 1px solid #EAF2FD;
+  border-radius: 16px;
+  padding: 0 20px;
+  font-family: "Pretendard", sans-serif;
+  font-size: 15px;
+  color: #A9AFB9; /* placeholder 느낌의 색상 */
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  transition: border-color 0.2s;
+}
+
+.place-search-trigger:active {
+  border-color: #005EFF;
+  background: #F8FBFF;
+}
+
+/* 장소가 선택되었을 때 나타나는 고정 박스 */
+.selected-place-box {
+  width: 100%;
+  height: 52px;
+  background: #005EFF; /* 강렬한 블루로 선택됨을 강조 */
+  border-radius: 16px;
+  padding: 0 16px 0 20px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 12px rgba(0, 94, 255, 0.2);
+}
+
+.place-name-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "Pretendard", sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #FFFFFF;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.place-name-text svg {
+  width: 18px; /* 아이콘 크기 조정 (텍스트 크기와 비슷하게) */
+  height: 18px;
+  color: #FFFFFF; /* 검은색 이모지 대신 하얀색 아이콘으로 설정 */
+  flex-shrink: 0; /* 아이콘 크기 고정 */
+}
+
+.place-clear-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #FFFFFF;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.place-clear-btn:active {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* =========================================
+   장소 검색 바텀 시트 내부 UI
+========================================= */
+.place-sheet-wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.place-sheet-title {
+  font-family: "Pretendard", sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #272729;
+  margin: 0 0 16px 0;
+  text-align: center;
+}
+
+.place-sheet-input-box {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.place-search-input {
+  width: 100%;
+  height: 52px;
+  background: #F2F4F8;
+  border: none;
+  border-radius: 12px;
+  box-sizing: border-box;
+  padding: 0 20px;
+  font-family: "Pretendard", sans-serif;
+  font-size: 15px;
+  color: #272729;
+  outline: none;
+}
+
+.place-search-input:focus {
+  background: #EAF2FD;
+}
+
+.place-search-loading {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: #005EFF;
+  font-weight: 600;
+}
+
+.place-search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.place-search-results li {
+  padding: 16px 12px;
+  border-bottom: 1px solid #F0F0F0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column; /* 세로 정렬 */
+}
+
+.place-no-result {
+  text-align: center;
+  color: #A9AFB9;
+  font-size: 14px;
+  padding: 30px 0 !important;
+  border: none !important;
+}
+.place-name-row {
+  display: flex;
+  align-items: baseline; /* 글씨 밑단 맞추기 */
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.place-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #005EFF; /* 카카오처럼 이름을 파란색으로 줘서 강조 (원하면 #272729로 변경 가능) */
+  margin: 0;
+}
+
+
+.place-category {
+  font-size: 12px;
+  color: #888;
+}
+
+.place-address {
+  font-size: 13.5px;
+  color: #272729;
+  margin-bottom: 4px;
+}
+
+.place-jibun {
+  font-size: 12.5px;
+  color: #A9AFB9;
+}

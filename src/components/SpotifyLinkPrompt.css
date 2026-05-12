@@ -1,0 +1,121 @@
+.spotify-link-prompt {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background: rgba(18, 21, 31, 0.34);
+  backdrop-filter: blur(8px);
+}
+
+.spotify-link-prompt__dialog {
+  width: min(100%, 342px);
+  box-sizing: border-box;
+  border-radius: 18px;
+  padding: 22px 20px 18px;
+  background: #fff;
+  box-shadow: 0 22px 60px rgba(31, 36, 52, 0.22);
+  font-family: var(--sans);
+}
+
+.spotify-link-prompt__mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  margin-bottom: 16px;
+  background: #1ed760;
+}
+
+.spotify-link-prompt__mark img {
+  width: 27px;
+  height: 27px;
+  display: block;
+}
+
+.spotify-link-prompt__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.spotify-link-prompt__eyebrow {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: rgba(50, 54, 70, 0.52);
+}
+
+.spotify-link-prompt h2 {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.2;
+  color: #202332;
+}
+
+.spotify-link-prompt p {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.48;
+  color: rgba(32, 35, 50, 0.72);
+}
+
+.spotify-link-prompt__error {
+  margin-top: 12px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  color: #b73544;
+  background: rgba(219, 61, 79, 0.09);
+}
+
+.spotify-link-prompt__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 18px;
+}
+
+.spotify-link-prompt__actions button {
+  min-height: 39px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 15px;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.spotify-link-prompt__actions button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.spotify-link-prompt__primary {
+  flex: 1 1 148px;
+  color: #111;
+  background: #1ed760;
+}
+
+.spotify-link-prompt__ghost {
+  color: #323646;
+  background: #eef3fa;
+}
+
+.spotify-link-prompt__text {
+  flex-basis: 100%;
+  min-height: 28px;
+  color: rgba(50, 54, 70, 0.48);
+  background: transparent;
+}
