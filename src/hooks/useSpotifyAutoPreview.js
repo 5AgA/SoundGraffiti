@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react";
 
 const SPOTIFY_SDK_SRC = "https://sdk.scdn.co/spotify-player.js";
 const DEFAULT_LOOP_MS = 30000;
-const DEVICE_SETTLE_DELAY_MS = 450;
+const DEVICE_SETTLE_DELAY_MS = 900;
+const DEVICE_READY_RETRY_DELAYS_MS = [0, 650, 1400, 2400];
+const DEVICE_TRANSFER_RETRY_DELAYS_MS = [0, 800, 1600];
 
 function getTrackFromPost(post) {
   const raw = post?.Tracks ?? post?.tracks;
@@ -65,6 +67,32 @@ function loadSpotifySdk() {
   });
 }
 
+function wait(ms, signal) {
+  if (ms <= 0) return Promise.resolve();
+
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      signal?.removeEventListener("abort", handleAbort);
+    };
+    const timer = window.setTimeout(() => {
+      cleanup();
+      resolve();
+    }, ms);
+    const handleAbort = () => {
+      window.clearTimeout(timer);
+      cleanup();
+      reject(new DOMException("Aborted", "AbortError"));
+    };
+
+    if (signal?.aborted) {
+      handleAbort();
+      return;
+    }
+
+    signal?.addEventListener("abort", handleAbort, { once: true });
+  });
+}
+
 export function useSpotifyAutoPreview(activePost, spotifyToken, options = {}) {
   const playerRef = useRef(null);
   const loopTimerRef = useRef(null);
@@ -87,10 +115,16 @@ export function useSpotifyAutoPreview(activePost, spotifyToken, options = {}) {
     if (!spotifyToken || typeof window === "undefined") return undefined;
 
     let cancelled = false;
+    window.queueMicrotask(() => {
+      if (!cancelled) setDeviceId(null);
+    });
+    activatedDeviceRef.current = null;
+    playerRef.current?.disconnect();
+    playerRef.current = null;
 
     void loadSpotifySdk()
       .then(() => {
-        if (cancelled || playerRef.current) return;
+        if (cancelled) return;
 
         const player = new window.Spotify.Player({
           name: "SoundGraffiti Feed",
@@ -99,6 +133,7 @@ export function useSpotifyAutoPreview(activePost, spotifyToken, options = {}) {
         });
 
         player.addListener("ready", ({ device_id }) => {
+          if (cancelled) return;
           setDeviceId(device_id);
           if (userInteractedRef.current) {
             player.activateElement?.();
@@ -107,6 +142,7 @@ export function useSpotifyAutoPreview(activePost, spotifyToken, options = {}) {
         });
 
         player.addListener("not_ready", ({ device_id }) => {
+          if (cancelled) return;
           setDeviceId((currentDeviceId) =>
             currentDeviceId === device_id ? null : currentDeviceId,
           );
@@ -117,9 +153,11 @@ export function useSpotifyAutoPreview(activePost, spotifyToken, options = {}) {
         });
         player.addListener("authentication_error", ({ message }) => {
           console.warn("Spotify authentication error:", message);
+          onUnavailableRef.current?.({ reason: "token_expired" });
         });
         player.addListener("account_error", ({ message }) => {
           console.warn("Spotify account error:", message);
+          onUnavailableRef.current?.({ reason: "premium_required" });
         });
         player.addListener("playback_error", ({ message }) => {
           console.warn("Spotify playback error:", message);
@@ -134,6 +172,9 @@ export function useSpotifyAutoPreview(activePost, spotifyToken, options = {}) {
 
     return () => {
       cancelled = true;
+      playerRef.current?.disconnect();
+      playerRef.current = null;
+      activatedDeviceRef.current = null;
     };
   }, [spotifyToken]);
 
@@ -226,6 +267,11 @@ export function useSpotifyAutoPreview(activePost, spotifyToken, options = {}) {
         return false;
       }
 
+      if (response.status === 401) {
+        notifyUnavailable("token_expired");
+        return false;
+      }
+
       if (!response.ok) {
         warnOnce(
           `track-check-${trackId}-${response.status}`,
@@ -244,32 +290,109 @@ export function useSpotifyAutoPreview(activePost, spotifyToken, options = {}) {
       return true;
     };
 
-    const transferPlayback = async () => {
-      if (activatedDeviceRef.current === deviceId) return true;
-
-      const response = await fetch("https://api.spotify.com/v1/me/player", {
-        method: "PUT",
+    const isDeviceAvailable = async () => {
+      const response = await fetch("https://api.spotify.com/v1/me/player/devices", {
         headers: {
           Authorization: `Bearer ${spotifyToken}`,
-          "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          device_ids: [deviceId],
-          play: false,
-        }),
         signal: abortController.signal,
       });
 
-      if (response.ok || response.status === 204) {
-        activatedDeviceRef.current = deviceId;
+      if (response.status === 401) {
+        notifyUnavailable("token_expired");
+        return false;
+      }
+
+      if (response.status === 403) {
+        notifyUnavailable("premium_required");
+        return false;
+      }
+
+      if (!response.ok) {
+        warnOnce(
+          `devices-${response.status}`,
+          "Spotify device lookup failed:",
+          response.status,
+        );
         return true;
       }
 
+      const data = await response.json();
+      return Array.isArray(data?.devices)
+        ? data.devices.some((device) => device?.id === deviceId)
+        : false;
+    };
+
+    const waitForDevice = async () => {
+      for (const delayMs of DEVICE_READY_RETRY_DELAYS_MS) {
+        await wait(delayMs, abortController.signal);
+        if (playbackRequestRef.current !== requestId) return false;
+        if (await isDeviceAvailable()) return true;
+      }
+
+      notifyUnavailable("device_unavailable");
       warnOnce(
-        `transfer-${response.status}`,
-        "Spotify device transfer failed:",
-        response.status,
+        `device-not-ready-${deviceId}`,
+        "Spotify device was not available for transfer:",
+        deviceId,
       );
+      return false;
+    };
+
+    const transferPlayback = async () => {
+      if (activatedDeviceRef.current === deviceId) return true;
+      if (!(await waitForDevice())) return false;
+
+      for (const delayMs of DEVICE_TRANSFER_RETRY_DELAYS_MS) {
+        await wait(delayMs, abortController.signal);
+        if (playbackRequestRef.current !== requestId) return false;
+
+        const response = await fetch("https://api.spotify.com/v1/me/player", {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${spotifyToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            device_ids: [deviceId],
+            play: false,
+          }),
+          signal: abortController.signal,
+        });
+
+        if (response.ok || response.status === 204) {
+          activatedDeviceRef.current = deviceId;
+          return true;
+        }
+
+        activatedDeviceRef.current = null;
+
+        if (response.status === 401) {
+          notifyUnavailable("token_expired");
+          return false;
+        }
+
+        if (response.status === 403) {
+          notifyUnavailable("premium_required");
+          return false;
+        }
+
+        if (response.status !== 404) {
+          warnOnce(
+            `transfer-${response.status}`,
+            "Spotify device transfer failed:",
+            response.status,
+          );
+          return false;
+        }
+      }
+
+      warnOnce(
+        `transfer-404-${deviceId}`,
+        "Spotify device transfer failed:",
+        404,
+      );
+      notifyUnavailable("device_unavailable");
       return false;
     };
 
@@ -326,8 +449,12 @@ export function useSpotifyAutoPreview(activePost, spotifyToken, options = {}) {
         }
 
         if (!retryResponse.ok && retryResponse.status !== 204) {
+          if (retryResponse.status === 401) {
+            notifyUnavailable("token_expired");
+            return;
+          }
           if (retryResponse.status === 403) {
-            notifyUnavailable("forbidden");
+            notifyUnavailable("premium_required");
             return;
           }
           warnOnce(
@@ -340,8 +467,12 @@ export function useSpotifyAutoPreview(activePost, spotifyToken, options = {}) {
       }
 
       if (!response.ok && response.status !== 204) {
+        if (response.status === 401) {
+          notifyUnavailable("token_expired");
+          return;
+        }
         if (response.status === 403) {
-          notifyUnavailable("forbidden");
+          notifyUnavailable("premium_required");
           return;
         }
         warnOnce(

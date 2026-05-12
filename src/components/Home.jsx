@@ -264,7 +264,7 @@ function Home({
   const [commentDeletePrompt, setCommentDeletePrompt] = useState(null);
   const [commentDeleteSubmitting, setCommentDeleteSubmitting] = useState(false);
   const [playbackNotice, setPlaybackNotice] = useState("");
-  const { spotifyToken, user } = useAuth();
+  const { spotifyToken, user, refreshSpotifyToken } = useAuth();
   /** Auth 메타데이터에 없을 때 Users 테이블 프로필 (고정 id·OAuth 병행) */
   const [dbUserProfileUrl, setDbUserProfileUrl] = useState(null);
 
@@ -890,13 +890,34 @@ function Home({
   const blurBackground = list[activeIndex]?.Tracks?.album_image_url || "";
   const activePost = !isLoading ? list[activeIndex] ?? null : null;
 
-  const showPlaybackUnavailable = useCallback(({ track }) => {
+  const showPlaybackUnavailable = useCallback(({ track, reason }) => {
+    if (reason === "token_expired") {
+      void refreshSpotifyToken({ forceRefresh: true }).then((token) => {
+        if (!token) {
+          setPlaybackNotice(
+            "Spotify 인증이 만료됐어요. 마이페이지에서 재인증해 주세요.",
+          );
+        }
+      });
+      return;
+    }
+    if (reason === "device_unavailable") {
+      setPlaybackNotice(
+        "Spotify 재생 기기를 준비하지 못했어요. 잠시 후 다시 시도해 주세요.",
+      );
+      return;
+    }
+    if (reason === "premium_required") {
+      setPlaybackNotice("Spotify Premium 계정에서만 앱 내 재생을 지원해요.");
+      return;
+    }
+
     const title =
       typeof track?.track_title === "string" && track.track_title.trim()
         ? track.track_title.trim()
         : "이 노래";
     setPlaybackNotice(`${title}은(는) Spotify에서 재생할 수 없어요.`);
-  }, []);
+  }, [refreshSpotifyToken]);
 
   const openTrackInSpotify = useCallback((track) => {
     const url = spotifyTrackUrl(track);

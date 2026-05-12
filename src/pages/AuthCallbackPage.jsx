@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { storeSpotifyTokensFromSession } from "../api/spotifyAuth";
 import { supabase } from "../supabaseClient";
+import {
+  clearPendingIdentityLink,
+  clearPendingOAuth,
+  getPendingIdentityLink,
+  getPendingOAuth,
+  normalizeProvider,
+  providerLabel,
+} from "../utils/authProviders";
 import "./AuthCallbackPage.css";
 
 function readOAuthParams() {
@@ -29,6 +38,48 @@ function cleanMessage(params) {
   return "로그인 세션을 확인하지 못했습니다.";
 }
 
+function safeReturnTo(returnTo) {
+  if (
+    typeof returnTo !== "string" ||
+    !returnTo.startsWith("/") ||
+    returnTo.startsWith("//")
+  ) {
+    return "/home";
+  }
+  if (returnTo.startsWith("/auth/callback") || returnTo.startsWith("/login")) {
+    return "/home";
+  }
+  return returnTo;
+}
+
+function pendingReturnTo() {
+  return safeReturnTo(
+    getPendingIdentityLink()?.returnTo || getPendingOAuth()?.returnTo || "/home",
+  );
+}
+
+function pendingProvider() {
+  return normalizeProvider(
+    getPendingIdentityLink()?.provider || getPendingOAuth()?.provider,
+  );
+}
+
+function linkErrorMessage(params) {
+  const provider = pendingProvider();
+  if (params.errorCode === "identity_already_exists") {
+    return `${providerLabel(provider)} 계정이 이미 연결되어 있거나 다른 계정에 연결되어 있습니다.`;
+  }
+  return cleanMessage(params);
+}
+
+async function persistSpotifyToken(session) {
+  try {
+    await storeSpotifyTokensFromSession(session);
+  } catch (error) {
+    console.warn("Failed to persist Spotify token:", error?.message || error);
+  }
+}
+
 export default function AuthCallbackPage() {
   const navigate = useNavigate();
   const [errorInfo, setErrorInfo] = useState(null);
@@ -41,24 +92,40 @@ export default function AuthCallbackPage() {
       if (params.error || params.errorCode || params.errorDescription) {
         setErrorInfo({
           code: params.errorCode || params.error || "oauth_error",
-          message: cleanMessage(params),
+          message: linkErrorMessage(params),
         });
+        clearPendingIdentityLink();
+        clearPendingOAuth();
         return;
       }
 
       if (params.code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(params.code);
+        const { data, error } = await supabase.auth.exchangeCodeForSession(
+          params.code,
+        );
         if (cancelled) return;
 
         if (error) {
+          const provider = pendingProvider();
           setErrorInfo({
             code: "session_exchange_failed",
-            message: error.message || "로그인 세션을 만드는 데 실패했습니다.",
+            message:
+              error.message ||
+              `${providerLabel(provider)} 인증 정보를 연결하지 못했습니다.`,
           });
+          clearPendingIdentityLink();
+          clearPendingOAuth();
           return;
         }
 
-        navigate("/home", { replace: true });
+        if (pendingProvider() === "spotify") {
+          await persistSpotifyToken(data?.session);
+        }
+
+        const returnTo = pendingReturnTo();
+        clearPendingIdentityLink();
+        clearPendingOAuth();
+        navigate(returnTo, { replace: true });
         return;
       }
 
@@ -69,7 +136,13 @@ export default function AuthCallbackPage() {
       if (cancelled) return;
 
       if (session) {
-        navigate("/home", { replace: true });
+        if (pendingProvider() === "spotify") {
+          await persistSpotifyToken(session);
+        }
+        const returnTo = pendingReturnTo();
+        clearPendingIdentityLink();
+        clearPendingOAuth();
+        navigate(returnTo, { replace: true });
         return;
       }
 

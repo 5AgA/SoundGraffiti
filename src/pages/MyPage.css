@@ -135,6 +135,185 @@
   line-height: 1.2;
 }
 
+.mypage-account {
+  box-sizing: border-box;
+  margin: 0 0 16px;
+  padding: 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.mypage-account__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.mypage-account__header h2 {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.25;
+  color: #202332;
+}
+
+.mypage-account__header p {
+  margin: 3px 0 0;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.3;
+  color: rgba(32, 35, 50, 0.45);
+}
+
+.mypage-account__notice {
+  margin: 0 0 10px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.35;
+  color: #24613b;
+  background: rgba(30, 215, 96, 0.11);
+}
+
+.mypage-account__notice--error {
+  color: #9d3140;
+  background: rgba(220, 63, 80, 0.09);
+}
+
+.mypage-account__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mypage-account__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  min-width: 0;
+  padding: 11px 0;
+  border-top: 1px solid rgba(50, 54, 70, 0.08);
+}
+
+.mypage-account__row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.mypage-account__row:last-child {
+  padding-bottom: 0;
+}
+
+.mypage-account__icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: block;
+}
+
+.mypage-account__body {
+  min-width: 0;
+  flex: 1;
+}
+
+.mypage-account__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mypage-account__name {
+  margin: 0;
+  min-width: 0;
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.25;
+  color: #202332;
+}
+
+.mypage-account__status {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 21px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+  color: rgba(50, 54, 70, 0.58);
+  background: #edf2f8;
+}
+
+.mypage-account__status--current {
+  color: #0c4725;
+  background: rgba(30, 215, 96, 0.2);
+}
+
+.mypage-account__status--warning {
+  color: #8a5a14;
+  background: rgba(245, 175, 43, 0.18);
+}
+
+.mypage-account__meta {
+  margin: 4px 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.3;
+  color: rgba(32, 35, 50, 0.45);
+}
+
+.mypage-account__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.mypage-account__actions button {
+  min-height: 30px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 12px;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: #202332;
+  background: #e8eef8;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mypage-account__actions button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.mypage-account__unlink {
+  color: rgba(32, 35, 50, 0.58) !important;
+  background: rgba(50, 54, 70, 0.08) !important;
+}
+
 .mypage-toolbar {
   display: flex;
   align-items: center;

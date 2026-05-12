@@ -166,7 +166,7 @@ enable_signup = true
 # Allow/disallow anonymous sign-ins to your project.
 enable_anonymous_sign_ins = false
 # Allow/disallow testing manual linking of accounts
-enable_manual_linking = false
+enable_manual_linking = true
 # Passwords shorter than this value will be rejected as weak. Minimum 6, recommended 8 or more.
 minimum_password_length = 6
 # Passwords that do not meet the following requirements will be rejected as weak. Supported values
@@ -393,6 +393,12 @@ entrypoint = "./functions/spotify-search/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/spotify-search/*.html" ]
+
+[functions.spotify-token]
+enabled = true
+verify_jwt = true
+import_map = "./functions/spotify-token/deno.json"
+entrypoint = "./functions/spotify-token/index.ts"
 
 [functions.create-post]
 enabled = true

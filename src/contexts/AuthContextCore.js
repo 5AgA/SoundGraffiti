@@ -8,8 +8,17 @@ export function useAuth() {
     return {
       session: null,
       user: null,
+      identities: [],
+      linkedProviders: new Set(),
+      currentProvider: "",
       spotifyToken: null,
+      spotifyTokenExpiresAt: "",
+      spotifyAuthError: null,
+      spotifyAuthLoading: false,
       loading: false,
+      authError: null,
+      refreshAuthState: async () => {},
+      refreshSpotifyToken: async () => null,
     };
   }
   return context;

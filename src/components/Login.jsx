@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { supabase } from "../supabaseClient";
+import {
+  authOptionsForProvider,
+  clearPendingOAuth,
+  rememberPendingOAuth,
+} from "../utils/authProviders";
 import "./Login.css";
-
-const AUTH_CALLBACK_PATH = "/auth/callback";
-const getRedirectUrl = () => `${window.location.origin}${AUTH_CALLBACK_PATH}`;
 
 export default function Login({ active = false }) {
   const [errorMessage, setErrorMessage] = useState("");
@@ -12,24 +14,17 @@ export default function Login({ active = false }) {
   const handleOAuthLogin = async (provider) => {
     setErrorMessage("");
     setIsSubmitting(true);
-
-    const options = {
-      redirectTo: getRedirectUrl(),
-    };
-
-    if (provider === "spotify") {
-      options.scopes =
-        "user-read-email user-read-private streaming user-modify-playback-state user-read-playback-state";
-    }
+    rememberPendingOAuth(provider, "/home");
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
-      options,
+      options: authOptionsForProvider(provider),
     });
 
     setIsSubmitting(false);
 
     if (error) {
+      clearPendingOAuth();
       console.error(`${provider} login failed:`, error.message);
       setErrorMessage("로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.");
     }

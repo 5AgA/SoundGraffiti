@@ -2,10 +2,23 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import BottomNav from "../components/BottomNav";
 import { getPostsByUserId } from "../api/posts";
+import { deleteStoredSpotifyTokens } from "../api/spotifyAuth";
 import { getUserById, getUserPostCount } from "../api/users";
 import { resolvedProfileImageUrl } from "../utils/profileImage";
 import { supabase } from "../supabaseClient";
 import { useAuth } from "../contexts/AuthContextCore";
+import {
+  ACCOUNT_PROVIDERS,
+  PROVIDER_INFO,
+  authOptionsForProvider,
+  clearPendingIdentityLink,
+  clearPendingOAuth,
+  getProviderIcon,
+  identityEmail,
+  providerLabel,
+  rememberPendingIdentityLink,
+  rememberPendingOAuth,
+} from "../utils/authProviders";
 import "./MyPage.css";
 
 /** public/MY graffiti.svg와 동일 path — 인라인 SVG(img 미사용) */
@@ -125,8 +138,22 @@ function PinIcon() {
   );
 }
 
+function providerStatusText({ linked, current, provider, spotifyToken }) {
+  if (current) return "현재 접속";
+  if (!linked) return "미연결";
+  if (provider === "spotify" && !spotifyToken) return "재인증 필요";
+  return "연결됨";
+}
+
 export default function MyPage() {
-  const { user } = useAuth();
+  const {
+    user,
+    identities,
+    linkedProviders,
+    currentProvider,
+    spotifyToken,
+    refreshAuthState,
+  } = useAuth();
   const pageUserId = user?.appUserId ?? user?.id ?? null;
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
@@ -135,6 +162,9 @@ export default function MyPage() {
   const [postsLoaded, setPostsLoaded] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [logoutBusy, setLogoutBusy] = useState(false);
+  const [accountBusy, setAccountBusy] = useState("");
+  const [accountMessage, setAccountMessage] = useState("");
+  const [accountError, setAccountError] = useState("");
   const [sortOrder, setSortOrder] = useState(
     /** @type {'latest' | 'popular'} */ ("latest"),
   );
@@ -143,6 +173,24 @@ export default function MyPage() {
     () => sortMyPosts(posts, sortOrder),
     [posts, sortOrder],
   );
+  const accountRows = useMemo(
+    () =>
+      ACCOUNT_PROVIDERS.map((provider) => {
+        const identity =
+          identities?.find((item) => item?.provider === provider) ?? null;
+        const linked = Boolean(linkedProviders?.has(provider));
+        return {
+          provider,
+          identity,
+          linked,
+          current: currentProvider === provider,
+          email: identityEmail(identity),
+          info: PROVIDER_INFO[provider],
+        };
+      }),
+    [currentProvider, identities, linkedProviders],
+  );
+  const linkedProviderCount = accountRows.filter((row) => row.linked).length;
 
   useEffect(() => {
     let cancelled = false;
@@ -193,6 +241,75 @@ export default function MyPage() {
     profile?.user_profile_url || user?.user_metadata?.user_profile_url,
   );
   const isLoading = !postsLoaded;
+
+  const linkProvider = async (provider) => {
+    if (accountBusy) return;
+    setAccountBusy(provider);
+    setAccountError("");
+    setAccountMessage("");
+    rememberPendingIdentityLink(provider, "/mypage");
+
+    const { error } = await supabase.auth.linkIdentity({
+      provider,
+      options: authOptionsForProvider(provider),
+    });
+
+    if (error) {
+      clearPendingIdentityLink();
+      setAccountBusy("");
+      setAccountError(
+        error.message || `${providerLabel(provider)} 계정 연결을 시작하지 못했습니다.`,
+      );
+    }
+  };
+
+  const reauthSpotify = async () => {
+    if (accountBusy) return;
+    setAccountBusy("spotify");
+    setAccountError("");
+    setAccountMessage("");
+    rememberPendingOAuth("spotify", "/mypage");
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "spotify",
+      options: authOptionsForProvider("spotify"),
+    });
+
+    if (error) {
+      clearPendingOAuth();
+      setAccountBusy("");
+      setAccountError(error.message || "Spotify 재인증을 시작하지 못했습니다.");
+    }
+  };
+
+  const unlinkProvider = async (provider, identity) => {
+    if (accountBusy || !identity) return;
+    const ok = window.confirm(`${providerLabel(provider)} 연결을 해제할까요?`);
+    if (!ok) return;
+
+    setAccountBusy(provider);
+    setAccountError("");
+    setAccountMessage("");
+
+    try {
+      const { error } = await supabase.auth.unlinkIdentity(identity);
+      if (error) {
+        setAccountError(
+          error.message || `${providerLabel(provider)} 연결을 해제하지 못했습니다.`,
+        );
+        return;
+      }
+      if (provider === "spotify") {
+        await deleteStoredSpotifyTokens().catch((error) => {
+          console.warn("Failed to delete stored Spotify token:", error);
+        });
+      }
+      await refreshAuthState();
+      setAccountMessage(`${providerLabel(provider)} 연결을 해제했습니다.`);
+    } finally {
+      setAccountBusy("");
+    }
+  };
 
   const handleLogout = async () => {
     if (logoutBusy) return;
@@ -275,6 +392,117 @@ export default function MyPage() {
               </div>
             </div>
           )}
+
+          {!isLoading ? (
+            <section className="mypage-account" aria-label="소셜 계정 연결">
+              <div className="mypage-account__header">
+                <div>
+                  <h2>소셜 계정</h2>
+                  <p>
+                    {currentProvider
+                      ? `${providerLabel(currentProvider)}로 접속 중`
+                      : "접속 provider를 확인하는 중"}
+                  </p>
+                </div>
+              </div>
+
+              {accountError ? (
+                <p className="mypage-account__notice mypage-account__notice--error">
+                  {accountError}
+                </p>
+              ) : null}
+              {accountMessage ? (
+                <p className="mypage-account__notice">{accountMessage}</p>
+              ) : null}
+
+              <div className="mypage-account__list">
+                {accountRows.map((row) => {
+                  const busy = accountBusy === row.provider;
+                  const statusText = providerStatusText({
+                    linked: row.linked,
+                    current: row.current,
+                    provider: row.provider,
+                    spotifyToken,
+                  });
+                  const canUnlink =
+                    row.linked && !row.current && linkedProviderCount > 1;
+
+                  return (
+                    <div className="mypage-account__row" key={row.provider}>
+                      <img
+                        className="mypage-account__icon"
+                        src={getProviderIcon(row.provider)}
+                        alt=""
+                        width={32}
+                        height={32}
+                      />
+                      <div className="mypage-account__body">
+                        <div className="mypage-account__title-row">
+                          <p className="mypage-account__name">
+                            {row.info.koLabel}
+                          </p>
+                          <span
+                            className={`mypage-account__status${
+                              row.current
+                                ? " mypage-account__status--current"
+                                : ""
+                            }${
+                              row.provider === "spotify" &&
+                              row.linked &&
+                              !spotifyToken
+                                ? " mypage-account__status--warning"
+                                : ""
+                            }`}
+                          >
+                            {statusText}
+                          </span>
+                        </div>
+                        <p className="mypage-account__meta">
+                          {row.linked
+                            ? row.email || "연결 완료"
+                            : "아직 연결되지 않았어요"}
+                        </p>
+                        <div className="mypage-account__actions">
+                          {!row.linked ? (
+                            <button
+                              type="button"
+                              onClick={() => void linkProvider(row.provider)}
+                              disabled={Boolean(accountBusy)}
+                            >
+                              {busy ? "연결 중..." : "연결"}
+                            </button>
+                          ) : null}
+                          {row.provider === "spotify" &&
+                          row.linked &&
+                          !spotifyToken ? (
+                            <button
+                              type="button"
+                              onClick={() => void reauthSpotify()}
+                              disabled={Boolean(accountBusy)}
+                            >
+                              {busy ? "인증 중..." : "재인증"}
+                            </button>
+                          ) : null}
+                          {canUnlink ? (
+                            <button
+                              type="button"
+                              className="mypage-account__unlink"
+                              onClick={() =>
+                                void unlinkProvider(row.provider, row.identity)
+                              }
+                              disabled={Boolean(accountBusy)}
+                            >
+                              {busy ? "해제 중..." : "해제"}
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
 
           {isLoading ? (
             <div
