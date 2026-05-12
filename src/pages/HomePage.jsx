@@ -5,6 +5,26 @@ import BottomNav from "../components/BottomNav";
 import Home from "../components/Home";
 import { getDevGeoCoordinates } from "../utils/devGeoCoords";
 
+/** GeolocationPositionError.code — 권한(1)과 좌표 실패(2·3)를 구분해 Mac 데스크톱에서 오해를 줄임 */
+function feedGeolocationFailureMessage(geoErr) {
+  const code = geoErr?.code;
+  if (code === 1) {
+    return (
+      "이 사이트에 대한 위치 접근이 거부된 상태입니다.\n\n" +
+      "Chrome: 주소창 왼쪽 자물쇠(ⓘ) → 사이트 설정 → 위치 → 허용\n" +
+      "또는 chrome://settings/content/location 에서 이 사이트가 차단돼 있지 않은지 확인하세요.\n" +
+      "Mac: 시스템 설정 → 개인 정보 보호 및 보안 → 위치 서비스에서 Chrome이 켜져 있는지 확인하세요."
+    );
+  }
+  if (code === 2 || code === 3) {
+    return (
+      "위치 권한은 있어도, 지금은 좌표를 받지 못했습니다. Mac은 GPS가 없어 Wi‑Fi 기반이라 타임아웃(느린 응답)이 잦습니다.\n\n" +
+      "Wi‑Fi 연결을 확인한 뒤 아래 ‘위치 다시 요청’을 눌러 보세요."
+    );
+  }
+  return "위치를 확인할 수 없어 주변 피드를 불러올 수 없습니다.";
+}
+
 export default function HomePage() {
   const [searchParams] = useSearchParams();
   const focusPostId = searchParams.get("postId");
@@ -61,16 +81,17 @@ export default function HomePage() {
         (pos) => {
           void fetchNearby(pos.coords.latitude, pos.coords.longitude);
         },
-        () => {
+        (geoErr) => {
           if (!isMountedRef.current) return;
-          setFeedLoadError(
-            "위치를 허용해야 주변 피드를 불러올 수 있습니다. 브라우저 설정에서 위치 권한을 확인해 주세요.",
-          );
+          if (import.meta.env.DEV) {
+            console.warn("[HomePage] geolocation error", geoErr?.code, geoErr?.message);
+          }
+          setFeedLoadError(feedGeolocationFailureMessage(geoErr));
           setFeed([]);
         },
         {
           enableHighAccuracy: false,
-          timeout: 15000,
+          timeout: 25000,
           maximumAge: 120000,
           ...geoOptions,
         },
@@ -127,7 +148,12 @@ export default function HomePage() {
   const handleRetryLocationClick = () => {
     setFeedLoadError(null);
     setFeed(null);
-    requestGeolocationFeed({ maximumAge: 0 });
+    /* 재시도: 캐시 무시 + 고정밀(맥에서 Wi‑Fi 기반 고정이 조금 나아지는 경우가 있음) */
+    requestGeolocationFeed({
+      maximumAge: 0,
+      enableHighAccuracy: true,
+      timeout: 30000,
+    });
   };
 
   return (
@@ -169,7 +195,7 @@ export default function HomePage() {
           }}
           role="status"
         >
-          <div>{feedLoadError}</div>
+          <div style={{ whiteSpace: "pre-line" }}>{feedLoadError}</div>
           {canRetryLocation ? (
             <button
               type="button"
@@ -185,7 +211,7 @@ export default function HomePage() {
                 width: "100%",
               }}
             >
-              위치 다시 요청 (탭하면 권한 창이 뜰 수 있습니다)
+              위치 좌표 다시 받기
             </button>
           ) : null}
         </div>

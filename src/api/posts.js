@@ -124,7 +124,7 @@ export const getPostsByUserId = async (userId) => {
       post_created,
       Places (place_name),
       Tracks (track_title, artist_name, album_image_url, preview_url, duration_ms),
-      PostMedia (media_url),
+      PostMedia (media_url, display_order),
       Likes (like_id)
     `
 
