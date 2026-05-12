@@ -18,13 +18,28 @@ export const updatePost = async ({ postId, content }) => {
   return data
 }
 
+/**
+ * 게시글 소프트 삭제 — 반드시 Edge Function `delete-post`만 사용합니다.
+ * 클라이언트에서 Posts 직접 삭제/갱신하지 마세요.
+ * @param {{ postId: number | string }} params
+ * @returns {Promise<{ ok: true, data: unknown } | { ok: false, error: string }>}
+ */
 export const deletePost = async ({ postId }) => {
   const { data, error } = await supabase.functions.invoke('delete-post', {
-    body: { postId }
+    body: { postId },
   })
 
-  if (error) console.error(error)
-  return data
+  if (error) {
+    console.error(error)
+    return {
+      ok: false,
+      error: error.message ?? '삭제하지 못했습니다.',
+    }
+  }
+  if (data && typeof data === 'object' && data.error) {
+    return { ok: false, error: String(data.error) }
+  }
+  return { ok: true, data }
 }
 
 export const getFeed = async () => {
@@ -124,8 +139,9 @@ export const getPostsByUserId = async (userId) => {
       post_created,
       Places (place_name),
       Tracks (track_title, artist_name, album_image_url, preview_url, duration_ms),
-      PostMedia (media_url),
-      Likes (like_id)
+      PostMedia (media_url, display_order),
+      Likes (like_id),
+      Comments (comment_id, comment_deleted)
     `
 
   const { data: rows, error: qErr } = await supabase

@@ -37,8 +37,9 @@ Deno.serve(async (req) => {
       post_created,
       Places (place_name),
       Tracks (track_title, artist_name, album_image_url, preview_url, duration_ms),
-      PostMedia (media_url),
-      Likes (like_id)
+      PostMedia (media_url, display_order),
+      Likes (like_id),
+      Comments (comment_id, comment_deleted)
     `)
     .eq('user_id', userId)
     .is('post_deleted', null)

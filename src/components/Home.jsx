@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   checkCommentAccess,
   createComment,
@@ -8,7 +8,10 @@ import { toggleLike } from "../api/likes";
 import { getUserById } from "../api/users";
 import { useAuth } from "../contexts/AuthContextCore";
 import { useSpotifyAutoPreview } from "../hooks/useSpotifyAutoPreview";
-import { resolvedProfileImageUrl } from "../utils/profileImage";
+import {
+  DEFAULT_PROFILE_IMAGE,
+  resolvedProfileImageUrl,
+} from "../utils/profileImage";
 import "./Home.css";
 
 /** 스크롤 스냅 때문에 첫 카드일 때도 scrollTop ≠ 0 — 두 번째 카드 기준으로 ‘첫 카드 구간’ 판별 */
@@ -39,8 +42,38 @@ function commentsFromPost(post) {
 }
 
 function commentUserFromRow(row) {
-  const u = Array.isArray(row?.Users) ? row.Users[0] : row?.Users;
-  return u ?? {};
+  const raw = row?.Users ?? row?.users;
+  const u = Array.isArray(raw) ? raw[0] : raw;
+  return u != null && typeof u === "object" ? u : {};
+}
+
+function postAuthorUserFromPost(post) {
+  const raw = post?.Users ?? post?.users;
+  const u = Array.isArray(raw) ? raw[0] : raw;
+  return u != null && typeof u === "object" ? u : {};
+}
+
+/** 중첩 Users + 행 폴백 — 피드 카드·댓글 동일 규칙 */
+function profileRawFromUserAndRow(u, row) {
+  const candidates = [
+    u?.user_profile_url,
+    u?.profile_image_url,
+    row?.user_profile_url,
+    row?.profile_image_url,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string" && c.trim() !== "") return c.trim();
+  }
+  return "";
+}
+
+function postAuthorProfileRawFromPost(post) {
+  return profileRawFromUserAndRow(postAuthorUserFromPost(post), post);
+}
+
+/** 댓글 작성자 프로필 URL(원문). 비어 있으면 `resolvedProfileImageUrl`이 기본 이미지로 처리 */
+function commentProfileRawFromRow(row) {
+  return profileRawFromUserAndRow(commentUserFromRow(row), row);
 }
 
 /** 행에 직접 없으면 중첩 Users.user_id (피드 형태 차이 대비) */
@@ -136,9 +169,12 @@ function formatSheetCommentTime(iso) {
   }
 }
 
-/** CSS `.home-comment-sheet` peek / expanded 와 같은 기준 (px) */
-function getCommentSheetPeekHeightPx() {
-  if (typeof window === "undefined") return 520;
+/** CSS `.home-comment-sheet` peek / expanded — 일반 vs 카드 뒤집힌 뒤(Figma /home ver.1) */
+function getCommentSheetPeekHeightPx(fromFlipView = false) {
+  if (typeof window === "undefined") return fromFlipView ? 360 : 520;
+  if (fromFlipView) {
+    return Math.min(400, Math.round(window.innerHeight * 0.405));
+  }
   return Math.min(520, Math.round(window.innerHeight * 0.58));
 }
 
@@ -182,6 +218,98 @@ function trackFromPost(post) {
   return Array.isArray(raw) ? raw[0] : raw;
 }
 
+/** PostMedia: 배열 | 단일 행 — URL 목록(순서 유지, 중복 제거) */
+function postMediaUrlsFromPost(post) {
+  const raw = post?.PostMedia ?? post?.post_media;
+  const rows = Array.isArray(raw)
+    ? raw
+    : raw != null && typeof raw === "object"
+      ? [raw]
+      : [];
+  const sorted = [...rows].sort((a, b) => {
+    const oa = Number(a?.display_order);
+    const ob = Number(b?.display_order);
+    if (Number.isFinite(oa) && Number.isFinite(ob) && oa !== ob) {
+      return oa - ob;
+    }
+    return 0;
+  });
+  const seen = new Set();
+  const out = [];
+  for (const row of sorted) {
+    const u = typeof row?.media_url === "string" ? row.media_url.trim() : "";
+    if (u && !seen.has(u)) {
+      seen.add(u);
+      out.push(u);
+    }
+  }
+  return out;
+}
+
+/** 포스트 첨부 사진 — 여러 장이면 가로 스냅 스크롤 (피그마 /home 카드 영역) */
+function HomeCardMediaStrip({ urls, imageAlt }) {
+  const scrollRef = useRef(null);
+  const [activeDot, setActiveDot] = useState(0);
+
+  const syncDot = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el || urls.length < 2) return;
+    const w = el.clientWidth;
+    if (!(w > 0)) return;
+    const i = Math.min(
+      urls.length - 1,
+      Math.max(0, Math.round(el.scrollLeft / w)),
+    );
+    setActiveDot(i);
+  }, [urls.length]);
+
+  const onScroll = useCallback(() => {
+    syncDot();
+  }, [syncDot]);
+
+  useEffect(() => {
+    syncDot();
+  }, [urls, syncDot]);
+
+  if (!urls.length) return null;
+
+  return (
+    <div className="home-card-media-wrap">
+      <div
+        className="home-card-media-strip"
+        ref={scrollRef}
+        onScroll={onScroll}
+        role="list"
+        aria-label="포스트에 첨부된 이미지"
+      >
+        {urls.map((url, i) => (
+          <div
+            className="home-card-media-slide"
+            key={`${url}-${i}`}
+            role="listitem"
+          >
+            <img
+              className="home-card-image"
+              src={url}
+              alt={i === 0 ? imageAlt || "포스트 사진" : ""}
+            />
+          </div>
+        ))}
+      </div>
+      {urls.length > 1 ? (
+        <div className="home-card-media-dots" aria-hidden>
+          {urls.map((_, i) => (
+            <span
+              key={i}
+              className={`home-card-media-dot${i === activeDot ? " home-card-media-dot--active" : ""}`}
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function spotifyTrackUrl(track) {
   const id = typeof track?.track_id === "string" ? track.track_id.trim() : "";
   return id ? `https://open.spotify.com/track/${encodeURIComponent(id)}` : "";
@@ -199,10 +327,17 @@ function Home({
   const isLoading = feed === null;
   const list = isLoading ? [null] : feed;
   const [activeIndex, setActiveIndex] = useState(0);
+  /** 활성 카드: 전체 3D 플립으로 업로드 사진면 표시 */
+  const [cardFlipped, setCardFlipped] = useState(false);
+  /** 플립 시 한 장만 보기 + 상단 제목·가수, 나가면 스크롤 복원 */
+  const [feedFocused, setFeedFocused] = useState(false);
   const [feedRefreshing, setFeedRefreshing] = useState(false);
   const [feedPullHint, setFeedPullHint] = useState(false);
   const [likeStateByPostId, setLikeStateByPostId] = useState({});
   const [commentSheetPost, setCommentSheetPost] = useState(null);
+  /** 카드 뒷면(한 장 보기+플립)에서 댓글 연 시 — Figma ver.1 시트 높이·톤 */
+  const [commentSheetFromFlipView, setCommentSheetFromFlipView] =
+    useState(false);
   /** 위치·반경 확인 전에는 스켈레톤만 보이고 입력 비활성 */
   const [commentSheetAccessPending, setCommentSheetAccessPending] =
     useState(false);
@@ -210,6 +345,11 @@ function Home({
   const [commentDraft, setCommentDraft] = useState("");
   const cardRefs = useRef([]);
   const feedScrollRef = useRef(null);
+  const feedScrollBeforeFocusRef = useRef(0);
+  /** 직전 feed — null → 배열 첫 로드일 때만 맨 위 스크롤 보정 */
+  const prevFeedRef = useRef(null);
+  /** 한 장 보기 종료 직후 layout 단계에서 scrollTop 복원 (페인트 전, 번쩍임 방지) */
+  const shouldRestoreFeedScrollRef = useRef(false);
   const activeIndexRef = useRef(0);
   const ptrArmMaxScrollTopRef = useRef(Number.POSITIVE_INFINITY);
   const refreshCooldownUntilRef = useRef(0);
@@ -264,6 +404,8 @@ function Home({
   const [commentDeletePrompt, setCommentDeletePrompt] = useState(null);
   const [commentDeleteSubmitting, setCommentDeleteSubmitting] = useState(false);
   const [playbackNotice, setPlaybackNotice] = useState("");
+  /** 앨범 커버 색감 기준: 밝으면 상단 트랙 타이틀·가수를 검정, 어두우면 흰색 */
+  const [trackMetaOnLightBg, setTrackMetaOnLightBg] = useState(false);
   const { spotifyToken, user, refreshSpotifyToken } = useAuth();
   /** Auth 메타데이터에 없을 때 Users 테이블 프로필 (고정 id·OAuth 병행) */
   const [dbUserProfileUrl, setDbUserProfileUrl] = useState(null);
@@ -271,6 +413,51 @@ function Home({
   useEffect(() => {
     activeIndexRef.current = activeIndex;
   }, [activeIndex]);
+
+  useEffect(() => {
+    setCardFlipped(false);
+    setFeedFocused((wasFocused) => {
+      if (wasFocused) shouldRestoreFeedScrollRef.current = true;
+      return false;
+    });
+  }, [activeIndex]);
+
+  useEffect(() => {
+    if (feed === null) {
+      setCardFlipped(false);
+      setFeedFocused((wasFocused) => {
+        if (wasFocused) shouldRestoreFeedScrollRef.current = true;
+        return false;
+      });
+    }
+  }, [feed]);
+
+  useEffect(() => {
+    if (!feedFocused) return undefined;
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        shouldRestoreFeedScrollRef.current = true;
+        setFeedFocused(false);
+        setCardFlipped(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [feedFocused]);
+
+  useLayoutEffect(() => {
+    const root = feedScrollRef.current;
+    if (!root) return;
+    if (feedFocused) {
+      root.scrollTop = 0;
+      return;
+    }
+    if (shouldRestoreFeedScrollRef.current) {
+      shouldRestoreFeedScrollRef.current = false;
+      root.scrollTop = feedScrollBeforeFocusRef.current;
+    }
+  }, [feedFocused, activeIndex]);
+
   const likeUserId = user?.id;
 
   useEffect(() => {
@@ -290,12 +477,15 @@ function Home({
     };
   }, [likeUserId]);
 
-  const composerAvatarRaw =
+  /** 로그인 사용자 — Auth에서 머지된 프로필 URL 우선(카드·댓글·입력창 동일) */
+  const meProfileRaw =
+    (typeof user?.user_metadata?.user_profile_url === "string" &&
+      user.user_metadata.user_profile_url.trim()) ||
+    (typeof dbUserProfileUrl === "string" && dbUserProfileUrl.trim()) ||
     user?.user_metadata?.avatar_url ||
     user?.user_metadata?.picture ||
-    dbUserProfileUrl ||
     "";
-  const composerAvatarSrc = resolvedProfileImageUrl(composerAvatarRaw);
+  const composerAvatarSrc = resolvedProfileImageUrl(meProfileRaw);
 
   const sheetPostFresh = useMemo(() => {
     if (!commentSheetPost?.post_id) return null;
@@ -360,6 +550,7 @@ function Home({
       setRemovedSheetCommentIds([]);
       setCommentDeletePrompt(null);
       commentSheetDragRef.current.active = false;
+      setCommentSheetFromFlipView(false);
     }
   }, [commentSheetPost]);
 
@@ -377,6 +568,7 @@ function Home({
     setSheetTranslateY(0);
     setSheetDragging(false);
     setSheetInteractiveHeightPx(null);
+    setCommentSheetFromFlipView(false);
   };
 
   const onCommentSheetHandlePointerDown = (e) => {
@@ -419,7 +611,7 @@ function Home({
       d.lastStretchDown = stretchDown;
       const exp =
         d.expandDragStartHeight ?? getCommentSheetExpandedHeightPx();
-      const peek = getCommentSheetPeekHeightPx();
+      const peek = getCommentSheetPeekHeightPx(commentSheetFromFlipView);
       const shrunk = Math.max(peek, Math.round(exp - stretchDown));
       const overflowDown = Math.max(0, stretchDown - (exp - peek));
       setSheetInteractiveHeightPx(shrunk);
@@ -435,7 +627,7 @@ function Home({
     if (e.clientY >= d.startY) {
       const stretchDown = e.clientY - d.startY;
       d.lastStretchDown = stretchDown;
-      const peek = getCommentSheetPeekHeightPx();
+      const peek = getCommentSheetPeekHeightPx(commentSheetFromFlipView);
       const minH = getCommentSheetPeekMinShrinkPx(peek);
       const shrunk = Math.max(minH, peek - stretchDown);
       const overflowDown = Math.max(0, stretchDown - (peek - minH));
@@ -449,7 +641,7 @@ function Home({
     setSheetTranslateY(0);
     d.lastOffset = 0;
     const stretchPx = Math.max(0, d.startY - d.minClientY);
-    const peek = getCommentSheetPeekHeightPx();
+    const peek = getCommentSheetPeekHeightPx(commentSheetFromFlipView);
     const exp = getCommentSheetExpandedHeightPx();
     const h = Math.min(peek + stretchPx, exp);
     setSheetInteractiveHeightPx(Math.round(h));
@@ -475,7 +667,7 @@ function Home({
     if (!expanded) {
       const minCy = d.minClientY ?? d.startY;
       const releaseStretch = Math.max(0, d.startY - minCy);
-      const peek = getCommentSheetPeekHeightPx();
+      const peek = getCommentSheetPeekHeightPx(commentSheetFromFlipView);
       const exp = getCommentSheetExpandedHeightPx();
       const expandThresholdPx = Math.max(
         56,
@@ -507,7 +699,7 @@ function Home({
     }
 
     /* 확장: 높이 줄였을 때도 peek/닫기 판정 · 많이 내려야 완전 닫힘 */
-    const peek = getCommentSheetPeekHeightPx();
+    const peek = getCommentSheetPeekHeightPx(commentSheetFromFlipView);
     const exp =
       d.expandDragStartHeight ?? getCommentSheetExpandedHeightPx();
     const draggedHeightSnap = sheetInteractiveHeightPx;
@@ -568,6 +760,9 @@ function Home({
     setPendingSheetComments([]);
     setSheetExpanded(false);
     setSheetInteractiveHeightPx(null);
+    /* tryOpenCommentSheet 에서 같은 틱에 setFeedFocused/setCardFlipped 하면
+       여기서 feedFocused/cardFlipped 는 아직 갱신 전이라 항상 플립 댓글 UI로 연다 */
+    setCommentSheetFromFlipView(true);
     setCommentSheetPost(post);
     commentSheetPostRef.current = post;
   };
@@ -708,6 +903,15 @@ function Home({
 
   const tryOpenCommentSheet = (post) => {
     if (!post?.post_id || commentAccessBusy) return;
+
+    if (!feedFocused) {
+      feedScrollBeforeFocusRef.current =
+        feedScrollRef.current?.scrollTop ?? 0;
+      setFeedFocused(true);
+    }
+    if (!cardFlipped) {
+      setCardFlipped(true);
+    }
 
     const insecure =
       typeof window !== "undefined" && !window.isSecureContext;
@@ -866,7 +1070,7 @@ function Home({
             comment_deleted: created.comment_deleted ?? null,
             Users: {
               user_name: displayName,
-              user_profile_url: composerAvatarSrc,
+              user_profile_url: meProfileRaw || null,
             },
           },
         ]);
@@ -887,7 +1091,56 @@ function Home({
     }
   }, [activeIndex, list.length]);
 
-  const blurBackground = list[activeIndex]?.Tracks?.album_image_url || "";
+  const blurPost = !isLoading ? list[activeIndex] ?? null : null;
+  const blurTrack = trackFromPost(blurPost);
+  const blurBackground =
+    typeof blurTrack?.album_image_url === "string"
+      ? blurTrack.album_image_url.trim()
+      : "";
+
+  useEffect(() => {
+    if (!feedFocused || !blurBackground) {
+      setTrackMetaOnLightBg(false);
+      return;
+    }
+    let cancelled = false;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      if (cancelled) return;
+      try {
+        const w = 28;
+        const h = 28;
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0, w, h);
+        const { data } = ctx.getImageData(0, 0, w, h);
+        let sum = 0;
+        const pixels = data.length / 4;
+        for (let i = 0; i < data.length; i += 4) {
+          sum +=
+            0.2126 * data[i] +
+            0.7152 * data[i + 1] +
+            0.0722 * data[i + 2];
+        }
+        const avg = sum / pixels / 255;
+        if (!cancelled) setTrackMetaOnLightBg(avg > 0.48);
+      } catch {
+        if (!cancelled) setTrackMetaOnLightBg(false);
+      }
+    };
+    img.onerror = () => {
+      if (!cancelled) setTrackMetaOnLightBg(false);
+    };
+    img.src = blurBackground;
+    return () => {
+      cancelled = true;
+    };
+  }, [feedFocused, blurBackground]);
+
   const activePost = !isLoading ? list[activeIndex] ?? null : null;
 
   const showPlaybackUnavailable = useCallback(({ track, reason }) => {
@@ -966,6 +1219,56 @@ function Home({
   const handleFeedScroll = (e) => {
     updateActiveFromScroll(e.currentTarget);
   };
+
+  /** 바로 위·아래 카드 탭 시 한 칸 스냅 스크롤 (캡처에서 처리해 비활성 카드 플립 버튼과 충돌 방지) */
+  const handleAdjacentFeedItemClickCapture = useCallback(
+    (e) => {
+      if (feed === null || feedFocused) return;
+      const el = e.currentTarget;
+      if (!(el instanceof HTMLElement)) return;
+      const idx = Number(el.dataset.feedIdx);
+      if (!Number.isFinite(idx)) return;
+      const ai = activeIndexRef.current;
+      if (idx === ai) return;
+      if (idx !== ai - 1 && idx !== ai + 1) return;
+      const node = cardRefs.current[idx];
+      if (!node) return;
+      e.preventDefault();
+      e.stopPropagation();
+      node.scrollIntoView({ behavior: "smooth", block: "center" });
+    },
+    [feed, feedFocused],
+  );
+
+  useEffect(() => {
+    if (feed === null) {
+      prevFeedRef.current = null;
+      return;
+    }
+
+    const prev = prevFeedRef.current;
+    prevFeedRef.current = feed;
+
+    /* 로딩 끝난 직후 한 번: 첫 포스트가 화면 중심에 오도록 (스냅·레이아웃 전 active 추측 오류 방지) */
+    if (prev !== null) return;
+
+    if (focusPostId) {
+      const idx = feed.findIndex(
+        (post) => String(post?.post_id) === String(focusPostId),
+      );
+      if (idx >= 0) return;
+    }
+
+    setActiveIndex(0);
+    requestAnimationFrame(() => {
+      const root = feedScrollRef.current;
+      if (root) root.scrollTop = 0;
+      requestAnimationFrame(() => {
+        const r = feedScrollRef.current;
+        if (r) updateActiveFromScroll(r);
+      });
+    });
+  }, [feed, focusPostId]);
 
   useEffect(() => {
     const root = feedScrollRef.current;
@@ -1171,6 +1474,12 @@ function Home({
   };
 
   const handleLogoGoTop = () => {
+    if (feedFocused) {
+      shouldRestoreFeedScrollRef.current = true;
+      setFeedFocused(false);
+      setCardFlipped(false);
+      return;
+    }
     const root = feedScrollRef.current;
     if (!root) return;
     root.scrollTo({ top: 0, behavior: "smooth" });
@@ -1184,7 +1493,20 @@ function Home({
           {playbackNotice}
         </div>
       ) : null}
-      <div className="home-phone">
+      <div
+        className={`home-phone${
+          commentSheetPost && commentSheetFromFlipView
+            ? ` home-phone--flip-comment${sheetExpanded ? " home-phone--flip-comment--expanded" : ""}`
+            : ""
+        }`}
+        style={
+          blurBackground
+            ? {
+                "--home-blur-url": `url(${JSON.stringify(blurBackground)})`,
+              }
+            : undefined
+        }
+      >
         <div className="home-bg-stack">
           <div
             className={`home-bg-blur${blurBackground ? "" : " no-image"}`}
@@ -1206,7 +1528,7 @@ function Home({
             type="button"
             className="home-logo-btn"
             onClick={handleLogoGoTop}
-            aria-label="피드 맨 위로 이동"
+            aria-label={feedFocused ? "한 장 보기 나가기" : "피드 맨 위로 이동"}
           >
             <img
               className="home-logo"
@@ -1233,7 +1555,7 @@ function Home({
         ) : null}
 
         <div
-          className="home-feed-scroll"
+          className={`home-feed-scroll${feedFocused ? " home-feed-scroll--focused" : ""}`}
           ref={feedScrollRef}
           onScroll={handleFeedScroll}
         >
@@ -1244,22 +1566,26 @@ function Home({
           ) : null}
           {list.map((post, idx) => {
             const isSkeleton = isLoading;
-            const albumArt = post?.Tracks?.album_image_url || "";
-            const userData = Array.isArray(post?.Users)
-              ? post.Users[0]
-              : post?.Users;
+            const track = !isSkeleton ? trackFromPost(post) : null;
+            const albumArt =
+              typeof track?.album_image_url === "string"
+                ? track.album_image_url.trim()
+                : "";
+            const userData = postAuthorUserFromPost(post);
+            const postAuthorId = userData?.user_id;
             const avatarRaw =
-              userData?.user_profile_url ||
-              post?.user_profile_url ||
-              userData?.profile_image_url ||
-              post?.profile_image_url ||
-              "";
+              postAuthorId != null &&
+              likeUserId != null &&
+              String(postAuthorId) === String(likeUserId)
+                ? meProfileRaw
+                : postAuthorProfileRawFromPost(post);
             const avatarSrc = resolvedProfileImageUrl(avatarRaw);
             const userName = userData?.user_name || "annonymous";
             const placeName = post?.Places?.place_name || "서울 홍대입구역";
             const content =
               post?.content ||
               "이 공간에는 르세라핌 'Spaghetti'처럼 텐션 있는 음악이 어울려요.";
+            const mediaUrls = !isSkeleton ? postMediaUrlsFromPost(post) : [];
             const likes = likesFromPost(post);
             const postId = post?.post_id;
             const serverLiked = likes.some((like) =>
@@ -1276,7 +1602,6 @@ function Home({
             const isLikePending = localLikeState?.pending ?? false;
             const commentCount = commentsFromPost(post).length;
             const isActive = idx === activeIndex;
-            const track = !isSkeleton ? trackFromPost(post) : null;
             const trackTitle =
               typeof track?.track_title === "string"
                 ? track.track_title.trim()
@@ -1286,24 +1611,47 @@ function Home({
                 ? track.artist_name.trim()
                 : "";
 
+            const showTrackAbove =
+              feedFocused &&
+              isActive &&
+              !isSkeleton &&
+              (Boolean(trackTitle) || Boolean(artistName));
+
             return (
               <div
-                className={`home-feed-item${!isSkeleton && idx < activeIndex ? " home-feed-item--past" : ""}`}
+                className={`home-feed-item${
+                  !feedFocused && !isSkeleton && idx < activeIndex
+                    ? " home-feed-item--past"
+                    : ""
+                }${
+                  !feedFocused && !isSkeleton && idx > activeIndex
+                    ? " home-feed-item--next"
+                    : ""
+                }${
+                  feedFocused && idx !== activeIndex
+                    ? " home-feed-item--focus-hidden"
+                    : ""
+                }`}
                 key={post?.post_id || idx}
+                data-feed-idx={idx}
                 ref={(el) => {
                   cardRefs.current[idx] = el;
                 }}
-                aria-hidden={!isSkeleton && idx < activeIndex}
+                onClickCapture={
+                  !isSkeleton && !feedFocused && idx !== activeIndex
+                    ? handleAdjacentFeedItemClickCapture
+                    : undefined
+                }
               >
-                <div className="home-feed-item-track-slot">
-                  {isActive && isSkeleton ? (
-                    <div className="home-track-meta home-track-meta--above home-track-meta--skel">
-                      <div className="home-track-skel-title" />
-                      <div className="home-track-skel-artist" />
-                    </div>
-                  ) : null}
-                  {isActive && !isSkeleton && (trackTitle || artistName) ? (
-                    <div className="home-track-meta home-track-meta--above">
+                {showTrackAbove ? (
+                  <div className="home-feed-item-track-slot">
+                    <div
+                      className={`home-track-meta home-track-meta--above${
+                        trackMetaOnLightBg
+                          ? " home-track-meta--above--light-bg"
+                          : " home-track-meta--above--dark-bg"
+                      }`}
+                    >
                       {trackTitle ? (
                         <p className="home-track-title">{trackTitle}</p>
                       ) : null}
@@ -1311,29 +1659,18 @@ function Home({
                         <p className="home-track-artist">{artistName}</p>
                       ) : null}
                     </div>
-                  ) : null}
-                </div>
+                  </div>
+                ) : null}
                 <article
-                  className={`home-card${isActive ? " home-card--active" : ""}`}
+                  className={`home-card${isActive ? " home-card--active" : ""}${isSkeleton ? " home-card--no-flip" : ""}${!isSkeleton && isActive && feedFocused && cardFlipped ? " home-card--flipped" : ""}`}
                 >
                   {isSkeleton ? (
-                    <div className="home-card-image home-card-image-skeleton" />
-                  ) : albumArt ? (
-                    <img
-                      className="home-card-image"
-                      src={albumArt}
-                      alt={placeName}
-                    />
-                  ) : (
-                    <div className="home-card-image home-card-image-empty" />
-                  )}
-                  {isActive && (
                     <>
-                      <div className="home-card-top-shadow" />
-                      <div className="home-card-bottom-shadow" />
-
-                      {isSkeleton ? (
+                      <div className="home-card-image home-card-image-skeleton" />
+                      {isActive ? (
                         <>
+                          <div className="home-card-top-shadow" />
+                          <div className="home-card-bottom-shadow" />
                           <div className="home-user">
                             <div className="home-avatar home-skeleton home-skeleton-avatar" />
                             <div className="home-skeleton-user-lines">
@@ -1353,91 +1690,258 @@ function Home({
                             <div className="home-skeleton home-skeleton-action home-skeleton-action-3" />
                           </div>
                         </>
-                      ) : (
-                        <>
-                          <div className="home-user">
-                            <img
-                              className="home-avatar"
-                              src={avatarSrc}
-                              alt={userName}
-                            />
-                            <div>
-                              <p className="home-name">{userName}</p>
-                              <p className="home-place">{placeName}</p>
-                            </div>
-                          </div>
-
-                          <p className="home-content">{content}</p>
-
-                          <div className="home-actions">
-                            <button
-                              type="button"
-                              className="home-action-btn"
-                              onClick={() => handleLikeToggle(post)}
-                              disabled={isLikePending}
-                            >
-                              <img
-                                className="home-action-icon"
-                                src={
-                                  isLiked
-                                    ? "/heart.fill.svg"
-                                    : "/heart.empty.svg"
-                                }
-                                alt=""
-                                aria-hidden="true"
-                              />
-                              <span>{likeCount}</span>
-                            </button>
-                            <button
-                              type="button"
-                              className="home-action-btn"
-                              onClick={() => tryOpenCommentSheet(post)}
-                              disabled={commentAccessBusy}
-                              aria-label="댓글 작성"
-                            >
-                              <img
-                                className="home-action-icon"
-                                src="/bubble.fill.svg"
-                                alt=""
-                                aria-hidden="true"
-                              />
-                              <span>{commentCount}</span>
-                            </button>
-                            <button
-                              type="button"
-                              className="home-action-btn home-action-btn--spotify"
-                              onClick={() => openTrackInSpotify(track)}
-                              aria-label={
-                                trackTitle
-                                  ? `${trackTitle} Spotify에서 열기`
-                                  : "Spotify에서 열기"
-                              }
-                            >
-                              <img
-                                className="home-action-icon home-action-icon--spotify"
-                                src="/spotify.btn.svg"
-                                alt=""
-                                aria-hidden="true"
-                              />
-                            </button>
-                          </div>
-                        </>
-                      )}
+                      ) : null}
                     </>
+                  ) : (
+                    <div className="home-card-flip-inner">
+                      <div className="home-card-face home-card-face--front">
+                        <button
+                          type="button"
+                          className="home-card-flip-trigger"
+                          tabIndex={isActive ? 0 : -1}
+                          aria-expanded={Boolean(
+                            isActive && cardFlipped && feedFocused,
+                          )}
+                          aria-label={
+                            mediaUrls.length > 0
+                              ? "업로드한 사진 보기"
+                              : albumArt
+                                ? "앨범 표지 보기"
+                                : "한 장 보기"
+                          }
+                          onClick={() => {
+                            if (!isActive) return;
+                            if (!feedFocused) {
+                              feedScrollBeforeFocusRef.current =
+                                feedScrollRef.current?.scrollTop ?? 0;
+                              setFeedFocused(true);
+                              setCardFlipped(true);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (!isActive) return;
+                            if (e.key !== "Enter" && e.key !== " ") return;
+                            e.preventDefault();
+                            if (!feedFocused) {
+                              feedScrollBeforeFocusRef.current =
+                                feedScrollRef.current?.scrollTop ?? 0;
+                              setFeedFocused(true);
+                              setCardFlipped(true);
+                            }
+                          }}
+                        >
+                          <div className="home-card-flip-trigger-media">
+                            {albumArt ? (
+                              <img
+                                className="home-card-image"
+                                src={albumArt}
+                                alt={placeName}
+                              />
+                            ) : (
+                              <div className="home-card-image home-card-image-empty" />
+                            )}
+                          </div>
+                          <div className="home-card-top-shadow" />
+                          <div className="home-card-bottom-shadow" />
+                        </button>
+                        {isActive ? (
+                          <>
+                            <div className="home-user">
+                              <img
+                                className="home-avatar"
+                                src={avatarSrc}
+                                alt={userName}
+                              />
+                              <div>
+                                <p className="home-name">{userName}</p>
+                                <p className="home-place">{placeName}</p>
+                              </div>
+                            </div>
+
+                            <p className="home-content">{content}</p>
+
+                            <div className="home-actions">
+                              <button
+                                type="button"
+                                className="home-action-btn"
+                                onClick={() => handleLikeToggle(post)}
+                                disabled={isLikePending}
+                              >
+                                <img
+                                  className="home-action-icon"
+                                  src={
+                                    isLiked
+                                      ? "/heart.fill.svg"
+                                      : "/heart.empty.svg"
+                                  }
+                                  alt=""
+                                  aria-hidden="true"
+                                />
+                                <span>{likeCount}</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="home-action-btn"
+                                onClick={() => tryOpenCommentSheet(post)}
+                                disabled={commentAccessBusy}
+                                aria-label="댓글 작성"
+                              >
+                                <img
+                                  className="home-action-icon"
+                                  src="/bubble.fill.svg"
+                                  alt=""
+                                  aria-hidden="true"
+                                />
+                                <span>{commentCount}</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="home-action-btn home-action-btn--spotify"
+                                onClick={() => openTrackInSpotify(track)}
+                                aria-label={
+                                  trackTitle
+                                    ? `${trackTitle} Spotify에서 열기`
+                                    : "Spotify에서 열기"
+                                }
+                              >
+                                <img
+                                  className="home-action-icon home-action-icon--spotify"
+                                  src="/spotify.btn.svg"
+                                  alt=""
+                                  aria-hidden="true"
+                                />
+                              </button>
+                            </div>
+                          </>
+                        ) : null}
+                      </div>
+                      <div
+                        className="home-card-face home-card-face--back"
+                        role="group"
+                        aria-label="포스트 미디어"
+                        onClick={(e) => {
+                          if (!isActive || !cardFlipped || !feedFocused) return;
+                          const t = e.target;
+                          if (typeof t.closest !== "function") return;
+                          if (
+                            t.closest(".home-user") ||
+                            t.closest(".home-content") ||
+                            t.closest(".home-actions")
+                          ) {
+                            return;
+                          }
+                          shouldRestoreFeedScrollRef.current = true;
+                          setFeedFocused(false);
+                          setCardFlipped(false);
+                        }}
+                      >
+                        <div className="home-card-back-bg" aria-hidden>
+                          {mediaUrls.length > 0 ? (
+                            <HomeCardMediaStrip
+                              urls={mediaUrls}
+                              imageAlt={placeName || "포스트 사진"}
+                            />
+                          ) : albumArt ? (
+                            <img
+                              className="home-card-image home-card-image--album-cover"
+                              src={albumArt}
+                              alt=""
+                            />
+                          ) : (
+                            <div className="home-card-image home-card-image-empty" />
+                          )}
+                        </div>
+                        {isActive ? (
+                          <>
+                            <div className="home-card-top-shadow" aria-hidden />
+                            <div className="home-card-bottom-shadow" aria-hidden />
+                            <div className="home-user">
+                              <img
+                                className="home-avatar"
+                                src={avatarSrc}
+                                alt={userName}
+                              />
+                              <div>
+                                <p className="home-name">{userName}</p>
+                                <p className="home-place">{placeName}</p>
+                              </div>
+                            </div>
+
+                            <p className="home-content">{content}</p>
+
+                            <div className="home-actions">
+                              <button
+                                type="button"
+                                className="home-action-btn"
+                                onClick={() => handleLikeToggle(post)}
+                                disabled={isLikePending}
+                              >
+                                <img
+                                  className="home-action-icon"
+                                  src={
+                                    isLiked
+                                      ? "/heart.fill.svg"
+                                      : "/heart.empty.svg"
+                                  }
+                                  alt=""
+                                  aria-hidden="true"
+                                />
+                                <span>{likeCount}</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="home-action-btn"
+                                onClick={() => tryOpenCommentSheet(post)}
+                                disabled={commentAccessBusy}
+                                aria-label="댓글 작성"
+                              >
+                                <img
+                                  className="home-action-icon"
+                                  src="/bubble.fill.svg"
+                                  alt=""
+                                  aria-hidden="true"
+                                />
+                                <span>{commentCount}</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="home-action-btn home-action-btn--spotify"
+                                onClick={() => openTrackInSpotify(track)}
+                                aria-label={
+                                  trackTitle
+                                    ? `${trackTitle} Spotify에서 열기`
+                                    : "Spotify에서 열기"
+                                }
+                              >
+                                <img
+                                  className="home-action-icon home-action-icon--spotify"
+                                  src="/spotify.btn.svg"
+                                  alt=""
+                                  aria-hidden="true"
+                                />
+                              </button>
+                            </div>
+                          </>
+                        ) : null}
+                      </div>
+                    </div>
                   )}
                 </article>
               </div>
             );
           })}
           {isLoading || list.length > 0 ? (
-            <div className="home-feed-scroll-tail" aria-hidden />
+            <div
+              className={`home-feed-scroll-tail${feedFocused ? " home-feed-scroll-tail--hidden" : ""}`}
+              aria-hidden
+            />
           ) : null}
         </div>
       </div>
 
       {commentSheetPost && (
         <div
-          className="home-comment-overlay"
+          className={`home-comment-overlay${commentSheetFromFlipView ? " home-comment-overlay--flip-context" : ""}`}
           role="dialog"
           aria-modal="true"
           aria-labelledby="home-comment-sheet-title"
@@ -1501,12 +2005,13 @@ function Home({
                   {sheetCommentsThread.map(({ row, depth }) => {
                     const u = commentUserFromRow(row);
                     const name = u.user_name || "사용자";
-                    const avatarSrc = resolvedProfileImageUrl(
-                      u.user_profile_url || "",
-                    );
+                    const ownRow = isOwnSheetComment(row, likeUserId);
+                    const profileRaw = ownRow
+                      ? meProfileRaw
+                      : commentProfileRawFromRow(row);
+                    const avatarSrc = resolvedProfileImageUrl(profileRaw);
                     const key = row.comment_id;
                     const indentPx = depth > 0 ? Math.min(depth, 8) * 52 : 0;
-                    const ownRow = isOwnSheetComment(row, likeUserId);
                     return (
                       <li
                         key={key}
@@ -1548,6 +2053,9 @@ function Home({
                           className="home-comment-item__avatar"
                           src={avatarSrc}
                           alt=""
+                          onError={(e) => {
+                            e.currentTarget.src = DEFAULT_PROFILE_IMAGE;
+                          }}
                         />
                         <div className="home-comment-item__main">
                           <p className="home-comment-item__name">{name}</p>
@@ -1604,6 +2112,9 @@ function Home({
                   className="home-comment-composer-avatar"
                   src={composerAvatarSrc}
                   alt=""
+                  onError={(e) => {
+                    e.currentTarget.src = DEFAULT_PROFILE_IMAGE;
+                  }}
                 />
                 <label className="home-comment-input-wrap">
                   <span className="home-visually-hidden">

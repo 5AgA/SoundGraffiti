@@ -38,6 +38,34 @@
   background: #f8fbff;
 }
 
+/* 플립+한 장 모드에서 댓글 시트: 카드 축소·상단 정렬 → 시트 위로 전부 노출 */
+.home-phone--flip-comment .home-feed-scroll--focused {
+  justify-content: flex-start;
+  padding-top: max(36px, calc(env(safe-area-inset-top, 0px) + 24px));
+}
+
+.home-phone--flip-comment
+  .home-feed-scroll--focused
+  .home-feed-item:not(.home-feed-item--focus-hidden) {
+  transform: translateY(22px) scale(0.76);
+  transform-origin: center top;
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media (min-height: 720px) {
+  .home-phone--flip-comment
+    .home-feed-scroll--focused
+    .home-feed-item:not(.home-feed-item--focus-hidden) {
+    transform: translateY(22px) scale(0.82);
+  }
+}
+
+.home-phone--flip-comment--expanded
+  .home-feed-scroll--focused
+  .home-feed-item:not(.home-feed-item--focus-hidden) {
+  transform: translateY(18px) scale(0.64);
+}
+
 .home-bg-stack {
   position: absolute;
   inset: 0;
@@ -187,22 +215,22 @@
   margin: 0 auto;
 }
 
-/* 현재 카드보다 위에 스크롤된 항목은 보이지 않게 (레이아웃·스냅은 유지) */
+/* 현재 카드보다 위(이전): 보이게 — 살짝만 흐리게 해 활성 카드와 구분 */
 .home-feed-item--past {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
+  opacity: 0.52;
+  transform: scale(0.96);
+  transform-origin: center bottom;
+  filter: saturate(0.88);
+  cursor: pointer;
 }
 
-.home-feed-item-track-slot {
-  width: 100%;
-  min-height: var(--home-feed-track-slot);
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  padding-bottom: var(--home-feed-track-gap);
-  box-sizing: border-box;
+/* 현재 카드보다 아래(다음): 이전 카드와 같은 톤으로 흐리게 */
+.home-feed-item--next {
+  opacity: 0.52;
+  transform: scale(0.96);
+  transform-origin: center top;
+  filter: saturate(0.88);
+  cursor: pointer;
 }
 
 .home-card {
@@ -212,9 +240,95 @@
   height: 450px;
   border-radius: 30px;
   flex-shrink: 0;
-  overflow: hidden;
+  overflow: visible;
   color: #fff;
   margin: 0 auto;
+  perspective: 1100px;
+}
+
+.home-card.home-card--no-flip {
+  overflow: hidden;
+  perspective: none;
+}
+
+.home-card-flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.58s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.home-card--flipped .home-card-flip-inner {
+  transform: rotateY(180deg);
+}
+
+.home-card-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 30px;
+  overflow: hidden;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.home-card-face--back {
+  transform: rotateY(180deg);
+  background: #151820;
+  cursor: pointer;
+}
+
+.home-card-back-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+/* 첨부 사진 없이 앨범만: 살짝 흰기 도는 베일 */
+.home-card-back-bg:has(> .home-card-image--album-cover)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  z-index: 1;
+  pointer-events: none;
+  background: rgba(228, 232, 242, 0.38);
+}
+
+.home-card:not(.home-card--flipped) .home-card-face--back {
+  pointer-events: none;
+}
+
+.home-card--flipped .home-card-face--front .home-card-flip-trigger {
+  pointer-events: none;
+}
+
+.home-card-flip-trigger {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 0;
+  border: 0;
+  margin: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.home-card-flip-trigger:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: -4px;
+}
+
+.home-card-flip-trigger-media {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
 }
 
 .home-feed-empty {
@@ -233,8 +347,8 @@
 
 .home-feed-scroll {
   --home-feed-card-h: 450px;
-  --home-feed-track-slot: 76px;
-  --home-feed-track-gap: 20px;
+  --home-feed-track-slot: 0px;
+  --home-feed-track-gap: 24px;
   --home-feed-item-h: calc(
     var(--home-feed-track-slot) + var(--home-feed-track-gap) +
       var(--home-feed-card-h)
@@ -275,6 +389,118 @@
   overscroll-behavior-y: contain;
 }
 
+.home-feed-scroll--focused {
+  overflow: hidden !important;
+  scroll-snap-type: none;
+  justify-content: center;
+  gap: 0;
+  padding-top: max(8px, env(safe-area-inset-top, 0px));
+  padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px));
+}
+
+.home-feed-item--focus-hidden {
+  display: none !important;
+}
+
+.home-feed-scroll-tail--hidden {
+  display: none !important;
+}
+
+.home-feed-item-track-slot {
+  width: 100%;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding-bottom: var(--home-feed-track-gap);
+  box-sizing: border-box;
+  min-height: 76px;
+}
+
+/*
+ * 한 장 보기: mix-blend 가 상위 overflow 스택에서 끊기지 않도록,
+ * 슬롯 안에 전역과 같은 앨범 블러를 깔고 isolation 으로 이 구역만 블렌딩.
+ */
+.home-feed-scroll--focused .home-feed-item-track-slot {
+  position: relative;
+  isolation: isolate;
+}
+
+.home-feed-scroll--focused .home-feed-item-track-slot::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: var(
+    --home-blur-url,
+    radial-gradient(circle at 20% 20%, #445, #1b1e27 65%)
+  );
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  filter: blur(20px);
+  opacity: 0.65;
+  transform: scale(1.1);
+}
+
+.home-track-meta--above {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 0 12px;
+  text-align: center;
+}
+
+/* 앨범 아트 샘플: 어두운 배경 → 흰 글자 */
+.home-track-meta--above--dark-bg .home-track-title {
+  margin: 0 0 4px;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 1.2;
+  color: #ffffff;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.45),
+    0 0 20px rgba(0, 0, 0, 0.25);
+}
+
+.home-track-meta--above--dark-bg .home-track-artist {
+  margin: 0;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* 앨범 아트 샘플: 밝은 배경 → 검정 글자 */
+.home-track-meta--above--light-bg .home-track-title {
+  margin: 0 0 4px;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 1.2;
+  color: #0a0a0a;
+}
+
+.home-track-meta--above--light-bg .home-track-artist {
+  margin: 0;
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.35;
+  color: rgba(10, 10, 10, 0.82);
+}
+
 .home-feed-scroll::-webkit-scrollbar {
   display: none;
 }
@@ -296,8 +522,85 @@
   object-fit: cover;
 }
 
+/* 첨부 사진 없음 → 앨범 커버만: 반전 없음, 살짝 흰끼(오버레이는 부모 ::after) */
+.home-card-image--album-cover {
+  transform: none;
+  opacity: 1;
+  /* 투명 PNG — 아래로 비치는 톤도 살짝 밝게 */
+  background-color: rgba(240, 243, 249, 0.35);
+}
+
 .home-card-image-empty {
   background: linear-gradient(160deg, #31333e 0%, #191b22 100%);
+}
+
+/* 포스트 첨부 사진: 가로 스냅 스크롤 (여러 장) */
+.home-card-media-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.home-card-media-strip {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  height: 100%;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+}
+
+.home-card-media-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.home-card-media-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  position: relative;
+}
+
+.home-card-media-slide .home-card-image {
+  position: absolute;
+  inset: 0;
+}
+
+.home-card-media-dots {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 96px;
+  z-index: 3;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+  pointer-events: none;
+}
+
+.home-card-media-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.38);
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease;
+}
+
+.home-card-media-dot--active {
+  background: #fff;
+  transform: scale(1.18);
 }
 
 .home-card-image-skeleton {
@@ -307,6 +610,7 @@
 .home-card-top-shadow {
   position: absolute;
   inset: 0;
+  pointer-events: none;
   background: linear-gradient(
     180deg,
     rgba(0, 0, 0, 0.65) 0%,
@@ -317,81 +621,13 @@
 .home-card-bottom-shadow {
   position: absolute;
   inset: 0;
+  pointer-events: none;
   /* 아래쪽 쉐이드: 60% 지점에서 페이드 종료 */
   background: linear-gradient(
     0deg,
     rgba(0, 0, 0, 0.65) 0%,
     rgba(0, 0, 0, 0) 50%
   );
-}
-
-/* 카드 밖 상단: 트랙명·아티스트 (카드 이미지와 겹치지 않음) */
-.home-track-meta--above {
-  position: relative;
-  width: 100%;
-  max-width: 320px;
-  margin: 0 auto;
-  box-sizing: border-box;
-  padding: 0 12px;
-  text-align: center;
-}
-
-.home-track-meta--above.home-track-meta--skel {
-  padding-bottom: 2px;
-}
-
-.home-track-meta--skel .home-track-skel-title {
-  margin-bottom: 8px;
-}
-
-.home-track-meta--skel {
-  pointer-events: none;
-}
-
-.home-track-skel-title {
-  height: 16px;
-  width: 78%;
-  margin: 0 auto 10px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.22);
-}
-
-.home-track-skel-artist {
-  height: 12px;
-  width: 48%;
-  margin: 0 auto;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.16);
-}
-
-.home-track-meta--above .home-track-title {
-  margin: 0 0 4px;
-  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: -0.05em;
-  line-height: 1.2;
-  color: #fff;
-  word-break: break-word;
-  text-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.72),
-    0 3px 14px rgba(0, 0, 0, 0.52),
-    0 8px 28px rgba(0, 0, 0, 0.38);
-}
-
-.home-track-meta--above .home-track-artist {
-  margin: 0;
-  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.35;
-  color: rgba(255, 255, 255, 0.92);
-  word-break: break-word;
-  text-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.65),
-    0 2px 10px rgba(0, 0, 0, 0.48),
-    0 5px 22px rgba(0, 0, 0, 0.32);
 }
 
 .home-user {
@@ -667,7 +903,7 @@
 }
 
 .home-comment-delete-dialog__btn--danger {
-  background: #ff3b48;
+  background: #005eff;
   color: #fff;
 }
 
@@ -680,6 +916,45 @@
   background: rgba(0, 0, 0, 0.2);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* 카드 뒷면(한 장+플립)에서 댓글: Figma node 194:2947 — 상단 카드 비치는 낮은 시트 */
+.home-comment-overlay--flip-context .home-comment-backdrop {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.home-comment-overlay--flip-context
+  .home-comment-sheet:not(.home-comment-sheet--expanded) {
+  --comment-sheet-h: min(380px, 40.5dvh);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 -6px 32px rgba(27, 35, 54, 0.1);
+}
+
+@supports not (height: 40.5dvh) {
+  .home-comment-overlay--flip-context
+    .home-comment-sheet:not(.home-comment-sheet--expanded) {
+    --comment-sheet-h: min(380px, 40.5vh);
+  }
+}
+
+.home-comment-overlay--flip-context
+  .home-comment-sheet.home-comment-sheet--expanded {
+  --comment-sheet-h: min(
+    92vh,
+    calc(100vh - env(safe-area-inset-top, 0px) - 12px)
+  );
+}
+
+@supports (height: 100dvh) {
+  .home-comment-overlay--flip-context
+    .home-comment-sheet.home-comment-sheet--expanded {
+    --comment-sheet-h: min(
+      92dvh,
+      calc(100dvh - env(safe-area-inset-top, 0px) - 12px)
+    );
+  }
 }
 
 .home-comment-sheet {
@@ -706,12 +981,18 @@
 
 /* 상단 핸들 위로 스와이프 시: 거의 전체 높이로 확장 (height까지 바꿔야 flex 시트가 실제로 커짐) */
 .home-comment-sheet--expanded {
-  --comment-sheet-h: min(92vh, calc(100vh - env(safe-area-inset-top, 0px) - 12px));
+  --comment-sheet-h: min(
+    92vh,
+    calc(100vh - env(safe-area-inset-top, 0px) - 12px)
+  );
 }
 
 @supports (height: 100dvh) {
   .home-comment-sheet--expanded {
-    --comment-sheet-h: min(92dvh, calc(100dvh - env(safe-area-inset-top, 0px) - 12px));
+    --comment-sheet-h: min(
+      92dvh,
+      calc(100dvh - env(safe-area-inset-top, 0px) - 12px)
+    );
   }
 }
 

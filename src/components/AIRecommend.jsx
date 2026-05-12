@@ -114,8 +114,28 @@ function AIRecommend({ onSelect }) {
           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
           disabled={isLoading}
         />
-        <button className="ai-submit-btn" onClick={handleSend} disabled={isLoading}>
-          →
+        <button
+          type="button"
+          className="ai-submit-btn"
+          aria-label="보내기"
+          onClick={handleSend}
+          disabled={isLoading || !prompt.trim()}
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden
+          >
+            <path
+              d="M5 12h14M13 5l7 7-7 7"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </button>
       </div>
     </div>

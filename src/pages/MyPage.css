@@ -10,33 +10,37 @@
   -webkit-overflow-scrolling: touch;
 
   padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
-  padding-top: calc(env(safe-area-inset-top, 0px) + 0px);
+  /* 상단은 `.mypage-header`(홈 `.home-header`와 동일 계열) + `.mypage-inner` 패딩으로 처리 */
+  padding-top: 0;
 }
 
 .mypage-inner {
   max-width: 402px;
   margin: 0 auto;
 
-  /* 홈 `.home-logo`과 동일: 왼쪽 21px · 상단 safe-area + 10px */
+  /* 본문만 좌우 인셋 — 로고는 헤더에서 화면 좌측(홈과 동일 21px) */
   padding-left: max(21px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-top: 10px;
+  /* 홈 로고 행: safe-area + 10px + 로고(50px) + 아래 여백(11px) */
+  padding-top: calc(env(safe-area-inset-top, 0px) + 10px + 50px + 11px);
 }
 
 .mypage-header {
-  padding-left: 0;
-  margin-bottom: 11px;
-}
-
-.mypage-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding-top: env(safe-area-inset-top, 0px);
+  height: auto;
+  z-index: 5;
+  text-align: left;
+  box-sizing: border-box;
 }
 
 .mypage-logout {
-  flex-shrink: 0;
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  right: max(16px, env(safe-area-inset-right, 0px));
   margin: 0;
   padding: 8px 14px;
   border: 1px solid rgba(50, 54, 70, 0.18);
@@ -82,6 +86,31 @@
   display: block;
   width: 116px;
   height: 50px;
+  pointer-events: none;
+}
+
+.mypage-brand-btn {
+  position: relative;
+  left: 21px;
+  top: 10px;
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mypage-brand-btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.mypage-brand-btn:focus-visible {
+  outline: 2px solid #0075ff;
+  outline-offset: 3px;
 }
 
 .mypage-profile-card {
@@ -380,6 +409,12 @@
   min-width: 0;
 }
 
+.mypage-card--longpress {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .mypage-card__media {
   position: relative;
   width: 100%;
@@ -611,4 +646,113 @@
 
 .mypage-card--skeleton:nth-child(even) .mypage-card__skel-bar--2 {
   width: 64%;
+}
+
+/* 상단 당김 새로고침 (게시글 그리드) */
+.mypage-refresh-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 72px);
+  pointer-events: none;
+  background: transparent;
+}
+
+.mypage-refresh-spinner {
+  width: 30px;
+  height: 30px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 3px solid rgba(92, 112, 148, 0.26);
+  border-top-color: #0075ff;
+  animation: mypage-refresh-spin 0.72s linear infinite;
+}
+
+@keyframes mypage-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 길게 눌러 삭제 확인 */
+.mypage-delete-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(20px, env(safe-area-inset-left, 0px))
+    max(20px, env(safe-area-inset-right, 0px))
+    max(28px, env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  background: rgba(18, 22, 32, 0.48);
+}
+
+.mypage-delete-dialog {
+  width: 100%;
+  max-width: 300px;
+  padding: 22px 20px 18px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 16px 48px rgba(20, 30, 50, 0.22);
+  box-sizing: border-box;
+}
+
+.mypage-delete-dialog__title {
+  margin: 0 0 18px;
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1.45;
+  color: #323646;
+  text-align: center;
+}
+
+.mypage-delete-dialog__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: stretch;
+}
+
+.mypage-delete-dialog__btn {
+  flex: 1;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  cursor: pointer;
+  border: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.mypage-delete-dialog__btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.mypage-delete-dialog__btn--secondary {
+  background: rgba(50, 54, 70, 0.08);
+  color: #323646;
+}
+
+.mypage-delete-dialog__btn--secondary:not(:disabled):active {
+  background: rgba(50, 54, 70, 0.12);
+}
+
+.mypage-delete-dialog__btn--danger {
+  background: #005eff;
+  color: #fff;
+}
+
+.mypage-delete-dialog__btn--danger:not(:disabled):active {
+  opacity: 0.92;
 }

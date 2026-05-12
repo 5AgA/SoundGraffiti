@@ -14,6 +14,7 @@ import {
   normalizeProvider,
   providerSetFromIdentities,
 } from "../utils/authProviders";
+import { clearHomeFeedSessionCache } from "../utils/homeFeedSessionCache";
 
 function authDisplayName(authUser) {
   return (
@@ -208,7 +209,10 @@ export function AuthProvider({ children }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        clearHomeFeedSessionCache();
+      }
       void applySession(session, { isMounted });
     });
 

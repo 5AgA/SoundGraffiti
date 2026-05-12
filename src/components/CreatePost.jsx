@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './CreatePost.css';
-import spotifyIcon from '../../public/spotify.svg';
-import mapIcon from '../../public/map_pin.svg';
-import aiIcon from '../../public/AI.svg';
 import TrackSearch from './TrackSearch';
 import AIRecommend from './AIRecommend';
-import { supabase } from '../supabaseClient'; 
+import { supabase } from '../supabaseClient';
+
+const spotifyIcon = '/spotify.svg';
+const mapIcon = '/map_pin.svg';
+const aiIcon = '/AI.svg';
 
 function UploadGraffiti({ onGoToHome }) {
   const navigate = useNavigate();
