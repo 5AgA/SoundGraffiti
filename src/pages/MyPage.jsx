@@ -66,6 +66,16 @@ function likeCount(post) {
   return Array.isArray(likes) ? likes.length : 0;
 }
 
+/** 삭제되지 않은 댓글 수 (Supabase 중첩 Comments: 배열 | 단일 행) */
+function activeCommentCount(post) {
+  const raw = post?.Comments ?? post?.comments;
+  if (raw == null) return 0;
+  const list = Array.isArray(raw) ? raw : [raw];
+  return list.filter(
+    (row) => row != null && row.comment_deleted == null,
+  ).length;
+}
+
 /** @param {Record<string, unknown>[]} list @param {'latest'|'popular'} order */
 function sortMyPosts(list, order) {
   const copy = [...list];
@@ -78,8 +88,10 @@ function sortMyPosts(list, order) {
     return copy;
   }
   copy.sort((a, b) => {
-    const d = likeCount(b) - likeCount(a);
-    if (d !== 0) return d;
+    const likeD = likeCount(b) - likeCount(a);
+    if (likeD !== 0) return likeD;
+    const commentD = activeCommentCount(b) - activeCommentCount(a);
+    if (commentD !== 0) return commentD;
     return (
       new Date(String(b.post_created ?? 0)).getTime() -
       new Date(String(a.post_created ?? 0)).getTime()
