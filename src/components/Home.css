@@ -446,6 +446,27 @@
     0 5px 22px rgba(0, 0, 0, 0.32);
 }
 
+@supports (mix-blend-mode: exclusion) {
+  .home-track-meta--above {
+    /*
+     * 블러 배경과 대비 — difference 보다 대비가 덜 거친 exclusion.
+     * grayscale 로 블렌드 결과의 알록달록한 색채를 줄임.
+     */
+    mix-blend-mode: exclusion;
+    filter: grayscale(1);
+  }
+
+  .home-track-meta--above .home-track-title {
+    color: #fff;
+    text-shadow: none;
+  }
+
+  .home-track-meta--above .home-track-artist {
+    color: #fff;
+    text-shadow: none;
+  }
+}
+
 .home-feed-scroll::-webkit-scrollbar {
   display: none;
 }

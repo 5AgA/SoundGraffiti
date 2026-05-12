@@ -8,7 +8,10 @@ import { toggleLike } from "../api/likes";
 import { getUserById } from "../api/users";
 import { useAuth } from "../contexts/AuthContextCore";
 import { useSpotifyAutoPreview } from "../hooks/useSpotifyAutoPreview";
-import { resolvedProfileImageUrl } from "../utils/profileImage";
+import {
+  DEFAULT_PROFILE_IMAGE,
+  resolvedProfileImageUrl,
+} from "../utils/profileImage";
 import "./Home.css";
 
 /** 스크롤 스냅 때문에 첫 카드일 때도 scrollTop ≠ 0 — 두 번째 카드 기준으로 ‘첫 카드 구간’ 판별 */
@@ -39,8 +42,38 @@ function commentsFromPost(post) {
 }
 
 function commentUserFromRow(row) {
-  const u = Array.isArray(row?.Users) ? row.Users[0] : row?.Users;
-  return u ?? {};
+  const raw = row?.Users ?? row?.users;
+  const u = Array.isArray(raw) ? raw[0] : raw;
+  return u != null && typeof u === "object" ? u : {};
+}
+
+function postAuthorUserFromPost(post) {
+  const raw = post?.Users ?? post?.users;
+  const u = Array.isArray(raw) ? raw[0] : raw;
+  return u != null && typeof u === "object" ? u : {};
+}
+
+/** 중첩 Users + 행 폴백 — 피드 카드·댓글 동일 규칙 */
+function profileRawFromUserAndRow(u, row) {
+  const candidates = [
+    u?.user_profile_url,
+    u?.profile_image_url,
+    row?.user_profile_url,
+    row?.profile_image_url,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string" && c.trim() !== "") return c.trim();
+  }
+  return "";
+}
+
+function postAuthorProfileRawFromPost(post) {
+  return profileRawFromUserAndRow(postAuthorUserFromPost(post), post);
+}
+
+/** 댓글 작성자 프로필 URL(원문). 비어 있으면 `resolvedProfileImageUrl`이 기본 이미지로 처리 */
+function commentProfileRawFromRow(row) {
+  return profileRawFromUserAndRow(commentUserFromRow(row), row);
 }
 
 /** 행에 직접 없으면 중첩 Users.user_id (피드 형태 차이 대비) */
@@ -440,12 +473,15 @@ function Home({
     };
   }, [likeUserId]);
 
-  const composerAvatarRaw =
+  /** 로그인 사용자 — Auth에서 머지된 프로필 URL 우선(카드·댓글·입력창 동일) */
+  const meProfileRaw =
+    (typeof user?.user_metadata?.user_profile_url === "string" &&
+      user.user_metadata.user_profile_url.trim()) ||
+    (typeof dbUserProfileUrl === "string" && dbUserProfileUrl.trim()) ||
     user?.user_metadata?.avatar_url ||
     user?.user_metadata?.picture ||
-    dbUserProfileUrl ||
     "";
-  const composerAvatarSrc = resolvedProfileImageUrl(composerAvatarRaw);
+  const composerAvatarSrc = resolvedProfileImageUrl(meProfileRaw);
 
   const sheetPostFresh = useMemo(() => {
     if (!commentSheetPost?.post_id) return null;
@@ -1030,7 +1066,7 @@ function Home({
             comment_deleted: created.comment_deleted ?? null,
             Users: {
               user_name: displayName,
-              user_profile_url: composerAvatarSrc,
+              user_profile_url: meProfileRaw || null,
             },
           },
         ]);
@@ -1409,15 +1445,14 @@ function Home({
               typeof track?.album_image_url === "string"
                 ? track.album_image_url.trim()
                 : "";
-            const userData = Array.isArray(post?.Users)
-              ? post.Users[0]
-              : post?.Users;
+            const userData = postAuthorUserFromPost(post);
+            const postAuthorId = userData?.user_id;
             const avatarRaw =
-              userData?.user_profile_url ||
-              post?.user_profile_url ||
-              userData?.profile_image_url ||
-              post?.profile_image_url ||
-              "";
+              postAuthorId != null &&
+              likeUserId != null &&
+              String(postAuthorId) === String(likeUserId)
+                ? meProfileRaw
+                : postAuthorProfileRawFromPost(post);
             const avatarSrc = resolvedProfileImageUrl(avatarRaw);
             const userName = userData?.user_name || "annonymous";
             const placeName = post?.Places?.place_name || "서울 홍대입구역";
@@ -1832,12 +1867,13 @@ function Home({
                   {sheetCommentsThread.map(({ row, depth }) => {
                     const u = commentUserFromRow(row);
                     const name = u.user_name || "사용자";
-                    const avatarSrc = resolvedProfileImageUrl(
-                      u.user_profile_url || "",
-                    );
+                    const ownRow = isOwnSheetComment(row, likeUserId);
+                    const profileRaw = ownRow
+                      ? meProfileRaw
+                      : commentProfileRawFromRow(row);
+                    const avatarSrc = resolvedProfileImageUrl(profileRaw);
                     const key = row.comment_id;
                     const indentPx = depth > 0 ? Math.min(depth, 8) * 52 : 0;
-                    const ownRow = isOwnSheetComment(row, likeUserId);
                     return (
                       <li
                         key={key}
@@ -1879,6 +1915,9 @@ function Home({
                           className="home-comment-item__avatar"
                           src={avatarSrc}
                           alt=""
+                          onError={(e) => {
+                            e.currentTarget.src = DEFAULT_PROFILE_IMAGE;
+                          }}
                         />
                         <div className="home-comment-item__main">
                           <p className="home-comment-item__name">{name}</p>
@@ -1935,6 +1974,9 @@ function Home({
                   className="home-comment-composer-avatar"
                   src={composerAvatarSrc}
                   alt=""
+                  onError={(e) => {
+                    e.currentTarget.src = DEFAULT_PROFILE_IMAGE;
+                  }}
                 />
                 <label className="home-comment-input-wrap">
                   <span className="home-visually-hidden">
