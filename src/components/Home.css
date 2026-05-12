@@ -221,7 +221,7 @@
   transform: scale(0.96);
   transform-origin: center bottom;
   filter: saturate(0.88);
-  pointer-events: none;
+  cursor: pointer;
 }
 
 /* 현재 카드보다 아래(다음): 이전 카드와 같은 톤으로 흐리게 */
@@ -230,7 +230,7 @@
   transform: scale(0.96);
   transform-origin: center top;
   filter: saturate(0.88);
-  pointer-events: none;
+  cursor: pointer;
 }
 
 .home-card {
@@ -284,6 +284,17 @@
   z-index: 0;
   overflow: hidden;
   border-radius: inherit;
+}
+
+/* 첨부 사진 없이 앨범만: 살짝 흰기 도는 베일 */
+.home-card-back-bg:has(> .home-card-image--album-cover)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  z-index: 1;
+  pointer-events: none;
+  background: rgba(228, 232, 242, 0.38);
 }
 
 .home-card:not(.home-card--flipped) .home-card-face--back {
@@ -406,8 +417,36 @@
   min-height: 76px;
 }
 
+/*
+ * 한 장 보기: mix-blend 가 상위 overflow 스택에서 끊기지 않도록,
+ * 슬롯 안에 전역과 같은 앨범 블러를 깔고 isolation 으로 이 구역만 블렌딩.
+ */
+.home-feed-scroll--focused .home-feed-item-track-slot {
+  position: relative;
+  isolation: isolate;
+}
+
+.home-feed-scroll--focused .home-feed-item-track-slot::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: var(
+    --home-blur-url,
+    radial-gradient(circle at 20% 20%, #445, #1b1e27 65%)
+  );
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  filter: blur(20px);
+  opacity: 0.65;
+  transform: scale(1.1);
+}
+
 .home-track-meta--above {
   position: relative;
+  z-index: 1;
   width: 100%;
   max-width: 320px;
   margin: 0 auto;
@@ -423,12 +462,12 @@
   font-weight: 800;
   letter-spacing: -0.05em;
   line-height: 1.2;
-  color: #fff;
+  /* 회색 기운 없이 — 살구·버터톤 */
+  color: #fff0e3;
   word-break: break-word;
   text-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.72),
-    0 3px 14px rgba(0, 0, 0, 0.52),
-    0 8px 28px rgba(0, 0, 0, 0.38);
+    0 1px 2px rgba(72, 38, 28, 0.42),
+    0 4px 18px rgba(110, 52, 36, 0.22);
 }
 
 .home-track-meta--above .home-track-artist {
@@ -438,31 +477,30 @@
   font-weight: 600;
   letter-spacing: -0.03em;
   line-height: 1.35;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 214, 188, 0.97);
   word-break: break-word;
   text-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.65),
-    0 2px 10px rgba(0, 0, 0, 0.48),
-    0 5px 22px rgba(0, 0, 0, 0.32);
+    0 1px 2px rgba(72, 38, 28, 0.38),
+    0 3px 14px rgba(100, 48, 32, 0.18);
 }
 
 @supports (mix-blend-mode: exclusion) {
   .home-track-meta--above {
     /*
-     * 블러 배경과 대비 — difference 보다 대비가 덜 거친 exclusion.
-     * grayscale 로 블렌드 결과의 알록달록한 색채를 줄임.
+     * 슬롯 안 로컬 블러(::before)와만 블렌딩 — 상위 overflow/z-index 로
+     * 전역 배경과 직접 섞이지 않을 때도 톤이 따라가게 함.
+     * exclusion: difference 보다 대비가 부드럽고 눈이 덜 피로한 편.
      */
     mix-blend-mode: exclusion;
-    filter: grayscale(1);
   }
 
   .home-track-meta--above .home-track-title {
-    color: #fff;
+    color: #fff0e3;
     text-shadow: none;
   }
 
   .home-track-meta--above .home-track-artist {
-    color: #fff;
+    color: rgba(255, 200, 168, 0.97);
     text-shadow: none;
   }
 }
@@ -488,8 +526,12 @@
   object-fit: cover;
 }
 
-.home-card-image--mirror {
-  transform: scaleX(-1);
+/* 첨부 사진 없음 → 앨범 커버만: 반전 없음, 살짝 흰끼(오버레이는 부모 ::after) */
+.home-card-image--album-cover {
+  transform: none;
+  opacity: 1;
+  /* 투명 PNG — 아래로 비치는 톤도 살짝 밝게 */
+  background-color: rgba(240, 243, 249, 0.35);
 }
 
 .home-card-image-empty {
@@ -865,7 +907,7 @@
 }
 
 .home-comment-delete-dialog__btn--danger {
-  background: #ff3b48;
+  background: #005eff;
   color: #fff;
 }
 
@@ -885,7 +927,8 @@
   background: rgba(0, 0, 0, 0.2);
 }
 
-.home-comment-overlay--flip-context .home-comment-sheet:not(.home-comment-sheet--expanded) {
+.home-comment-overlay--flip-context
+  .home-comment-sheet:not(.home-comment-sheet--expanded) {
   --comment-sheet-h: min(380px, 40.5dvh);
   background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(12px);
@@ -902,7 +945,10 @@
 
 .home-comment-overlay--flip-context
   .home-comment-sheet.home-comment-sheet--expanded {
-  --comment-sheet-h: min(92vh, calc(100vh - env(safe-area-inset-top, 0px) - 12px));
+  --comment-sheet-h: min(
+    92vh,
+    calc(100vh - env(safe-area-inset-top, 0px) - 12px)
+  );
 }
 
 @supports (height: 100dvh) {
@@ -939,12 +985,18 @@
 
 /* 상단 핸들 위로 스와이프 시: 거의 전체 높이로 확장 (height까지 바꿔야 flex 시트가 실제로 커짐) */
 .home-comment-sheet--expanded {
-  --comment-sheet-h: min(92vh, calc(100vh - env(safe-area-inset-top, 0px) - 12px));
+  --comment-sheet-h: min(
+    92vh,
+    calc(100vh - env(safe-area-inset-top, 0px) - 12px)
+  );
 }
 
 @supports (height: 100dvh) {
   .home-comment-sheet--expanded {
-    --comment-sheet-h: min(92dvh, calc(100dvh - env(safe-area-inset-top, 0px) - 12px));
+    --comment-sheet-h: min(
+      92dvh,
+      calc(100dvh - env(safe-area-inset-top, 0px) - 12px)
+    );
   }
 }
 

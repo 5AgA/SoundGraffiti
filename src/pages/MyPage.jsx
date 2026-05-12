@@ -1,11 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import BottomNav from "../components/BottomNav";
-import { getPostsByUserId } from "../api/posts";
+import { getPostsByUserId, deletePost } from "../api/posts";
 import { getUserById, getUserPostCount } from "../api/users";
 import { resolvedProfileImageUrl } from "../utils/profileImage";
 import { supabase } from "../supabaseClient";
 import { useAuth } from "../contexts/AuthContextCore";
+import {
+  clearMyPageSessionCache,
+  readMyPageSessionCache,
+  writeMyPageSessionCache,
+} from "../utils/myPageSessionCache";
 import "./MyPage.css";
 
 /** public/MY graffiti.svg와 동일 path — 인라인 SVG(img 미사용) */
@@ -84,6 +89,8 @@ function sortMyPosts(list, order) {
 }
 
 const SKELETON_GRID_ITEMS = 8;
+const MYPAGE_LONG_PRESS_MS = 520;
+const MYPAGE_LONG_PRESS_MOVE_PX = 12;
 
 function MyPageGridSkeleton() {
   return Array.from({ length: SKELETON_GRID_ITEMS }, (_, i) => (
@@ -138,20 +145,60 @@ export default function MyPage() {
   const [sortOrder, setSortOrder] = useState(
     /** @type {'latest' | 'popular'} */ ("latest"),
   );
+  const [postsRefreshing, setPostsRefreshing] = useState(false);
+  const [deleteConfirmPostId, setDeleteConfirmPostId] = useState(
+    /** @type {number | null} */ (null),
+  );
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
+  const longPressRef = useRef({
+    /** @type {ReturnType<typeof setTimeout> | null} */
+    timer: null,
+    x: 0,
+    y: 0,
+  });
+  const blockLongPressRef = useRef(false);
+
+  useEffect(() => {
+    blockLongPressRef.current =
+      deleteConfirmPostId != null || deleteBusy || postsRefreshing;
+  }, [deleteConfirmPostId, deleteBusy, postsRefreshing]);
+
+  const clearLongPressTimer = useCallback(() => {
+    const t = longPressRef.current.timer;
+    if (t != null) {
+      clearTimeout(t);
+      longPressRef.current.timer = null;
+    }
+  }, []);
+
+  useEffect(() => () => clearLongPressTimer(), [clearLongPressTimer]);
+
+  useEffect(() => {
+    if (deleteConfirmPostId == null) return;
+    const onKey = (e) => {
+      if (e.key === "Escape" && !deleteBusy) {
+        setDeleteConfirmPostId(null);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [deleteConfirmPostId, deleteBusy]);
 
   const sortedPosts = useMemo(
     () => sortMyPosts(posts, sortOrder),
     [posts, sortOrder],
   );
 
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
+  const loadMyPageData = useCallback(
+    async ({ silent = false } = {}) => {
+      if (!silent) {
+        setPostsLoaded(false);
+      }
       setLoadError(null);
-      setPostsLoaded(false);
 
       if (!pageUserId) {
+        clearMyPageSessionCache();
         setProfile(null);
         setPostCount(0);
         setPosts([]);
@@ -162,25 +209,73 @@ export default function MyPage() {
         return;
       }
 
-      const [profileUser, count, userPosts] = await Promise.all([
-        getUserById(pageUserId),
-        getUserPostCount(pageUserId),
-        getPostsByUserId(pageUserId),
-      ]);
-      if (cancelled) return;
-      if (!profileUser) {
-        setLoadError("사용자 정보를 불러오지 못했습니다.");
-      }
-      setProfile(profileUser);
-      setPostCount(count);
-      setPosts(userPosts);
-      setPostsLoaded(true);
-    })();
+      const cacheKey = String(pageUserId);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [pageUserId]);
+      try {
+        const [profileUser, count, userPosts] = await Promise.all([
+          getUserById(pageUserId),
+          getUserPostCount(pageUserId),
+          getPostsByUserId(pageUserId),
+        ]);
+        const arr = Array.isArray(userPosts) ? userPosts : [];
+        const profileErr = !profileUser
+          ? "사용자 정보를 불러오지 못했습니다."
+          : null;
+        if (profileErr) {
+          setLoadError(profileErr);
+        } else {
+          setLoadError(null);
+        }
+        setProfile(profileUser);
+        setPostCount(count);
+        setPosts(arr);
+        writeMyPageSessionCache({
+          pageUserId: cacheKey,
+          profile: profileUser,
+          postCount: count,
+          posts: arr,
+          loadError: profileErr,
+        });
+      } catch {
+        setLoadError("게시글을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+        if (!silent) {
+          clearMyPageSessionCache();
+        }
+      } finally {
+        setPostsLoaded(true);
+      }
+    },
+    [pageUserId],
+  );
+
+  useEffect(() => {
+    if (!pageUserId) {
+      void loadMyPageData({ silent: false });
+      return;
+    }
+    const snap = readMyPageSessionCache();
+    if (
+      snap &&
+      snap.pageUserId === String(pageUserId) &&
+      Array.isArray(snap.posts)
+    ) {
+      setProfile(snap.profile ?? null);
+      setPostCount(snap.postCount ?? null);
+      setPosts(snap.posts);
+      setLoadError(snap.loadError ?? null);
+      setPostsLoaded(true);
+      return;
+    }
+    void loadMyPageData({ silent: false });
+  }, [pageUserId, loadMyPageData]);
+
+  const refreshFromWordmark = useCallback(() => {
+    if (!pageUserId || postsRefreshing || !postsLoaded) return;
+    setPostsRefreshing(true);
+    void loadMyPageData({ silent: true }).finally(() => {
+      setPostsRefreshing(false);
+    });
+  }, [pageUserId, postsRefreshing, postsLoaded, loadMyPageData]);
 
   const authName =
     user?.user_metadata?.user_name ||
@@ -203,46 +298,136 @@ export default function MyPage() {
         alert(error.message ?? "로그아웃하지 못했습니다.");
         return;
       }
+      clearMyPageSessionCache();
       navigate("/login", { replace: true });
     } finally {
       setLogoutBusy(false);
     }
   };
 
+  const handleDeleteCancel = useCallback(() => {
+    if (deleteBusy) return;
+    setDeleteConfirmPostId(null);
+  }, [deleteBusy]);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    const pid = deleteConfirmPostId;
+    if (pid == null || !pageUserId) return;
+    setDeleteBusy(true);
+    try {
+      const res = await deletePost({ postId: pid });
+      if (!res.ok) {
+        alert(res.error ?? "삭제하지 못했습니다.");
+        return;
+      }
+      const nextPosts = posts.filter(
+        (p) => Number(p?.post_id) !== Number(pid),
+      );
+      const nextCount =
+        typeof postCount === "number"
+          ? Math.max(0, postCount - 1)
+          : nextPosts.length;
+      setPosts(nextPosts);
+      setPostCount(nextCount);
+      writeMyPageSessionCache({
+        pageUserId: String(pageUserId),
+        profile,
+        postCount: nextCount,
+        posts: nextPosts,
+        loadError: null,
+      });
+      setDeleteConfirmPostId(null);
+    } finally {
+      setDeleteBusy(false);
+    }
+  }, [
+    deleteConfirmPostId,
+    pageUserId,
+    posts,
+    postCount,
+    profile,
+  ]);
+
+  /** @param {number} postIdNum */
+  function longPressPropsFor(postIdNum) {
+    return {
+      onPointerDown: (e) => {
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        if (blockLongPressRef.current) return;
+        longPressRef.current.x = e.clientX;
+        longPressRef.current.y = e.clientY;
+        clearLongPressTimer();
+        longPressRef.current.timer = window.setTimeout(() => {
+          longPressRef.current.timer = null;
+          setDeleteConfirmPostId(postIdNum);
+        }, MYPAGE_LONG_PRESS_MS);
+      },
+      onPointerMove: (e) => {
+        if (longPressRef.current.timer == null) return;
+        const dx = Math.abs(e.clientX - longPressRef.current.x);
+        const dy = Math.abs(e.clientY - longPressRef.current.y);
+        if (
+          dx > MYPAGE_LONG_PRESS_MOVE_PX ||
+          dy > MYPAGE_LONG_PRESS_MOVE_PX
+        ) {
+          clearLongPressTimer();
+        }
+      },
+      onPointerUp: clearLongPressTimer,
+      onPointerCancel: clearLongPressTimer,
+    };
+  }
+
   return (
     <>
       <section
         className="mypage-screen"
         aria-label="마이 페이지"
-        aria-busy={isLoading}
+        aria-busy={isLoading || postsRefreshing || deleteBusy}
       >
+        {postsRefreshing ? (
+          <div
+            className="mypage-refresh-overlay"
+            role="status"
+            aria-live="polite"
+            aria-label="게시글을 새로고침하는 중"
+          >
+            <div className="mypage-refresh-spinner" aria-hidden />
+          </div>
+        ) : null}
+        <header className="mypage-header">
+          <button
+            type="button"
+            className="mypage-brand-btn"
+            onClick={() => void refreshFromWordmark()}
+            disabled={!pageUserId || postsRefreshing || isLoading}
+            aria-label="MY GRAFFITI, 프로필 새로고침"
+            title="새로고침"
+          >
+            <svg
+              className="mypage-brand"
+              viewBox="0 0 114 31"
+              width={116}
+              height={50}
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden
+              focusable="false"
+              preserveAspectRatio="xMinYMid meet"
+            >
+              <path fill="#323646" d={MY_GRAFFITI_WORDMARK_PATH} />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="mypage-logout"
+            onClick={() => void handleLogout()}
+            disabled={logoutBusy}
+          >
+            {logoutBusy ? "나가는 중…" : "로그아웃"}
+          </button>
+        </header>
         <div className="mypage-inner">
-          <header className="mypage-header">
-            <div className="mypage-header-row">
-              <svg
-                className="mypage-brand"
-                viewBox="0 0 114 31"
-                width={116}
-                height={50}
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-hidden
-                focusable="false"
-                preserveAspectRatio="xMinYMid meet"
-              >
-                <path fill="#323646" d={MY_GRAFFITI_WORDMARK_PATH} />
-              </svg>
-              <button
-                type="button"
-                className="mypage-logout"
-                onClick={() => void handleLogout()}
-                disabled={logoutBusy}
-              >
-                {logoutBusy ? "나가는 중…" : "로그아웃"}
-              </button>
-            </div>
-          </header>
-
           {loadError ? (
             <p className="mypage-banner-error" role="status">
               {loadError}
@@ -331,9 +516,15 @@ export default function MyPage() {
                 const place = resolvePlaceName(post);
                 const time = formatRelativeKo(post?.post_created);
                 const body = postBody(post);
+                const postIdNum = Number(post?.post_id);
+                const canLongPress = Number.isFinite(postIdNum);
 
                 return (
-                  <article key={id} className="mypage-card">
+                  <article
+                    key={id}
+                    className="mypage-card mypage-card--longpress"
+                    {...(canLongPress ? longPressPropsFor(postIdNum) : {})}
+                  >
                     <div className="mypage-card__media">
                       {cover ? (
                         <img
@@ -367,6 +558,46 @@ export default function MyPage() {
         </div>
       </section>
       <BottomNav />
+      {deleteConfirmPostId != null ? (
+        <div
+          className="mypage-delete-overlay"
+          role="presentation"
+          onClick={() => {
+            if (!deleteBusy) handleDeleteCancel();
+          }}
+        >
+          <div
+            className="mypage-delete-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="mypage-delete-title"
+            aria-busy={deleteBusy}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p id="mypage-delete-title" className="mypage-delete-dialog__title">
+              삭제하시겠습니까?
+            </p>
+            <div className="mypage-delete-dialog__actions">
+              <button
+                type="button"
+                className="mypage-delete-dialog__btn mypage-delete-dialog__btn--secondary"
+                onClick={handleDeleteCancel}
+                disabled={deleteBusy}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                className="mypage-delete-dialog__btn mypage-delete-dialog__btn--danger"
+                onClick={() => void handleDeleteConfirm()}
+                disabled={deleteBusy}
+              >
+                {deleteBusy ? "삭제 중…" : "확인"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

@@ -4,6 +4,11 @@ import { getNearbyPosts } from "../api/posts";
 import BottomNav from "../components/BottomNav";
 import Home from "../components/Home";
 import { getDevGeoCoordinates } from "../utils/devGeoCoords";
+import {
+  clearHomeFeedSessionCache,
+  readHomeFeedSessionCache,
+  writeHomeFeedSessionCache,
+} from "../utils/homeFeedSessionCache";
 
 /** GeolocationPositionError.code — 권한(1)과 좌표 실패(2·3)를 구분해 Mac 데스크톱에서 오해를 줄임 */
 function feedGeolocationFailureMessage(geoErr) {
@@ -25,18 +30,44 @@ function feedGeolocationFailureMessage(geoErr) {
   return "위치를 확인할 수 없어 주변 피드를 불러올 수 없습니다.";
 }
 
+function initialHomeStateFromSessionCache() {
+  const snap = readHomeFeedSessionCache();
+  if (snap.feed === null) {
+    return {
+      feed: null,
+      feedLoadError: null,
+      devGeoBypassNotice: null,
+    };
+  }
+  return {
+    feed: snap.feed,
+    feedLoadError: snap.feedLoadError ?? null,
+    devGeoBypassNotice: snap.devGeoBypassNotice ?? null,
+  };
+}
+
 export default function HomePage() {
   const [searchParams] = useSearchParams();
   const focusPostId = searchParams.get("postId");
+  const hydrated = initialHomeStateFromSessionCache();
   /** null = 로딩 중, 배열 = 주변 피드 결과(빈 배열 가능) */
-  const [feed, setFeed] = useState(null);
-  const [feedLoadError, setFeedLoadError] = useState(null);
+  const [feed, setFeed] = useState(hydrated.feed);
+  const [feedLoadError, setFeedLoadError] = useState(hydrated.feedLoadError);
   /** HTTP + .env 고정 좌표로 피드만 돌릴 때: 실제 GPS 권한 창이 안 뜨는 이유 안내 */
-  const [devGeoBypassNotice, setDevGeoBypassNotice] = useState(null);
+  const [devGeoBypassNotice, setDevGeoBypassNotice] = useState(
+    hydrated.devGeoBypassNotice,
+  );
   const [commentSheetOpen, setCommentSheetOpen] = useState(false);
 
   const coordsRef = useRef(null);
   const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    const c = readHomeFeedSessionCache().coords;
+    if (c != null && typeof c.lat === "number" && typeof c.lng === "number") {
+      coordsRef.current = c;
+    }
+  }, []);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -51,10 +82,21 @@ export default function HomePage() {
       console.error("Nearby feed:", error);
       setFeedLoadError(error);
       setFeed([]);
+      writeHomeFeedSessionCache({
+        feed: [],
+        feedLoadError: error,
+        coords: coordsRef.current,
+      });
       return;
     }
     setFeedLoadError(null);
-    setFeed(Array.isArray(posts) ? posts : []);
+    const arr = Array.isArray(posts) ? posts : [];
+    setFeed(arr);
+    writeHomeFeedSessionCache({
+      feed: arr,
+      feedLoadError: null,
+      coords: coordsRef.current,
+    });
   };
 
   const fetchNearby = useCallback(async (lat, lng) => {
@@ -73,8 +115,14 @@ export default function HomePage() {
   const requestGeolocationFeed = useCallback(
     (geoOptions) => {
       if (!navigator.geolocation) {
-        setFeedLoadError("이 기기에서는 위치를 사용할 수 없습니다.");
+        const msg = "이 기기에서는 위치를 사용할 수 없습니다.";
+        setFeedLoadError(msg);
         setFeed([]);
+        writeHomeFeedSessionCache({
+          feed: [],
+          feedLoadError: msg,
+          coords: null,
+        });
         return;
       }
       navigator.geolocation.getCurrentPosition(
@@ -86,8 +134,14 @@ export default function HomePage() {
           if (import.meta.env.DEV) {
             console.warn("[HomePage] geolocation error", geoErr?.code, geoErr?.message);
           }
-          setFeedLoadError(feedGeolocationFailureMessage(geoErr));
+          const msg = feedGeolocationFailureMessage(geoErr);
+          setFeedLoadError(msg);
           setFeed([]);
+          writeHomeFeedSessionCache({
+            feed: [],
+            feedLoadError: msg,
+            coords: coordsRef.current,
+          });
         },
         {
           enableHighAccuracy: false,
@@ -101,6 +155,12 @@ export default function HomePage() {
   );
 
   useEffect(() => {
+    const snap = readHomeFeedSessionCache();
+    /* 탭 이동 후 재진입: 이미 불러온 피드가 있으면 위치·API 다시 안 탐 */
+    if (snap.feed !== null) {
+      return undefined;
+    }
+
     setDevGeoBypassNotice(null);
 
     const insecure = typeof window !== "undefined" && !window.isSecureContext;
@@ -108,9 +168,10 @@ export default function HomePage() {
 
     if (insecure && devCoords) {
       if (import.meta.env.DEV) {
-        setDevGeoBypassNotice(
-          "개발: .env의 고정 좌표로 피드를 불러오는 중이라 브라우저 ‘위치 허용’ 창은 뜨지 않습니다. Mac에서 실제 창을 보려면 Safari/Chrome으로 http://localhost:5173 처럼 localhost(또는 HTTPS)로 열고, VITE_DEV_GEO_COORDS 등을 비우세요.",
-        );
+        const notice =
+          "개발: .env의 고정 좌표로 피드를 불러오는 중이라 브라우저 ‘위치 허용’ 창은 뜨지 않습니다. Mac에서 실제 창을 보려면 Safari/Chrome으로 http://localhost:5173 처럼 localhost(또는 HTTPS)로 열고, VITE_DEV_GEO_COORDS 등을 비우세요.";
+        setDevGeoBypassNotice(notice);
+        writeHomeFeedSessionCache({ devGeoBypassNotice: notice });
       }
       const timer = window.setTimeout(() => {
         void fetchNearby(devCoords.lat, devCoords.lng);
@@ -120,23 +181,35 @@ export default function HomePage() {
 
     if (insecure && !devCoords) {
       const timer = window.setTimeout(() => {
-        setFeedLoadError(
-          "이 주소는 HTTP(비보안)라서 위치 권한 창이 뜨지 않거나 GPS가 막힙니다. Mac에서도 http://192.168… 같은 LAN 주소로 열면 동일합니다. http://localhost:5173 또는 HTTPS(배포 URL)로 열거나, 개발용으로 .env.local 에 VITE_DEV_GEO_COORDS=위도,경도 를 넣은 뒤 dev 서버를 다시 실행해 주세요.",
-        );
+        const msg =
+          "이 주소는 HTTP(비보안)라서 위치 권한 창이 뜨지 않거나 GPS가 막힙니다. Mac에서도 http://192.168… 같은 LAN 주소로 열면 동일합니다. http://localhost:5173 또는 HTTPS(배포 URL)로 열거나, 개발용으로 .env.local 에 VITE_DEV_GEO_COORDS=위도,경도 를 넣은 뒤 dev 서버를 다시 실행해 주세요.";
+        setFeedLoadError(msg);
         setFeed([]);
+        writeHomeFeedSessionCache({
+          feed: [],
+          feedLoadError: msg,
+          coords: null,
+        });
       }, 0);
       return () => window.clearTimeout(timer);
     }
 
     if (!navigator.geolocation) {
       const timer = window.setTimeout(() => {
-        setFeedLoadError("이 기기에서는 위치를 사용할 수 없습니다.");
+        const msg = "이 기기에서는 위치를 사용할 수 없습니다.";
+        setFeedLoadError(msg);
         setFeed([]);
+        writeHomeFeedSessionCache({
+          feed: [],
+          feedLoadError: msg,
+          coords: null,
+        });
       }, 0);
       return () => window.clearTimeout(timer);
     }
 
     requestGeolocationFeed();
+    return undefined;
   }, [fetchNearby, requestGeolocationFeed]);
 
   const canRetryLocation =
@@ -146,8 +219,10 @@ export default function HomePage() {
     Boolean(feedLoadError);
 
   const handleRetryLocationClick = () => {
+    clearHomeFeedSessionCache();
     setFeedLoadError(null);
     setFeed(null);
+    setDevGeoBypassNotice(null);
     /* 재시도: 캐시 무시 + 고정밀(맥에서 Wi‑Fi 기반 고정이 조금 나아지는 경우가 있음) */
     requestGeolocationFeed({
       maximumAge: 0,

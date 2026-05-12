@@ -346,6 +346,8 @@ function Home({
   const cardRefs = useRef([]);
   const feedScrollRef = useRef(null);
   const feedScrollBeforeFocusRef = useRef(0);
+  /** 직전 feed — null → 배열 첫 로드일 때만 맨 위 스크롤 보정 */
+  const prevFeedRef = useRef(null);
   /** 한 장 보기 종료 직후 layout 단계에서 scrollTop 복원 (페인트 전, 번쩍임 방지) */
   const shouldRestoreFeedScrollRef = useRef(false);
   const activeIndexRef = useRef(0);
@@ -1151,6 +1153,56 @@ function Home({
     updateActiveFromScroll(e.currentTarget);
   };
 
+  /** 바로 위·아래 카드 탭 시 한 칸 스냅 스크롤 (캡처에서 처리해 비활성 카드 플립 버튼과 충돌 방지) */
+  const handleAdjacentFeedItemClickCapture = useCallback(
+    (e) => {
+      if (feed === null || feedFocused) return;
+      const el = e.currentTarget;
+      if (!(el instanceof HTMLElement)) return;
+      const idx = Number(el.dataset.feedIdx);
+      if (!Number.isFinite(idx)) return;
+      const ai = activeIndexRef.current;
+      if (idx === ai) return;
+      if (idx !== ai - 1 && idx !== ai + 1) return;
+      const node = cardRefs.current[idx];
+      if (!node) return;
+      e.preventDefault();
+      e.stopPropagation();
+      node.scrollIntoView({ behavior: "smooth", block: "center" });
+    },
+    [feed, feedFocused],
+  );
+
+  useEffect(() => {
+    if (feed === null) {
+      prevFeedRef.current = null;
+      return;
+    }
+
+    const prev = prevFeedRef.current;
+    prevFeedRef.current = feed;
+
+    /* 로딩 끝난 직후 한 번: 첫 포스트가 화면 중심에 오도록 (스냅·레이아웃 전 active 추측 오류 방지) */
+    if (prev !== null) return;
+
+    if (focusPostId) {
+      const idx = feed.findIndex(
+        (post) => String(post?.post_id) === String(focusPostId),
+      );
+      if (idx >= 0) return;
+    }
+
+    setActiveIndex(0);
+    requestAnimationFrame(() => {
+      const root = feedScrollRef.current;
+      if (root) root.scrollTop = 0;
+      requestAnimationFrame(() => {
+        const r = feedScrollRef.current;
+        if (r) updateActiveFromScroll(r);
+      });
+    });
+  }, [feed, focusPostId]);
+
   useEffect(() => {
     const root = feedScrollRef.current;
     if (!root) return;
@@ -1380,6 +1432,13 @@ function Home({
             ? ` home-phone--flip-comment${sheetExpanded ? " home-phone--flip-comment--expanded" : ""}`
             : ""
         }`}
+        style={
+          blurBackground
+            ? {
+                "--home-blur-url": `url(${JSON.stringify(blurBackground)})`,
+              }
+            : undefined
+        }
       >
         <div className="home-bg-stack">
           <div
@@ -1507,9 +1566,15 @@ function Home({
                     : ""
                 }`}
                 key={post?.post_id || idx}
+                data-feed-idx={idx}
                 ref={(el) => {
                   cardRefs.current[idx] = el;
                 }}
+                onClickCapture={
+                  !isSkeleton && !feedFocused && idx !== activeIndex
+                    ? handleAdjacentFeedItemClickCapture
+                    : undefined
+                }
               >
                 {showTrackAbove ? (
                   <div className="home-feed-item-track-slot">
@@ -1705,7 +1770,7 @@ function Home({
                             />
                           ) : albumArt ? (
                             <img
-                              className="home-card-image home-card-image--mirror"
+                              className="home-card-image home-card-image--album-cover"
                               src={albumArt}
                               alt=""
                             />
