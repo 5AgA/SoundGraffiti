@@ -1,9 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import './CreatePost.css';
-import TrackSearch from './TrackSearch';
-import AIRecommend from './AIRecommend';
-import { supabase } from '../supabaseClient';
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import Cropper from "react-easy-crop";
+import "./CreatePost.css";
+import TrackSearch from "./TrackSearch";
+import AIRecommend from "./AIRecommend";
+import { supabase } from "../supabaseClient";
+import { getCroppedImageFile } from "../utils/getCroppedImg";
 
 const musicIcon = '/spotify.svg';
 const mapIcon = '/map_pin.svg';
@@ -18,10 +20,17 @@ function UploadGraffiti() {
   const [activeSheet, setActiveSheet] = useState(null);
   const [selectedTrack, setSelectedTrack] = useState(null);
 
-  // 📸 사진 업로드 관련 상태 및 Ref
+  // 📸 사진 업로드 · 크롭
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const fileInputRef = useRef(null);
+  /** @type {React.MutableRefObject<import('react-easy-crop').Area | null>} */
+  const croppedPixelsRef = useRef(null);
+  const cropOriginalNameRef = useRef("");
+  const [cropSrc, setCropSrc] = useState("");
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [cropBusy, setCropBusy] = useState(false);
 
   const [sheetTranslateY, setSheetTranslateY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -49,6 +58,77 @@ function UploadGraffiti() {
     }
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (cropSrc) URL.revokeObjectURL(cropSrc);
+    };
+  }, [cropSrc]);
+
+  const closeCropModal = useCallback(() => {
+    setCropSrc("");
+    croppedPixelsRef.current = null;
+    setZoom(1);
+    setCrop({ x: 0, y: 0 });
+  }, []);
+
+  const onCropComplete = useCallback((_area, pixels) => {
+    croppedPixelsRef.current = pixels;
+  }, []);
+
+  const onCropApply = useCallback(async () => {
+    if (!cropSrc) return;
+    const pixels = croppedPixelsRef.current;
+    if (!pixels?.width || !pixels?.height) {
+      alert("크롭 영역을 준비하는 중입니다. 잠시 후 다시 눌러 주세요.");
+      return;
+    }
+    setCropBusy(true);
+    try {
+      const POST_IMAGE_MAX_EDGE = 1920;
+      const file = await getCroppedImageFile(
+        cropSrc,
+        pixels,
+        cropOriginalNameRef.current || "graffiti",
+        0.9,
+        POST_IMAGE_MAX_EDGE,
+      );
+      if (!file) {
+        alert("이미지를 만들지 못했습니다.");
+        return;
+      }
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+      closeCropModal();
+    } catch (err) {
+      console.error(err);
+      alert(
+        err instanceof Error ? err.message : "이미지 처리 중 문제가 생겼습니다.",
+      );
+    } finally {
+      setCropBusy(false);
+    }
+  }, [cropSrc, closeCropModal, imagePreview]);
+
+  const onCropCancel = useCallback(() => {
+    if (cropBusy) return;
+    closeCropModal();
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, [cropBusy, closeCropModal]);
+
+  const openReCrop = useCallback(
+    (e) => {
+      e.stopPropagation();
+      if (!imageFile || cropBusy || cropSrc) return;
+      cropOriginalNameRef.current = imageFile.name || "graffiti";
+      croppedPixelsRef.current = null;
+      setZoom(1);
+      setCrop({ x: 0, y: 0 });
+      setCropSrc(URL.createObjectURL(imageFile));
+    },
+    [imageFile, cropBusy, cropSrc],
+  );
+
   const handleMusicSearch = () => setActiveSheet('music');
   const handleAIRecommend = () => setActiveSheet('ai');
   const handlePlaceSearchOpen = () => setActiveSheet('place');
@@ -63,21 +143,35 @@ function UploadGraffiti() {
     fileInputRef.current?.click();
   };
 
-  // 갤러리에서 사진을 선택했을 때 실행되는 함수 (미리보기 생성)
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImageFile(file);
-      setImagePreview(URL.createObjectURL(file)); 
+    const file = e.target.files?.[0];
+    if (fileInputRef.current) e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      alert("이미지 파일만 선택할 수 있습니다.");
+      return;
     }
+    const maxBytes = 12 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      alert("12MB 이하 이미지를 선택해 주세요.");
+      return;
+    }
+    cropOriginalNameRef.current = file.name || "graffiti";
+    croppedPixelsRef.current = null;
+    setZoom(1);
+    setCrop({ x: 0, y: 0 });
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(URL.createObjectURL(file));
   };
 
   const handleRemoveImage = (e) => {
-    e.stopPropagation(); 
+    e.stopPropagation();
+    closeCropModal();
     setImageFile(null);
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
     setImagePreview(null);
     if (fileInputRef.current) {
-      fileInputRef.current.value = ''; 
+      fileInputRef.current.value = "";
     }
   };
 
@@ -255,19 +349,25 @@ function UploadGraffiti() {
       // 3️⃣ 사진이 있다면 스토리지에 올리고, 사진 DB 저장 (save-media)
       // ==========================================
       if (imageFile) {
-        const fileExt = imageFile.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`; // 중복 방지용 시간값 이름
-        
-        // Storage(graffiti-media 버킷)에 업로드
+        const postFolder = String(createdPost.post_id);
+        const ext =
+          imageFile.name?.toLowerCase().endsWith(".png") &&
+          imageFile.type === "image/png"
+            ? "png"
+            : "jpg";
+        const fileName = `${postFolder}/${Date.now()}.${ext}`;
+
         const { error: uploadError } = await supabase.storage
-          .from('post-media')
-          .upload(fileName, imageFile);
+          .from("post-media")
+          .upload(fileName, imageFile, {
+            contentType: imageFile.type || "image/jpeg",
+            upsert: false,
+          });
 
         if (uploadError) throw new Error("이미지 업로드에 실패했습니다.");
 
-        // 방금 올린 사진의 퍼블릭 URL 가져오기
         const { data: publicUrlData } = supabase.storage
-          .from('post-media')
+          .from("post-media")
           .getPublicUrl(fileName);
 
         const uploadedMediaUrl = publicUrlData.publicUrl;
@@ -300,7 +400,7 @@ return (
         <div className="upload-scroll-area">
           <div className="upload-header">
             <h1 className="upload-title">UPLOAD MY GRAFFITI</h1>
-            <button className="upload-close-btn" onClick={() => navigate(-1)} disabled={!!activeSheet}>〈</button>
+            <button className="upload-close-btn" onClick={() => navigate(-1)} disabled={!!activeSheet || !!cropSrc}>〈</button>
           </div>
         
           {/* 📍 메인 화면의 장소 표시 영역 */}
@@ -332,11 +432,46 @@ return (
           </div>
 
           <div className="upload-image-area" onClick={handleImageUpload}>
-            <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
+            <input
+              type="file"
+              accept="image/*"
+              ref={fileInputRef}
+              style={{ display: "none" }}
+              onChange={handleFileChange}
+            />
             {imagePreview ? (
-              <><img src={imagePreview} alt="preview" className="upload-preview-img" /><button className="image-remove-btn" onClick={handleRemoveImage}>✕</button></>
+              <>
+                <img
+                  src={imagePreview}
+                  alt="첨부 미리보기"
+                  className="upload-preview-img"
+                />
+                <div className="upload-image-actions">
+                  <button
+                    type="button"
+                    className="upload-image-edit-btn"
+                    onClick={openReCrop}
+                    disabled={!!activeSheet || cropBusy || !!cropSrc}
+                  >
+                    편집
+                  </button>
+                  <button
+                    type="button"
+                    className="image-remove-btn"
+                    onClick={handleRemoveImage}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </>
             ) : (
-              <><img className="plus-icon" src="/plus.circle.png" alt="" /><p>이 공간의 이미지를 추가하세요</p></>
+              <>
+                <img className="plus-icon" src="/plus.circle.png" alt="" />
+                <p>이 공간의 이미지를 추가하세요</p>
+                <p className="upload-image-hint">
+                  선택 후 화면에서 위치·확대를 맞출 수 있어요.
+                </p>
+              </>
             )}
             {selectedTrack && (
               <div className="selected-track-overlay" onClick={(e) => e.stopPropagation()}>
@@ -412,6 +547,67 @@ return (
           </div>
         </div>
 
+        {cropSrc ? (
+          <div
+            className="upload-crop-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="upload-crop-title"
+          >
+            <div className="upload-crop-dialog">
+              <p id="upload-crop-title" className="upload-crop-title">
+                사진 위치·크기
+              </p>
+              <p className="upload-crop-hint">
+                드래그해 위치를 맞추고, 슬라이더로 확대·축소할 수 있어요.
+              </p>
+              <div className="upload-crop-stage">
+                <Cropper
+                  image={cropSrc}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={3 / 4}
+                  cropShape="rect"
+                  showGrid
+                  onCropChange={setCrop}
+                  onZoomChange={setZoom}
+                  onCropComplete={onCropComplete}
+                />
+              </div>
+              <div className="upload-crop-zoom">
+                <span className="upload-crop-zoom-label">확대</span>
+                <input
+                  type="range"
+                  min={1}
+                  max={3}
+                  step={0.02}
+                  value={zoom}
+                  onChange={(ev) => setZoom(Number(ev.target.value))}
+                  aria-label="확대"
+                  disabled={cropBusy}
+                />
+              </div>
+              <div className="upload-crop-actions">
+                <button
+                  type="button"
+                  className="upload-crop-btn upload-crop-btn--ghost"
+                  onClick={onCropCancel}
+                  disabled={cropBusy || isLoading}
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  className="upload-crop-btn upload-crop-btn--primary"
+                  onClick={() => void onCropApply()}
+                  disabled={cropBusy || isLoading}
+                >
+                  {cropBusy ? "처리 중…" : "적용"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </section>
   );

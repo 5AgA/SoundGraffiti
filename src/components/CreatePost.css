@@ -168,6 +168,49 @@
   margin: 0;
 }
 
+.upload-image-hint {
+  font-size: 12px !important;
+  letter-spacing: -0.03em !important;
+  color: rgba(255, 255, 255, 0.38) !important;
+  max-width: 240px;
+  text-align: center;
+  line-height: 1.35;
+}
+
+.upload-image-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 20;
+}
+
+.upload-image-edit-btn {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  font-family: "Pretendard", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.upload-image-edit-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.upload-image-edit-btn:not(:disabled):active {
+  background: rgba(0, 0, 0, 0.62);
+}
+
 .image-remove-btn {
   position: absolute;
   top: 16px;
@@ -746,6 +789,130 @@
   height: 100%;
   object-fit: cover;
   border-radius: 26.4px;
+}
+
+.upload-image-actions .image-remove-btn {
+  position: relative;
+  top: auto;
+  right: auto;
+}
+
+/* —— 포스트 사진 크롭 모달 —— */
+.upload-crop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10060;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+  background: rgba(15, 18, 28, 0.52);
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+}
+
+.upload-crop-dialog {
+  width: 100%;
+  max-width: 400px;
+  max-height: min(92vh, 640px);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 16px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 14px 48px rgba(0, 0, 0, 0.2);
+  box-sizing: border-box;
+}
+
+.upload-crop-title {
+  margin: 0 0 6px;
+  font-family: "Pretendard", sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: #1a1d26;
+}
+
+.upload-crop-hint {
+  margin: 0 0 12px;
+  font-family: "Pretendard", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: rgba(32, 35, 50, 0.52);
+}
+
+.upload-crop-stage {
+  position: relative;
+  width: 100%;
+  height: min(72vw, 300px);
+  max-height: 46vh;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0f1118;
+}
+
+.upload-crop-zoom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.upload-crop-zoom-label {
+  flex-shrink: 0;
+  font-family: "Pretendard", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(32, 35, 50, 0.65);
+}
+
+.upload-crop-zoom input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  accent-color: #323646;
+}
+
+.upload-crop-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.upload-crop-btn {
+  flex: 1;
+  margin: 0;
+  padding: 11px 12px;
+  border-radius: 11px;
+  font-family: "Pretendard", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.upload-crop-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.upload-crop-btn--ghost {
+  border: 1px solid rgba(50, 54, 70, 0.2);
+  background: rgba(255, 255, 255, 0.9);
+  color: rgba(50, 54, 70, 0.85);
+}
+
+.upload-crop-btn--primary {
+  border: none;
+  background: #323646;
+  color: #fff;
+}
+
+.upload-crop-btn:focus-visible {
+  outline: 2px solid #0075ff;
+  outline-offset: 2px;
 }
 
 /* =========================================

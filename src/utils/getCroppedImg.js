@@ -22,6 +22,7 @@ function loadImage(imageSrc) {
  * @param {PixelCrop} pixelCrop
  * @param {string} originalFileName
  * @param {number} [quality=0.92]
+ * @param {number} [maxOutputEdge=MAX_OUTPUT_EDGE] 긴 변 기준 최대 픽셀(이하로 축소만)
  * @returns {Promise<File | null>}
  */
 export async function getCroppedImageFile(
@@ -29,11 +30,17 @@ export async function getCroppedImageFile(
   pixelCrop,
   originalFileName,
   quality = 0.92,
+  maxOutputEdge = MAX_OUTPUT_EDGE,
 ) {
   const image = await loadImage(imageSrc);
   const maxEdge = Math.max(pixelCrop.width, pixelCrop.height);
-  const scale =
-    maxEdge > MAX_OUTPUT_EDGE ? MAX_OUTPUT_EDGE / maxEdge : 1;
+  const cap =
+    typeof maxOutputEdge === "number" &&
+    Number.isFinite(maxOutputEdge) &&
+    maxOutputEdge > 0
+      ? maxOutputEdge
+      : MAX_OUTPUT_EDGE;
+  const scale = maxEdge > cap ? cap / maxEdge : 1;
   const outW = Math.round(pixelCrop.width * scale);
   const outH = Math.round(pixelCrop.height * scale);
 
