@@ -19,7 +19,7 @@ const FEED_POST_SELECT = `
   Places (place_name),
   Tracks (track_id, track_title, artist_name, album_image_url, preview_url, duration_ms),
   PostMedia (media_url, display_order),
-  Likes (like_id, user_id, Users (user_name)),
+  Likes (like_id, user_id, Users (user_name, user_profile_url)),
   Comments (
     comment_id,
     user_id,

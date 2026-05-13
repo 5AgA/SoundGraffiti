@@ -19,6 +19,10 @@ import {
   DEFAULT_PROFILE_IMAGE,
   resolvedProfileImageUrl,
 } from "../utils/profileImage";
+import {
+  isViewerAuthorOfPost,
+} from "../utils/likesUi";
+import OwnPostLikersDialog from "./OwnPostLikersDialog";
 import "./Home.css";
 
 /** 스크롤 스냅 때문에 첫 카드일 때도 scrollTop ≠ 0 — 두 번째 카드 기준으로 ‘첫 카드 구간’ 판별 */
@@ -325,6 +329,7 @@ function Home({
   feed = null,
   focusPostId = null,
   feedEmptyDetail = null,
+  persistFeedUpdate,
   onPullRefresh,
   onCommentSheetOpenChange,
   onCommentCreated,
@@ -340,6 +345,9 @@ function Home({
   const [feedPullHint, setFeedPullHint] = useState(false);
   const [likeStateByPostId, setLikeStateByPostId] = useState({});
   const [commentSheetPost, setCommentSheetPost] = useState(null);
+  const [ownPostLikersForPost, setOwnPostLikersForPost] = useState(
+    /** @type {Record<string, unknown> | null} */ (null),
+  );
   /** 카드 뒷면(한 장 보기+플립)에서 댓글 연 시 — Figma ver.1 시트 높이·톤 */
   const [commentSheetFromFlipView, setCommentSheetFromFlipView] =
     useState(false);
@@ -409,6 +417,8 @@ function Home({
   const [commentDeletePrompt, setCommentDeletePrompt] = useState(null);
   const [commentDeleteSubmitting, setCommentDeleteSubmitting] = useState(false);
   const [playbackNotice, setPlaybackNotice] = useState("");
+  const [previewGloballyMuted, setPreviewGloballyMuted] = useState(false);
+  const previewGloballyMutedRef = useRef(false);
   /** 앨범 커버 색감 기준: 밝으면 상단 트랙 타이틀·가수를 검정, 어두우면 흰색 */
   const [trackMetaOnLightBg, setTrackMetaOnLightBg] = useState(false);
   const { user } = useAuth();
@@ -1137,7 +1147,6 @@ function Home({
     }
 
     if (reason === "no_preview") {
-      setPlaybackNotice(`${previewTitle}은(는) 미리듣기를 제공하지 않아요.`);
       return;
     }
 
@@ -1149,9 +1158,51 @@ function Home({
     const title =
       typeof track?.track_title === "string" && track.track_title.trim()
         ? track.track_title.trim()
-        : "? ??";
-    setPlaybackNotice(`${title} ????? ???? ????.`);
+        : "이 트랙";
+    setPlaybackNotice(`${title} 미리듣기를 준비하지 못했어요.`);
   }, []);
+
+  const { previewUnavailable, isPreviewPlaying, togglePreviewPlayback } =
+    useTrackPreviewAudio(activePost, {
+      onUnavailable: showPlaybackUnavailable,
+      previewGloballyMuted,
+      previewGloballyMutedRef,
+    });
+
+  useEffect(() => {
+    previewGloballyMutedRef.current = previewGloballyMuted;
+  }, [previewGloballyMuted]);
+
+  const handleHomePreviewAudioClick = useCallback(
+    (e) => {
+      e.stopPropagation();
+      if (previewUnavailable) {
+        setPlaybackNotice("미리듣기를 제공하지 않습니다.");
+        return;
+      }
+      if (isPreviewPlaying) {
+        previewGloballyMutedRef.current = true;
+        setPreviewGloballyMuted(true);
+        togglePreviewPlayback();
+        return;
+      }
+      if (previewGloballyMuted) {
+        previewGloballyMutedRef.current = false;
+        setPreviewGloballyMuted(false);
+        queueMicrotask(() => {
+          togglePreviewPlayback();
+        });
+        return;
+      }
+      togglePreviewPlayback();
+    },
+    [
+      previewUnavailable,
+      isPreviewPlaying,
+      previewGloballyMuted,
+      togglePreviewPlayback,
+    ],
+  );
 
   const openTrackInSpotify = useCallback((track) => {
     const url = spotifyTrackUrl(track);
@@ -1162,10 +1213,6 @@ function Home({
 
     window.open(url, "_blank", "noopener,noreferrer");
   }, []);
-
-  useTrackPreviewAudio(activePost, {
-    onUnavailable: showPlaybackUnavailable,
-  });
 
   useEffect(() => {
     if (!playbackNotice) return undefined;
@@ -1420,38 +1467,78 @@ function Home({
   }, [feed, onPullRefresh]);
 
   const handleLikeToggle = async (post) => {
-    const postId = post?.post_id;
+    const rawPostId = post?.post_id;
     const userId = likeUserId;
-    if (!postId || !userId) return;
+    if (rawPostId == null || rawPostId === "" || !userId) return;
+    if (isViewerAuthorOfPost(post, userId)) return;
+    const postKey = String(rawPostId);
 
     const likes = likesFromPost(post);
     const serverLiked = likes.some((like) => userMatchesLike(like, userId));
     const serverCount = likes.length;
-    const currentState = likeStateByPostId[postId];
-    const isLiked = currentState?.liked ?? serverLiked;
-    const likeCount = currentState?.count ?? serverCount;
+
+    /** @type {{ isLiked: boolean; likeCount: number } | null} */
+    let commit = null;
+    setLikeStateByPostId((prev) => {
+      if (prev[postKey]?.pending) return prev;
+      const currentState = prev[postKey];
+      const isLiked = currentState?.liked ?? serverLiked;
+      const likeCount = currentState?.count ?? serverCount;
+      const nextLiked = !isLiked;
+      const nextCount = Math.max(0, likeCount + (nextLiked ? 1 : -1));
+      commit = { isLiked, likeCount };
+      return {
+        ...prev,
+        [postKey]: { liked: nextLiked, count: nextCount, pending: true },
+      };
+    });
+
+    if (!commit) return;
+
+    const { isLiked, likeCount } = commit;
     const nextLiked = !isLiked;
-    const nextCount = Math.max(0, likeCount + (nextLiked ? 1 : -1));
-
-    // Optimistic UI update: 아이콘/카운트 즉시 반영
-    setLikeStateByPostId((prev) => ({
-      ...prev,
-      [postId]: { liked: nextLiked, count: nextCount, pending: true },
-    }));
-
-    const result = await toggleLike(postId, userId);
+    const result = await toggleLike(rawPostId, userId);
     if (result?.error) {
       setLikeStateByPostId((prev) => ({
         ...prev,
-        [postId]: { liked: isLiked, count: likeCount, pending: false },
+        [postKey]: { liked: isLiked, count: likeCount, pending: false },
       }));
       return;
     }
 
+    const finalLiked =
+      typeof result?.liked === "boolean" ? result.liked : nextLiked;
+    const finalCount = Math.max(
+      0,
+      likeCount - (isLiked ? 1 : 0) + (finalLiked ? 1 : 0),
+    );
+
     setLikeStateByPostId((prev) => ({
       ...prev,
-      [postId]: { liked: nextLiked, count: nextCount, pending: false },
+      [postKey]: { liked: finalLiked, count: finalCount, pending: false },
     }));
+
+    if (typeof persistFeedUpdate === "function") {
+      persistFeedUpdate((posts) =>
+        posts.map((p) => {
+          if (String(p?.post_id) !== postKey) return p;
+          const prevLikes = likesFromPost(p);
+          let nextLikes;
+          if (finalLiked) {
+            const has = prevLikes.some((lk) => userMatchesLike(lk, userId));
+            nextLikes = has
+              ? prevLikes
+              : [
+                  ...prevLikes,
+                  { like_id: `local-${Date.now()}`, user_id: userId },
+                ];
+          } else {
+            nextLikes = prevLikes.filter((lk) => !userMatchesLike(lk, userId));
+          }
+          return { ...p, Likes: nextLikes };
+        }),
+      );
+    }
   };
 
   const handleLogoGoTop = () => {
@@ -1572,8 +1659,9 @@ function Home({
             const serverLiked = likes.some((like) =>
               userMatchesLike(like, likeUserId),
             );
+            const likeKey = postId != null ? String(postId) : null;
             const localLikeState =
-              postId != null ? likeStateByPostId[postId] : null;
+              likeKey != null ? likeStateByPostId[likeKey] : null;
             const serverLikeCount = likes.length;
             const likeCount =
               typeof localLikeState?.count === "number"
@@ -1582,6 +1670,10 @@ function Home({
             const isLiked = localLikeState?.liked ?? serverLiked;
             const isLikePending = localLikeState?.pending ?? false;
             const commentCount = commentsFromPost(post).length;
+            const isViewerOwnPost =
+              postAuthorId != null &&
+              likeUserId != null &&
+              String(postAuthorId) === String(likeUserId);
             const isActive = idx === activeIndex;
             const trackTitle =
               typeof track?.track_title === "string"
@@ -1675,10 +1767,25 @@ function Home({
                     </>
                   ) : (
                     <div className="home-card-flip-inner">
-                      <div className="home-card-face home-card-face--front">
+                      <div className="home-card-face home-card-face--front home-card-flip-front-stack">
+                        <div className="home-card-flip-front-decoration" aria-hidden>
+                          <div className="home-card-flip-trigger-media">
+                            {albumArt ? (
+                              <img
+                                className="home-card-image"
+                                src={albumArt}
+                                alt={placeName}
+                              />
+                            ) : (
+                              <div className="home-card-image home-card-image-empty" />
+                            )}
+                          </div>
+                          <div className="home-card-top-shadow" />
+                          <div className="home-card-bottom-shadow" />
+                        </div>
                         <button
                           type="button"
-                          className="home-card-flip-trigger"
+                          className="home-card-flip-front-open"
                           tabIndex={isActive ? 0 : -1}
                           aria-expanded={Boolean(
                             isActive && cardFlipped && feedFocused,
@@ -1710,21 +1817,7 @@ function Home({
                               setCardFlipped(true);
                             }
                           }}
-                        >
-                          <div className="home-card-flip-trigger-media">
-                            {albumArt ? (
-                              <img
-                                className="home-card-image"
-                                src={albumArt}
-                                alt={placeName}
-                              />
-                            ) : (
-                              <div className="home-card-image home-card-image-empty" />
-                            )}
-                          </div>
-                          <div className="home-card-top-shadow" />
-                          <div className="home-card-bottom-shadow" />
-                        </button>
+                        />
                         {isActive ? (
                           <>
                             <div className="home-user">
@@ -1742,24 +1835,45 @@ function Home({
                             <p className="home-content">{content}</p>
 
                             <div className="home-actions">
-                              <button
-                                type="button"
-                                className="home-action-btn"
-                                onClick={() => handleLikeToggle(post)}
-                                disabled={isLikePending}
-                              >
-                                <img
-                                  className="home-action-icon"
-                                  src={
-                                    isLiked
-                                      ? "/heart.fill.svg"
-                                      : "/heart.empty.svg"
-                                  }
-                                  alt=""
-                                  aria-hidden="true"
-                                />
-                                <span>{likeCount}</span>
-                              </button>
+                              {isViewerOwnPost ? (
+                                <button
+                                  type="button"
+                                  className="home-action-btn home-action-btn--own-post-likes"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOwnPostLikersForPost(post);
+                                  }}
+                                  aria-label="좋아요한 사람 보기"
+                                  aria-haspopup="dialog"
+                                >
+                                  <img
+                                    className="home-action-icon home-action-icon--own-post-likes"
+                                    src="/heart.empty.svg"
+                                    alt=""
+                                    aria-hidden="true"
+                                  />
+                                  <span>{likeCount}</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="home-action-btn"
+                                  onClick={() => handleLikeToggle(post)}
+                                  disabled={isLikePending}
+                                >
+                                  <img
+                                    className="home-action-icon"
+                                    src={
+                                      isLiked
+                                        ? "/heart.fill.svg"
+                                        : "/heart.empty.svg"
+                                    }
+                                    alt=""
+                                    aria-hidden="true"
+                                  />
+                                  <span>{likeCount}</span>
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 className="home-action-btn"
@@ -1792,6 +1906,33 @@ function Home({
                                   aria-hidden="true"
                                 />
                               </button>
+                              {isActive && track ? (
+                                <button
+                                  type="button"
+                                  className="home-action-btn home-action-btn--spotify home-action-btn--preview-audio"
+                                  onClick={handleHomePreviewAudioClick}
+                                  aria-label={
+                                    previewUnavailable
+                                      ? "미리듣기 없음"
+                                      : isPreviewPlaying
+                                        ? "미리듣기 정지"
+                                        : "미리듣기 재생"
+                                  }
+                                >
+                                  <img
+                                    className="home-action-icon home-action-icon--preview-audio"
+                                    src={
+                                      previewUnavailable
+                                        ? "/audio.off.png"
+                                        : isPreviewPlaying
+                                          ? "/audio.on.png"
+                                          : "/audio.off.png"
+                                    }
+                                    alt=""
+                                    aria-hidden="true"
+                                  />
+                                </button>
+                              ) : null}
                             </div>
                           </>
                         ) : null}
@@ -1854,24 +1995,45 @@ function Home({
                             <p className="home-content">{content}</p>
 
                             <div className="home-actions">
-                              <button
-                                type="button"
-                                className="home-action-btn"
-                                onClick={() => handleLikeToggle(post)}
-                                disabled={isLikePending}
-                              >
-                                <img
-                                  className="home-action-icon"
-                                  src={
-                                    isLiked
-                                      ? "/heart.fill.svg"
-                                      : "/heart.empty.svg"
-                                  }
-                                  alt=""
-                                  aria-hidden="true"
-                                />
-                                <span>{likeCount}</span>
-                              </button>
+                              {isViewerOwnPost ? (
+                                <button
+                                  type="button"
+                                  className="home-action-btn home-action-btn--own-post-likes"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOwnPostLikersForPost(post);
+                                  }}
+                                  aria-label="좋아요한 사람 보기"
+                                  aria-haspopup="dialog"
+                                >
+                                  <img
+                                    className="home-action-icon home-action-icon--own-post-likes"
+                                    src="/heart.empty.svg"
+                                    alt=""
+                                    aria-hidden="true"
+                                  />
+                                  <span>{likeCount}</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="home-action-btn"
+                                  onClick={() => handleLikeToggle(post)}
+                                  disabled={isLikePending}
+                                >
+                                  <img
+                                    className="home-action-icon"
+                                    src={
+                                      isLiked
+                                        ? "/heart.fill.svg"
+                                        : "/heart.empty.svg"
+                                    }
+                                    alt=""
+                                    aria-hidden="true"
+                                  />
+                                  <span>{likeCount}</span>
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 className="home-action-btn"
@@ -1904,6 +2066,33 @@ function Home({
                                   aria-hidden="true"
                                 />
                               </button>
+                              {isActive && track ? (
+                                <button
+                                  type="button"
+                                  className="home-action-btn home-action-btn--spotify home-action-btn--preview-audio"
+                                  onClick={handleHomePreviewAudioClick}
+                                  aria-label={
+                                    previewUnavailable
+                                      ? "미리듣기 없음"
+                                      : isPreviewPlaying
+                                        ? "미리듣기 정지"
+                                        : "미리듣기 재생"
+                                  }
+                                >
+                                  <img
+                                    className="home-action-icon home-action-icon--preview-audio"
+                                    src={
+                                      previewUnavailable
+                                        ? "/audio.off.png"
+                                        : isPreviewPlaying
+                                          ? "/audio.on.png"
+                                          : "/audio.off.png"
+                                    }
+                                    alt=""
+                                    aria-hidden="true"
+                                  />
+                                </button>
+                              ) : null}
                             </div>
                           </>
                         ) : null}
@@ -2195,6 +2384,12 @@ function Home({
           ) : null}
         </div>
       )}
+      {ownPostLikersForPost ? (
+        <OwnPostLikersDialog
+          post={ownPostLikersForPost}
+          onClose={() => setOwnPostLikersForPost(null)}
+        />
+      ) : null}
     </section>
   );
 }

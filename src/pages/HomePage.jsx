@@ -9,6 +9,7 @@ import {
   readHomeFeedSessionCache,
   writeHomeFeedSessionCache,
 } from "../utils/homeFeedSessionCache";
+import { patchMyPageCachedPostsLikesFromFeedPosts } from "../utils/myPageSessionCache";
 
 /** GeolocationPositionError.code — 권한(1)과 좌표 실패(2·3)를 구분해 Mac 데스크톱에서 오해를 줄임 */
 function feedGeolocationFailureMessage(geoErr) {
@@ -110,6 +111,21 @@ export default function HomePage() {
     if (!c) return;
     const { posts, error } = await getNearbyPosts(c.lat, c.lng);
     applyPostsResult(posts, error);
+  }, []);
+
+  /** 좋아요 등 피드 내용만 바꿀 때 세션 캐시와 동기화 (다른 탭 갔다 와도 유지) */
+  const persistFeedUpdate = useCallback((updater) => {
+    setFeed((prev) => {
+      if (!Array.isArray(prev)) return prev;
+      const next = updater(prev);
+      writeHomeFeedSessionCache({
+        feed: next,
+        feedLoadError: null,
+        coords: coordsRef.current,
+      });
+      patchMyPageCachedPostsLikesFromFeedPosts(next);
+      return next;
+    });
   }, []);
 
   const requestGeolocationFeed = useCallback(
@@ -299,6 +315,7 @@ export default function HomePage() {
             ? "위치·네트워크를 확인해 주세요. (상단 안내 참고)"
             : null
         }
+        persistFeedUpdate={persistFeedUpdate}
         onPullRefresh={refreshFeed}
         onCommentCreated={refreshFeed}
         onCommentSheetOpenChange={setCommentSheetOpen}

@@ -16,13 +16,16 @@
   left: 50%;
   top: calc(18px + env(safe-area-inset-top, 0px));
   z-index: 20;
-  width: min(340px, calc(100% - 32px));
-  padding: 10px 14px;
+  max-width: min(268px, calc(100% - 40px));
+  width: fit-content;
+  padding: 10px 16px;
   transform: translateX(-50%);
   border-radius: 999px;
-  background: rgba(28, 32, 42, 0.88);
+  background: rgba(28, 32, 42, 0.52);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   color: #ffffff;
-  box-shadow: 0 10px 26px rgba(19, 26, 38, 0.2);
+  box-shadow: 0 8px 20px rgba(19, 26, 38, 0.12);
   font-size: 13px;
   font-weight: 700;
   line-height: 1.35;
@@ -301,8 +304,53 @@
   pointer-events: none;
 }
 
-.home-card--flipped .home-card-face--front .home-card-flip-trigger {
+.home-card--flipped .home-card-face--front .home-card-flip-trigger,
+.home-card--flipped .home-card-face--front .home-card-flip-front-open {
   pointer-events: none;
+}
+
+/* 피드 전면: 앨범은 장식만, 플립 탭은 상단만(액션 줄과 preserve-3d 히트 충돌 방지) */
+.home-card-flip-front-stack {
+  isolation: isolate;
+}
+
+.home-card-flip-front-decoration {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.home-card-flip-front-open {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 148px;
+  z-index: 1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: inherit;
+  -webkit-tap-highlight-color: transparent;
+  text-align: left;
+  font: inherit;
+}
+
+.home-card-flip-front-open:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: -4px;
+}
+
+.home-card-flip-front-stack .home-user,
+.home-card-flip-front-stack .home-content,
+.home-card-flip-front-stack .home-actions {
+  z-index: 4;
+  isolation: isolate;
 }
 
 .home-card-flip-trigger {
@@ -761,10 +809,21 @@
 .home-actions {
   position: absolute;
   left: 18px;
+  right: 18px;
   bottom: 16px;
   z-index: 3;
   display: flex;
+  align-items: center;
   gap: 10px;
+}
+
+/* 내 글: 좋아요 목록 팝업 열기 (버튼은 눌리지만 하트는 비활성 톤) */
+.home-action-btn--own-post-likes {
+  cursor: pointer;
+}
+
+.home-action-icon--own-post-likes {
+  opacity: 0.52;
 }
 
 .home-actions button {
@@ -780,6 +839,23 @@
   width: 28.8px;
   height: 28.8px;
   justify-content: center;
+}
+
+.home-actions button.home-action-btn--preview-audio {
+  margin-left: auto;
+}
+
+.home-actions button.home-action-btn--preview-audio:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.home-action-icon--preview-audio {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  display: block;
+  filter: invert(1);
 }
 
 .home-action-btn {

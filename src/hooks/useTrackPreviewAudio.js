@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { resolveTrackPreview } from "../api/trackPreview";
 
 function getTrackFromPost(post) {
@@ -27,23 +27,56 @@ function cacheKeyForTrack(track) {
   return `${getTrackTitle(track)}::${getTrackArtist(track)}`;
 }
 
+/**
+ * @param {Record<string, unknown> | null} activePost
+ * @param {{
+ *   onUnavailable?: (args: { reason: string, track: unknown }) => void,
+ *   previewGloballyMuted?: boolean,
+ *   previewGloballyMutedRef?: React.MutableRefObject<boolean>,
+ * }} options
+ */
 export function useTrackPreviewAudio(activePost, options = {}) {
   const audioRef = useRef(null);
   const requestRef = useRef(0);
   const previewCacheRef = useRef(new Map());
-  const userInteractedRef = useRef(false);
-  const onUnavailableRef = useRef(options.onUnavailable);
   const [playbackActivated, setPlaybackActivated] = useState(false);
+  const onUnavailableRef = useRef(options.onUnavailable);
+  const [previewUnavailable, setPreviewUnavailable] = useState(false);
+  const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
+
+  const previewGloballyMuted = Boolean(options.previewGloballyMuted);
+  const muteRef = options.previewGloballyMutedRef;
+
+  const activePostKey =
+    activePost == null
+      ? ""
+      : activePost.post_id != null && activePost.post_id !== ""
+        ? String(activePost.post_id)
+        : "_";
+
+  useEffect(() => {
+    setPreviewUnavailable(false);
+    setIsPreviewPlaying(false);
+  }, [activePostKey]);
 
   useEffect(() => {
     onUnavailableRef.current = options.onUnavailable;
   }, [options.onUnavailable]);
 
   useEffect(() => {
+    if (!previewGloballyMuted) return undefined;
+    const a = audioRef.current;
+    if (a && !a.paused) {
+      a.pause();
+    }
+    setIsPreviewPlaying(false);
+    return undefined;
+  }, [previewGloballyMuted]);
+
+  useEffect(() => {
     if (playbackActivated) return undefined;
 
     const activatePlayback = () => {
-      userInteractedRef.current = true;
       setPlaybackActivated(true);
     };
 
@@ -58,14 +91,25 @@ export function useTrackPreviewAudio(activePost, options = {}) {
     };
   }, [playbackActivated]);
 
+  const togglePreviewPlayback = useCallback(() => {
+    const a = audioRef.current;
+    if (!a || previewUnavailable) return;
+    if (a.paused) {
+      void a.play().catch(() => {});
+    } else {
+      a.pause();
+    }
+  }, [previewUnavailable]);
+
   useEffect(() => {
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
 
     if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.removeAttribute("src");
-      audioRef.current.load();
+      const prev = audioRef.current;
+      prev.pause();
+      prev.removeAttribute("src");
+      prev.load();
       audioRef.current = null;
     }
 
@@ -74,9 +118,27 @@ export function useTrackPreviewAudio(activePost, options = {}) {
 
     let cancelled = false;
 
+    const syncPlaying = () => {
+      if (cancelled || requestRef.current !== requestId) return;
+      const a = audioRef.current;
+      setIsPreviewPlaying(Boolean(a && !a.paused));
+    };
+
     const notifyUnavailable = (reason) => {
       onUnavailableRef.current?.({ reason, track });
+      if (reason === "no_preview" || reason === "preview_failed") {
+        setPreviewUnavailable(true);
+      }
     };
+
+    const detachAudioListeners = (audio) => {
+      if (!audio) return;
+      audio.removeEventListener("play", syncPlaying);
+      audio.removeEventListener("pause", syncPlaying);
+      audio.removeEventListener("ended", syncPlaying);
+    };
+
+    const isMutedNow = () => Boolean(muteRef?.current);
 
     const play = async () => {
       const key = cacheKeyForTrack(track);
@@ -96,22 +158,50 @@ export function useTrackPreviewAudio(activePost, options = {}) {
         return;
       }
 
+      if (cancelled || requestRef.current !== requestId) return;
+
       const audio = new Audio(previewUrl);
       audio.preload = "auto";
       audio.volume = 0.82;
       audioRef.current = audio;
 
+      audio.addEventListener("play", syncPlaying);
+      audio.addEventListener("pause", syncPlaying);
+      audio.addEventListener("ended", syncPlaying);
+
       audio.onerror = () => {
-        if (!cancelled && requestRef.current === requestId) {
-          notifyUnavailable("preview_failed");
+        if (cancelled || requestRef.current !== requestId) return;
+        detachAudioListeners(audio);
+        if (audioRef.current === audio) {
+          audioRef.current.pause();
+          audioRef.current.removeAttribute("src");
+          audioRef.current.load();
+          audioRef.current = null;
         }
+        setIsPreviewPlaying(false);
+        notifyUnavailable("preview_failed");
       };
+
+      if (isMutedNow()) {
+        setIsPreviewPlaying(false);
+        return;
+      }
 
       try {
         await audio.play();
+        if (cancelled || requestRef.current !== requestId) return;
+        setIsPreviewPlaying(!audio.paused);
       } catch (error) {
         if (cancelled || requestRef.current !== requestId) return;
         console.warn("Track preview playback failed:", error?.message || error);
+        detachAudioListeners(audio);
+        if (audioRef.current === audio) {
+          audioRef.current.pause();
+          audioRef.current.removeAttribute("src");
+          audioRef.current.load();
+          audioRef.current = null;
+        }
+        setIsPreviewPlaying(false);
         notifyUnavailable(
           error?.name === "NotAllowedError"
             ? "interaction_required"
@@ -132,12 +222,15 @@ export function useTrackPreviewAudio(activePost, options = {}) {
     return () => {
       cancelled = true;
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.removeAttribute("src");
-        audioRef.current.load();
+      const a = audioRef.current;
+      if (a) {
+        detachAudioListeners(a);
+        a.pause();
+        a.removeAttribute("src");
+        a.load();
         audioRef.current = null;
       }
+      setIsPreviewPlaying(false);
     };
   }, [activePost, playbackActivated]);
 
@@ -148,4 +241,10 @@ export function useTrackPreviewAudio(activePost, options = {}) {
       }
     };
   }, []);
+
+  return {
+    previewUnavailable,
+    isPreviewPlaying,
+    togglePreviewPlayback,
+  };
 }

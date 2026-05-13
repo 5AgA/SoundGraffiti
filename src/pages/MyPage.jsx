@@ -4,7 +4,6 @@ import BottomNav from "../components/BottomNav";
 import { getPostsByUserId, deletePost } from "../api/posts";
 import { getUserById, getUserPostCount } from "../api/users";
 import { checkCommentAccess } from "../api/comments";
-import { toggleLike } from "../api/likes";
 import {
   resolvedProfileImageUrl,
   DEFAULT_PROFILE_IMAGE,
@@ -29,6 +28,7 @@ import {
   readMyPageSessionCache,
   writeMyPageSessionCache,
 } from "../utils/myPageSessionCache";
+import OwnPostLikersDialog from "../components/OwnPostLikersDialog";
 import "../components/Home.css";
 import "./MyPage.css";
 
@@ -208,17 +208,6 @@ function activeCommentCount(post) {
     .length;
 }
 
-function likesFromPost(post) {
-  const raw = post?.Likes ?? post?.likes;
-  if (raw == null) return [];
-  return Array.isArray(raw) ? raw : [raw];
-}
-
-function userMatchesLike(like, userId) {
-  if (userId == null || like?.user_id == null) return false;
-  return String(like.user_id) === String(userId);
-}
-
 function postAuthorUserFromPost(post) {
   const raw = post?.Users ?? post?.users;
   const u = Array.isArray(raw) ? raw[0] : raw;
@@ -279,13 +268,15 @@ function MyPageFlipCardChrome({
   fp,
   displayName,
   viewerProfileRaw,
-  likeUserId,
-  likeStateByPostId,
-  onLike,
   onComment,
   onSpotify,
   overlayShading = false,
+  previewUnavailable = false,
+  isPreviewPlaying = false,
+  onTogglePreview,
+  onNoPreviewTap,
 }) {
+  const [likersOpen, setLikersOpen] = useState(false);
   if (!fp) return null;
   const track = trackFromPost(fp);
   const author = postAuthorUserFromPost(fp);
@@ -299,14 +290,7 @@ function MyPageFlipCardChrome({
   /** 마이페이지 그리드는 본인 글만 — 아바타는 항상 로그인 사용자(세션) 프로필 */
   const avatarRaw = meRaw || postAuthorProfileRawFromPost(fp);
   const avatarSrcFlip = resolvedProfileImageUrl(avatarRaw);
-  const pid = fp?.post_id;
-  const likes = likesFromPost(fp);
-  const serverLiked = likes.some((like) => userMatchesLike(like, likeUserId));
-  const serverLikeCount = likes.length;
-  const localLike = pid != null ? likeStateByPostId[pid] : null;
-  const isLiked = localLike?.liked ?? serverLiked;
-  const likeCountDisplay = localLike?.count ?? serverLikeCount;
-  const isLikePending = localLike?.pending ?? false;
+  const likeCountDisplay = likeCount(fp);
   const commentCount = activeCommentCount(fp);
   const trackTitle =
     typeof track?.track_title === "string" ? track.track_title.trim() : "";
@@ -339,13 +323,17 @@ function MyPageFlipCardChrome({
       <div className="home-actions">
         <button
           type="button"
-          className="home-action-btn"
-          onClick={() => onLike(fp)}
-          disabled={isLikePending}
+          className="home-action-btn home-action-btn--own-post-likes"
+          onClick={(e) => {
+            e.stopPropagation();
+            setLikersOpen(true);
+          }}
+          aria-label="좋아요한 사람 보기"
+          aria-haspopup="dialog"
         >
           <img
-            className="home-action-icon"
-            src={isLiked ? "/heart.fill.svg" : "/heart.empty.svg"}
+            className="home-action-icon home-action-icon--own-post-likes"
+            src="/heart.empty.svg"
             alt=""
             aria-hidden
           />
@@ -354,7 +342,10 @@ function MyPageFlipCardChrome({
         <button
           type="button"
           className="home-action-btn"
-          onClick={() => onComment(fp)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onComment(fp);
+          }}
           aria-label="댓글 작성"
         >
           <img
@@ -368,7 +359,10 @@ function MyPageFlipCardChrome({
         <button
           type="button"
           className="home-action-btn home-action-btn--spotify"
-          onClick={() => track && onSpotify(track)}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (track) onSpotify(track);
+          }}
           aria-label={
             trackTitle ? `${trackTitle} Spotify에서 열기` : "Spotify에서 열기"
           }
@@ -380,7 +374,47 @@ function MyPageFlipCardChrome({
             aria-hidden
           />
         </button>
+        {track ? (
+          <button
+            type="button"
+            className="home-action-btn home-action-btn--spotify home-action-btn--preview-audio"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (previewUnavailable) {
+                onNoPreviewTap?.();
+                return;
+              }
+              onTogglePreview();
+            }}
+            aria-label={
+              previewUnavailable
+                ? "미리듣기 없음"
+                : isPreviewPlaying
+                  ? "미리듣기 정지"
+                  : "미리듣기 재생"
+            }
+          >
+            <img
+              className="home-action-icon home-action-icon--preview-audio"
+              src={
+                previewUnavailable
+                  ? "/audio.off.png"
+                  : isPreviewPlaying
+                    ? "/audio.on.png"
+                    : "/audio.off.png"
+              }
+              alt=""
+              aria-hidden
+            />
+          </button>
+        ) : null}
       </div>
+      {likersOpen ? (
+        <OwnPostLikersDialog
+          post={fp}
+          onClose={() => setLikersOpen(false)}
+        />
+      ) : null}
     </>
   );
 }
@@ -473,9 +507,6 @@ export default function MyPage() {
     /** @type {Record<string, unknown> | null} */ (null),
   );
   const [flipEntered, setFlipEntered] = useState(false);
-  const [likeStateByPostId, setLikeStateByPostId] = useState(
-    /** @type {Record<string, { liked: boolean; count: number; pending: boolean }>} */ ({}),
-  );
   const [commentSheetPost, setCommentSheetPost] = useState(
     /** @type {Record<string, unknown> | null} */ (null),
   );
@@ -483,6 +514,21 @@ export default function MyPage() {
   const [commentAccessReady, setCommentAccessReady] = useState(false);
   const [playbackNotice, setPlaybackNotice] = useState("");
   const [flipTrackMetaOnLightBg, setFlipTrackMetaOnLightBg] = useState(false);
+  /** writeMyPageSessionCache 시 최신 profile·postCount 등 (좋아요 토글 직후 캐시 동기화) */
+  const myPageCacheMetaRef = useRef({
+    pageUserId: /** @type {string|number|null} */ (null),
+    profile: /** @type {unknown} */ (null),
+    postCount: /** @type {number|null} */ (null),
+    loadError: /** @type {string|null} */ (null),
+  });
+  useEffect(() => {
+    myPageCacheMetaRef.current = {
+      pageUserId,
+      profile,
+      postCount,
+      loadError,
+    };
+  }, [pageUserId, profile, postCount, loadError]);
   const commentSheetPostRef = useRef(
     /** @type {Record<string, unknown> | null} */ (null),
   );
@@ -625,7 +671,6 @@ export default function MyPage() {
       return;
     }
     if (reason === "no_preview") {
-      setPlaybackNotice(`${previewTitle}은(는) 미리듣기를 제공하지 않아요.`);
       return;
     }
     if (reason === "preview_failed") {
@@ -639,9 +684,17 @@ export default function MyPage() {
     setPlaybackNotice(`${title} 미리듣기를 준비하지 못했어요.`);
   }, []);
 
+  const notifyNoPreviewButtonPress = useCallback(() => {
+    setPlaybackNotice("미리듣기를 제공하지 않습니다.");
+  }, []);
+
   const previewAnchorPost =
     commentSheetPost ?? (flipPost ? (flipDisplayPost ?? flipPost) : null);
-  useTrackPreviewAudio(previewAnchorPost, {
+  const {
+    previewUnavailable,
+    isPreviewPlaying,
+    togglePreviewPlayback,
+  } = useTrackPreviewAudio(previewAnchorPost, {
     onUnavailable: showPlaybackUnavailable,
   });
 
@@ -650,60 +703,6 @@ export default function MyPage() {
     const t = window.setTimeout(() => setPlaybackNotice(""), 2800);
     return () => clearTimeout(t);
   }, [playbackNotice]);
-
-  const handleFlipLikeToggle = useCallback(
-    async (post) => {
-      const postId = post?.post_id;
-      const userId = user?.id;
-      if (!postId || !userId) return;
-
-      const likes = likesFromPost(post);
-      const serverLiked = likes.some((like) => userMatchesLike(like, userId));
-      const serverCount = likes.length;
-      const currentState = likeStateByPostId[postId];
-      const isLiked = currentState?.liked ?? serverLiked;
-      const likeCount = currentState?.count ?? serverCount;
-      const nextLiked = !isLiked;
-      const nextCount = Math.max(0, likeCount + (nextLiked ? 1 : -1));
-
-      setLikeStateByPostId((prev) => ({
-        ...prev,
-        [postId]: { liked: nextLiked, count: nextCount, pending: true },
-      }));
-
-      const result = await toggleLike(postId, userId);
-      if (result?.error) {
-        setLikeStateByPostId((prev) => ({
-          ...prev,
-          [postId]: { liked: isLiked, count: likeCount, pending: false },
-        }));
-        return;
-      }
-
-      setLikeStateByPostId((prev) => ({
-        ...prev,
-        [postId]: { liked: nextLiked, count: nextCount, pending: false },
-      }));
-
-      setPosts((prevPosts) =>
-        prevPosts.map((p) => {
-          if (String(p?.post_id) !== String(postId)) return p;
-          const prevLikes = likesFromPost(p);
-          let nextLikes;
-          if (nextLiked) {
-            nextLikes = [
-              ...prevLikes,
-              { like_id: `local-${Date.now()}`, user_id: userId },
-            ];
-          } else {
-            nextLikes = prevLikes.filter((lk) => !userMatchesLike(lk, userId));
-          }
-          return { ...p, Likes: nextLikes };
-        }),
-      );
-    },
-    [user?.id, likeStateByPostId],
-  );
 
   const openSpotifyTrack = useCallback((track) => {
     const url = spotifyTrackUrl(track);
@@ -1453,21 +1452,13 @@ export default function MyPage() {
               }`}
             >
               <div className="home-card-flip-inner">
-                <div className="home-card-face home-card-face--front">
-                  <button
-                    type="button"
-                    className="home-card-flip-trigger"
-                    aria-expanded={flipEntered}
-                    aria-label={
-                      postMediaUrlsFromPost(flipDisplayPost ?? flipPost)
-                        .length > 0
-                        ? "업로드한 사진 보기"
-                        : trackAlbumArtFromPost(flipDisplayPost ?? flipPost)
-                          ? "앨범 표지 보기"
-                          : "한 장 보기"
-                    }
-                    onClick={() => setFlipEntered(true)}
-                  >
+                <div className="home-card-face home-card-face--front mypage-flip-modal-front">
+                  {/*
+                    홈 카드와 달리 preserve-3d에서 전면 트리거(button inset:0)가 액션 줄과
+                    겹치면 히트가 뒤바뀌는 경우가 있어, 앨범은 pointer-events:none 장식만 두고
+                    플립 탭은 상단 투명 버튼으로만 받음.
+                  */}
+                  <div className="mypage-flip-front-decoration" aria-hidden>
                     <div className="home-card-flip-trigger-media">
                       {trackAlbumArtFromPost(flipDisplayPost ?? flipPost) ? (
                         <img
@@ -1481,19 +1472,34 @@ export default function MyPage() {
                         <div className="home-card-image home-card-image-empty" />
                       )}
                     </div>
-                    <div className="home-card-top-shadow" aria-hidden />
-                    <div className="home-card-bottom-shadow" aria-hidden />
-                  </button>
+                    <div className="home-card-top-shadow" />
+                    <div className="home-card-bottom-shadow" />
+                  </div>
+                  <button
+                    type="button"
+                    className="mypage-flip-front-open"
+                    aria-expanded={flipEntered}
+                    aria-label={
+                      postMediaUrlsFromPost(flipDisplayPost ?? flipPost)
+                        .length > 0
+                        ? "업로드한 사진 보기"
+                        : trackAlbumArtFromPost(flipDisplayPost ?? flipPost)
+                          ? "앨범 표지 보기"
+                          : "한 장 보기"
+                    }
+                    onClick={() => setFlipEntered(true)}
+                  />
                   <MyPageFlipCardChrome
                     fp={flipDisplayPost ?? flipPost}
                     displayName={displayName}
                     viewerProfileRaw={meProfileRaw}
-                    likeUserId={user?.id}
-                    likeStateByPostId={likeStateByPostId}
-                    onLike={handleFlipLikeToggle}
                     onComment={tryOpenFlipCommentSheet}
                     onSpotify={openSpotifyTrack}
                     overlayShading={false}
+                    previewUnavailable={previewUnavailable}
+                    isPreviewPlaying={isPreviewPlaying}
+                    onTogglePreview={togglePreviewPlayback}
+                    onNoPreviewTap={notifyNoPreviewButtonPress}
                   />
                 </div>
                 <div
@@ -1547,12 +1553,13 @@ export default function MyPage() {
                     fp={flipDisplayPost ?? flipPost}
                     displayName={displayName}
                     viewerProfileRaw={meProfileRaw}
-                    likeUserId={user?.id}
-                    likeStateByPostId={likeStateByPostId}
-                    onLike={handleFlipLikeToggle}
                     onComment={tryOpenFlipCommentSheet}
                     onSpotify={openSpotifyTrack}
                     overlayShading
+                    previewUnavailable={previewUnavailable}
+                    isPreviewPlaying={isPreviewPlaying}
+                    onTogglePreview={togglePreviewPlayback}
+                    onNoPreviewTap={notifyNoPreviewButtonPress}
                   />
                 </div>
               </div>

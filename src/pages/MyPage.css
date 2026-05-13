@@ -796,6 +796,54 @@
   min-height: 280px;
 }
 
+/* 마이 플립 모달 전면: 장식 레이어 + 상단만 플립 히트(액션과 겹침 제거) */
+.mypage-flip-modal-front {
+  isolation: isolate;
+}
+
+.mypage-flip-front-decoration {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.mypage-flip-front-open {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 148px;
+  z-index: 1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: inherit;
+  -webkit-tap-highlight-color: transparent;
+  text-align: left;
+  font: inherit;
+}
+
+.mypage-flip-front-open:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: -4px;
+}
+
+.mypage-flip-modal-card.home-card--flipped .mypage-flip-front-open {
+  pointer-events: none;
+}
+
+.mypage-flip-modal-card .home-user,
+.mypage-flip-modal-card .home-content,
+.mypage-flip-modal-card .home-actions {
+  z-index: 4;
+  isolation: isolate;
+}
+
 .mypage-flip-shell:has(> .home-feed-item-track-slot) .mypage-flip-modal-card {
   height: min(410px, calc(100dvh - 260px));
   min-height: 240px;
