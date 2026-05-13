@@ -1,3 +1,12 @@
+/* 마이 플립 모달: 딤 탭은 부모(mypage-flip-overlay)에서 처리 */
+.own-likers-overlay--pass-through {
+  pointer-events: none;
+}
+
+.own-likers-overlay--pass-through .own-likers-dialog {
+  pointer-events: auto;
+}
+
 .own-likers-overlay {
   position: fixed;
   inset: 0;

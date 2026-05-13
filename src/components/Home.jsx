@@ -14,6 +14,7 @@ import {
 import { toggleLike } from "../api/likes";
 import { getUserById } from "../api/users";
 import { useAuth } from "../contexts/AuthContextCore";
+import { useCommentSheetDrag } from "../hooks/useCommentSheetDrag";
 import { useTrackPreviewAudio } from "../hooks/useTrackPreviewAudio";
 import {
   DEFAULT_PROFILE_IMAGE,
@@ -29,6 +30,9 @@ import "./Home.css";
 const PTR_ARM_SCROLL_SLACK_PX = 28;
 /** 이 거리 이상 아래로 누적되면 새로고침 전에 로딩 힌트 표시 */
 const PULL_HINT_ACCUM_PX = 26;
+
+/** 루트=0 … 깊이 2(답글의 답글)까지 스레드 허용 — 그 이하에는 답글 달기 비활성 */
+const MAX_COMMENT_REPLY_DEPTH = 2;
 
 /** Supabase 중첩 Likes: 배열 | 단일 행 | 없음 */
 function likesFromPost(post) {
@@ -176,26 +180,6 @@ function formatSheetCommentTime(iso) {
   } catch {
     return "";
   }
-}
-
-/** CSS `.home-comment-sheet` peek / expanded — 일반 vs 카드 뒤집힌 뒤(Figma /home ver.1) */
-function getCommentSheetPeekHeightPx(fromFlipView = false) {
-  if (typeof window === "undefined") return fromFlipView ? 360 : 520;
-  if (fromFlipView) {
-    return Math.min(400, Math.round(window.innerHeight * 0.405));
-  }
-  return Math.min(520, Math.round(window.innerHeight * 0.58));
-}
-
-function getCommentSheetExpandedHeightPx() {
-  if (typeof window === "undefined") return 640;
-  const vh = window.innerHeight;
-  return Math.min(Math.round(vh * 0.92), vh - 12);
-}
-
-/** peek 에서 아래로 줄일 수 있는 최소 높이 */
-function getCommentSheetPeekMinShrinkPx(peekH) {
-  return Math.max(152, Math.round(peekH * 0.34));
 }
 
 /** http://192.168… 등 비 HTTPS 개발: Geolocation 불가 → .env 로 고정 좌표만 허용 */
@@ -368,23 +352,7 @@ function Home({
   const refreshCooldownUntilRef = useRef(0);
   const commentInputRef = useRef(null);
   const commentScrollRef = useRef(null);
-  const commentSheetRef = useRef(null);
-  const commentSheetDragRef = useRef({
-    active: false,
-    pointerId: null,
-    startY: 0,
-    startTranslate: 0,
-    lastOffset: 0,
-    lastClientY: 0,
-    /** 접힘 상태에서 한 번의 제스처 동안 가장 위로 당긴 dy(음수일수록 상향) */
-    bestDy: 0,
-    /** 접힘 상태에서 손가락이 도달한 가장 위쪽 clientY (작을수록 화면 상단) */
-    minClientY: 0,
-    /** 접힘 상태에서 아래로 당긴 거리 (닫기 전 높이 줄임용) */
-    lastStretchDown: 0,
-    /** 확장 상태에서 드래그 시작 시 시트 높이(px) */
-    expandDragStartHeight: null,
-  });
+  const closeCommentSheetRef = useRef(() => {});
   const commentLongPressRef = useRef({
     timer: null,
     pointerId: null,
@@ -399,14 +367,6 @@ function Home({
     lp.pointerId = null;
   };
 
-  const sheetTranslateYRef = useRef(0);
-  const [sheetTranslateY, setSheetTranslateY] = useState(0);
-  const [sheetExpanded, setSheetExpanded] = useState(false);
-  const sheetExpandedRef = useRef(false);
-  const [sheetDragging, setSheetDragging] = useState(false);
-  /** peek 에서 위로 당겨 늘리는 동안만 픽셀 높이 직접 지정 (아래는 화면에 고정) */
-  const [sheetInteractiveHeightPx, setSheetInteractiveHeightPx] =
-    useState(null);
   const [commentAccessBusy, setCommentAccessBusy] = useState(false);
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [pendingSheetComments, setPendingSheetComments] = useState([]);
@@ -546,25 +506,12 @@ function Home({
   }, [commentSheetPost, commentSheetAccessPending, sheetCommentsList.length]);
 
   useEffect(() => {
-    sheetTranslateYRef.current = sheetTranslateY;
-  }, [sheetTranslateY]);
-
-  useEffect(() => {
-    sheetExpandedRef.current = sheetExpanded;
-  }, [sheetExpanded]);
-
-  useEffect(() => {
     if (!commentSheetPost) {
       flushCommentLongPressTimer();
-      setSheetTranslateY(0);
-      setSheetDragging(false);
-      setSheetExpanded(false);
-      setSheetInteractiveHeightPx(null);
       setCommentSheetAccessPending(false);
       setCommentReplyTarget(null);
       setRemovedSheetCommentIds([]);
       setCommentDeletePrompt(null);
-      commentSheetDragRef.current.active = false;
       setCommentSheetFromFlipView(false);
     }
   }, [commentSheetPost]);
@@ -579,187 +526,16 @@ function Home({
     setCommentSheetAccessPending(false);
     setCommentAccessBusy(false);
     setPendingSheetComments([]);
-    setSheetExpanded(false);
-    setSheetTranslateY(0);
-    setSheetDragging(false);
-    setSheetInteractiveHeightPx(null);
     setCommentSheetFromFlipView(false);
   };
+  closeCommentSheetRef.current = closeCommentSheet;
 
-  const onCommentSheetHandlePointerDown = (e) => {
-    if (e.pointerType === "mouse" && e.button !== 0) return;
-    const d = commentSheetDragRef.current;
-    d.active = true;
-    d.pointerId = e.pointerId;
-    d.startY = e.clientY;
-    d.lastClientY = e.clientY;
-    d.minClientY = e.clientY;
-    d.bestDy = 0;
-    d.lastStretchDown = 0;
-    d.expandDragStartHeight = sheetExpandedRef.current
-      ? (commentSheetRef.current?.offsetHeight ??
-        getCommentSheetExpandedHeightPx())
-      : null;
-    d.startTranslate = sheetTranslateYRef.current;
-    d.lastOffset = sheetTranslateYRef.current;
-    setSheetInteractiveHeightPx(null);
-    setSheetDragging(true);
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-
-  const onCommentSheetHandlePointerMove = (e) => {
-    const d = commentSheetDragRef.current;
-    if (!d.active || d.pointerId !== e.pointerId) return;
-    const dy = e.clientY - d.startY;
-    d.lastClientY = e.clientY;
-
-    if (sheetExpandedRef.current) {
-      /* 확장: 아래로 당기면 먼저 높이만 줄이고, peek 이후에는 translate */
-      if (dy <= 0) {
-        setSheetInteractiveHeightPx(null);
-        setSheetTranslateY(0);
-        d.lastOffset = 0;
-        d.lastStretchDown = 0;
-        return;
-      }
-      const stretchDown = dy;
-      d.lastStretchDown = stretchDown;
-      const exp = d.expandDragStartHeight ?? getCommentSheetExpandedHeightPx();
-      const peek = getCommentSheetPeekHeightPx(commentSheetFromFlipView);
-      const shrunk = Math.max(peek, Math.round(exp - stretchDown));
-      const overflowDown = Math.max(0, stretchDown - (exp - peek));
-      setSheetInteractiveHeightPx(shrunk);
-      setSheetTranslateY(overflowDown);
-      d.lastOffset = overflowDown;
-      return;
-    }
-
-    d.bestDy = Math.min(d.bestDy, dy);
-    d.minClientY = Math.min(d.minClientY ?? e.clientY, e.clientY);
-
-    /* peek: 아래로 당기면 높이 줄이다가 더 당기면 translate · 위로는 높이만 늘림 */
-    if (e.clientY >= d.startY) {
-      const stretchDown = e.clientY - d.startY;
-      d.lastStretchDown = stretchDown;
-      const peek = getCommentSheetPeekHeightPx(commentSheetFromFlipView);
-      const minH = getCommentSheetPeekMinShrinkPx(peek);
-      const shrunk = Math.max(minH, peek - stretchDown);
-      const overflowDown = Math.max(0, stretchDown - (peek - minH));
-      setSheetInteractiveHeightPx(Math.round(shrunk));
-      setSheetTranslateY(overflowDown);
-      d.lastOffset = overflowDown;
-      return;
-    }
-
-    d.lastStretchDown = 0;
-    setSheetTranslateY(0);
-    d.lastOffset = 0;
-    const stretchPx = Math.max(0, d.startY - d.minClientY);
-    const peek = getCommentSheetPeekHeightPx(commentSheetFromFlipView);
-    const exp = getCommentSheetExpandedHeightPx();
-    const h = Math.min(peek + stretchPx, exp);
-    setSheetInteractiveHeightPx(Math.round(h));
-  };
-
-  const endCommentSheetHandleDrag = (target, pointerId) => {
-    const d = commentSheetDragRef.current;
-    if (!d.active || d.pointerId !== pointerId) return;
-    d.active = false;
-    try {
-      target.releasePointerCapture(pointerId);
-    } catch {
-      /* already released */
-    }
-
-    const expanded = sheetExpandedRef.current;
-    const offset = d.lastOffset ?? sheetTranslateYRef.current;
-    const totalDy = d.lastClientY - d.startY;
-    const upwardIntent = Math.min(totalDy, d.bestDy);
-
-    setSheetDragging(false);
-
-    if (!expanded) {
-      const minCy = d.minClientY ?? d.startY;
-      const releaseStretch = Math.max(0, d.startY - minCy);
-      const peek = getCommentSheetPeekHeightPx(commentSheetFromFlipView);
-      const exp = getCommentSheetExpandedHeightPx();
-      const expandThresholdPx = Math.max(56, Math.round((exp - peek) * 0.22));
-
-      const sheetH = commentSheetRef.current?.offsetHeight ?? 320;
-      const dismissPeek = Math.min(112, sheetH * 0.28);
-
-      const draggedHeightSnap = sheetInteractiveHeightPx;
-      setSheetInteractiveHeightPx(null);
-
-      if (offset >= dismissPeek) {
-        closeCommentSheet();
-        return;
-      }
-      if (
-        upwardIntent < -36 ||
-        releaseStretch >= expandThresholdPx ||
-        (draggedHeightSnap != null &&
-          draggedHeightSnap >= peek + (exp - peek) * 0.85)
-      ) {
-        setSheetExpanded(true);
-        requestAnimationFrame(() => setSheetTranslateY(0));
-        return;
-      }
-      requestAnimationFrame(() => setSheetTranslateY(0));
-      return;
-    }
-
-    /* 확장: 높이 줄였을 때도 peek/닫기 판정 · 많이 내려야 완전 닫힘 */
-    const peek = getCommentSheetPeekHeightPx(commentSheetFromFlipView);
-    const exp = d.expandDragStartHeight ?? getCommentSheetExpandedHeightPx();
-    const draggedHeightSnap = sheetInteractiveHeightPx;
-    const shrinkProgress =
-      exp > peek && draggedHeightSnap != null
-        ? (exp - draggedHeightSnap) / (exp - peek)
-        : 0;
-
-    const collapseExpandedPx = 40;
-    const dismissExpandedPx =
-      typeof window !== "undefined"
-        ? Math.min(340, Math.round(window.innerHeight * 0.42))
-        : 300;
-
-    setSheetInteractiveHeightPx(null);
-
-    if (offset >= dismissExpandedPx) {
-      closeCommentSheet();
-      return;
-    }
-    if (
-      offset >= collapseExpandedPx ||
-      shrinkProgress >= 0.42 ||
-      (draggedHeightSnap != null && draggedHeightSnap <= peek + 40)
-    ) {
-      setSheetExpanded(false);
-      requestAnimationFrame(() => setSheetTranslateY(0));
-      return;
-    }
-
-    requestAnimationFrame(() => setSheetTranslateY(0));
-  };
-
-  const onCommentSheetHandlePointerUp = (e) => {
-    endCommentSheetHandleDrag(e.currentTarget, e.pointerId);
-  };
-
-  const onCommentSheetHandlePointerCancel = (e) => {
-    const d = commentSheetDragRef.current;
-    if (!d.active || d.pointerId !== e.pointerId) return;
-    d.active = false;
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {
-      /* noop */
-    }
-    setSheetDragging(false);
-    setSheetInteractiveHeightPx(null);
-    requestAnimationFrame(() => setSheetTranslateY(0));
-  };
+  const sheetDrag = useCommentSheetDrag({
+    fromFlipView: commentSheetFromFlipView,
+    isActive: Boolean(commentSheetPost),
+    layoutResetKey: commentSheetPost?.post_id ?? null,
+    onDismiss: () => closeCommentSheetRef.current(),
+  });
 
   const showCommentSheetForPost = (post) => {
     flushCommentLongPressTimer();
@@ -768,8 +544,6 @@ function Home({
     setRemovedSheetCommentIds([]);
     setCommentDeletePrompt(null);
     setPendingSheetComments([]);
-    setSheetExpanded(false);
-    setSheetInteractiveHeightPx(null);
     /* tryOpenCommentSheet 에서 같은 틱에 setFeedFocused/setCardFlipped 하면
        여기서 feedFocused/cardFlipped 는 아직 갱신 전이라 항상 플립 댓글 UI로 연다 */
     setCommentSheetFromFlipView(true);
@@ -777,8 +551,13 @@ function Home({
     commentSheetPostRef.current = post;
   };
 
-  const startReplyToComment = (row) => {
-    if (commentSheetAccessPending || row?.comment_id == null) return;
+  const startReplyToComment = (row, depth) => {
+    if (
+      commentSheetAccessPending ||
+      row?.comment_id == null ||
+      depth >= MAX_COMMENT_REPLY_DEPTH
+    )
+      return;
     const u = commentUserFromRow(row);
     const name = u.user_name || "사용자";
     setCommentReplyTarget({ id: row.comment_id, name });
@@ -1018,10 +797,10 @@ function Home({
   };
 
   const submitCommentDraft = async () => {
-    const text = commentDraft.trim();
+    const baseText = commentDraft.trim();
     const postId = commentSheetPost?.post_id;
     if (
-      !text ||
+      !baseText ||
       postId == null ||
       commentSubmitting ||
       commentSheetAccessPending
@@ -1034,13 +813,19 @@ function Home({
       return;
     }
 
+    const parentCommentId = commentReplyTarget?.id;
+    let contentToSend = baseText;
+    if (parentCommentId != null && commentReplyTarget?.name) {
+      const atName = String(commentReplyTarget.name).trim() || "사용자";
+      contentToSend = `@${atName} ${baseText}`;
+    }
+
     setCommentSubmitting(true);
     try {
-      const parentCommentId = commentReplyTarget?.id;
       const result = await createComment({
         postId,
         userId,
-        content: text,
+        content: contentToSend,
         ...(parentCommentId != null ? { parentCommentId } : {}),
       });
 
@@ -1060,6 +845,7 @@ function Home({
           ...prev,
           {
             ...created,
+            content: created.content ?? contentToSend,
             parent_comment_id:
               created.parent_comment_id ?? parentCommentId ?? null,
             comment_deleted: created.comment_deleted ?? null,
@@ -1564,7 +1350,7 @@ function Home({
       <div
         className={`home-phone${
           commentSheetPost && commentSheetFromFlipView
-            ? ` home-phone--flip-comment${sheetExpanded ? " home-phone--flip-comment--expanded" : ""}`
+            ? ` home-phone--flip-comment${sheetDrag.sheetExpanded ? " home-phone--flip-comment--expanded" : ""}`
             : ""
         }`}
         style={
@@ -2126,25 +1912,16 @@ function Home({
             onClick={closeCommentSheet}
           />
           <div
-            ref={commentSheetRef}
-            className={`home-comment-sheet${sheetDragging ? " home-comment-sheet--dragging" : ""}${sheetExpanded ? " home-comment-sheet--expanded" : ""}`}
-            style={{
-              transform: `translateY(${sheetTranslateY}px)`,
-              ...(sheetInteractiveHeightPx != null
-                ? {
-                    height: `${sheetInteractiveHeightPx}px`,
-                    maxHeight: `${sheetInteractiveHeightPx}px`,
-                    "--comment-sheet-h": `${sheetInteractiveHeightPx}px`,
-                  }
-                : {}),
-            }}
+            ref={sheetDrag.sheetRef}
+            className={`home-comment-sheet${sheetDrag.sheetDragging ? " home-comment-sheet--dragging" : ""}${sheetDrag.sheetExpanded ? " home-comment-sheet--expanded" : ""}`}
+            style={sheetDrag.sheetStyle}
           >
             <div
               className="home-comment-handle-zone"
-              onPointerDown={onCommentSheetHandlePointerDown}
-              onPointerMove={onCommentSheetHandlePointerMove}
-              onPointerUp={onCommentSheetHandlePointerUp}
-              onPointerCancel={onCommentSheetHandlePointerCancel}
+              onPointerDown={sheetDrag.onHandlePointerDown}
+              onPointerMove={sheetDrag.onHandlePointerMove}
+              onPointerUp={sheetDrag.onHandlePointerUp}
+              onPointerCancel={sheetDrag.onHandlePointerCancel}
             >
               <div className="home-comment-handle" aria-hidden />
             </div>
@@ -2240,16 +2017,18 @@ function Home({
                           <span className="home-comment-item__time">
                             {formatSheetCommentTime(row.comment_created)}
                           </span>
-                          <button
-                            type="button"
-                            className="home-comment-item__reply"
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            onClick={() => startReplyToComment(row)}
-                            disabled={commentSheetAccessPending}
-                          >
-                            답글 달기
-                          </button>
+                          {depth < MAX_COMMENT_REPLY_DEPTH ? (
+                            <button
+                              type="button"
+                              className="home-comment-item__reply"
+                              onPointerDown={(e) => e.stopPropagation()}
+                              onTouchStart={(e) => e.stopPropagation()}
+                              onClick={() => startReplyToComment(row, depth)}
+                              disabled={commentSheetAccessPending}
+                            >
+                              답글 달기
+                            </button>
+                          ) : null}
                         </div>
                       </li>
                     );

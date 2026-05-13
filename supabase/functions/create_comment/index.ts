@@ -5,6 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers':
     'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Content-Type': 'application/json',
 }
 
 Deno.serve(async (req) => {
@@ -13,9 +14,19 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { postId, userId, content, parentCommentId } = await req.json()
+    const body = await req.json()
+    const postId = Number(body?.postId)
+    const userId = Number(body?.userId)
+    const content = body?.content
+    const parentCommentId =
+      body?.parentCommentId == null ? null : Number(body.parentCommentId)
 
-    if (!postId || !userId || !content) {
+    if (
+      !Number.isFinite(postId) ||
+      !Number.isFinite(userId) ||
+      !content ||
+      String(content).trim() === ''
+    ) {
       return new Response(JSON.stringify({ error: '필수값 누락' }), {
         status: 400,
         headers: corsHeaders,
@@ -28,7 +39,7 @@ Deno.serve(async (req) => {
     )
 
     // 1. parent_comment 검증 (대댓글일 경우)
-    if (parentCommentId) {
+    if (parentCommentId != null && Number.isFinite(parentCommentId)) {
       const { data: parent, error } = await supabase
         .from('Comments')
         .select('comment_id, post_id, comment_deleted')
@@ -51,7 +62,7 @@ Deno.serve(async (req) => {
         })
       }
       
-      if (parent.post_id !== postId) {
+      if (Number(parent.post_id) !== Number(postId)) {
         return new Response(JSON.stringify({ error: '잘못된 대댓글 구조' }), {
           status: 400,
           headers: corsHeaders,
@@ -65,8 +76,11 @@ Deno.serve(async (req) => {
       .insert({
         post_id: postId,
         user_id: userId,
-        content: content,
-        parent_comment_id: parentCommentId ?? null,
+        content: String(content).trim(),
+        parent_comment_id:
+          parentCommentId != null && Number.isFinite(parentCommentId)
+            ? parentCommentId
+            : null,
         comment_created: now,
       })
       .select()

@@ -7,24 +7,45 @@ import {
 import "./OwnPostLikersDialog.css";
 
 /**
- * @param {{ post: Record<string, unknown>; onClose: () => void }} props
+ * @param {{
+ *   post: Record<string, unknown>;
+ *   onClose: () => void;
+ *   backdropPassthrough?: boolean;
+ * }} props
+ * backdropPassthrough: 딤은 pointer-events 없음 — 부모 오버레이에서 배경 탭 처리
  */
-export default function OwnPostLikersDialog({ post, onClose }) {
+export default function OwnPostLikersDialog({
+  post,
+  onClose,
+  backdropPassthrough = false,
+}) {
   const rows = useMemo(() => likerRowsForOwnPostDialog(post), [post]);
 
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      e.stopImmediatePropagation();
+      onClose();
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [onClose]);
+
+  const overlayClass =
+    `own-likers-overlay${backdropPassthrough ? " own-likers-overlay--pass-through" : ""}`;
 
   return (
     <div
-      className="own-likers-overlay"
+      className={overlayClass}
       role="presentation"
-      onClick={onClose}
+      onClick={
+        backdropPassthrough
+          ? undefined
+          : (e) => {
+              e.stopPropagation();
+              onClose();
+            }
+      }
     >
       <div
         className="own-likers-dialog"

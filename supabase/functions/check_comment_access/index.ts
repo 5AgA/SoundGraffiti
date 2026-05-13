@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
     // 1. post 조회 + status 체크
     const { data: post, error: postError } = await supabase
       .from('Posts')
-      .select('post_id, place_id, status')
+      .select('post_id, place_id, status, user_id')
       .eq('post_id', postId)
       .single()
 
@@ -103,6 +103,76 @@ Deno.serve(async (req) => {
         }),
         { status: 200, headers: corsHeaders }
       )
+    }
+
+    // 1b. 로그인 사용자가 해당 글 작성자면 반경 제한 없음 (마이페이지 본인 글 등)
+    const authHeader = req.headers.get('Authorization') ?? ''
+    if (authHeader.startsWith('Bearer ') && post.user_id != null) {
+      const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
+      if (anonKey) {
+        const authClient = createClient(
+          Deno.env.get('SUPABASE_URL')!,
+          anonKey,
+          {
+            global: {
+              headers: { Authorization: authHeader },
+            },
+          }
+        )
+        const {
+          data: { user: authUser },
+        } = await authClient.auth.getUser()
+        if (authUser?.id) {
+          const { data: viewerRow } = await supabase
+            .from('Users')
+            .select('user_id')
+            .eq('auth_user_id', authUser.id)
+            .maybeSingle()
+          const viewerId =
+            viewerRow?.user_id != null ? Number(viewerRow.user_id) : NaN
+          const authorId = Number(post.user_id)
+          if (
+            Number.isFinite(viewerId) &&
+            Number.isFinite(authorId) &&
+            viewerId === authorId
+          ) {
+            const { data: place, error: placeError } = await supabase
+              .from('Places')
+              .select('place_id, place_name, latitude, longitude')
+              .eq('place_id', post.place_id)
+              .single()
+
+            if (placeError || !place) {
+              return new Response(
+                JSON.stringify({
+                  is_accessible: false,
+                  error: '장소 정보를 찾을 수 없습니다.',
+                }),
+                { status: 404, headers: corsHeaders }
+              )
+            }
+
+            const distance = getDistanceInMeters(
+              uLat,
+              uLng,
+              Number(place.latitude),
+              Number(place.longitude)
+            )
+
+            return new Response(
+              JSON.stringify({
+                post_id: post.post_id,
+                place_id: place.place_id,
+                place_name: place.place_name,
+                distance_meters: distance,
+                is_accessible: true,
+                message: '작성한 글은 위치와 관계없이 댓글을 조회할 수 있습니다.',
+              }),
+              { status: 200, headers: corsHeaders }
+            )
+          }
+        }
+      }
     }
 
     // 2. place 조회

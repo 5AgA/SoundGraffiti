@@ -839,8 +839,15 @@
   padding: max(16px, env(safe-area-inset-top, 0px)) 20px
     calc(100px + env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
-  background: rgba(15, 18, 28, 0.5);
+  background: rgba(15, 18, 28, 0.28);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  backdrop-filter: blur(14px) saturate(1.1);
   -webkit-tap-highlight-color: transparent;
+}
+
+/* 좋아요 목록 열림: 카드도 히트 비활성 → 딤 탭이 플립 오버레이로 전달 */
+.mypage-flip-modal-card--likers-open {
+  pointer-events: none;
 }
 
 .mypage-flip-shell {
@@ -853,12 +860,22 @@
   pointer-events: auto;
 }
 
+/* 좋아요 목록 열림: 딤 탭이 플립 오버레이로 전달되도록 */
+.mypage-flip-shell--likers-open {
+  pointer-events: none;
+}
+
 .mypage-flip-modal-card {
   margin: 0 auto;
   width: 100%;
   max-width: 344px;
   height: min(450px, calc(100dvh - 180px));
   min-height: 280px;
+}
+
+/* 그리드에서 열 때 뒷면부터: 뒤집힌 상태에서 숨은 전면 히트 방지 */
+.mypage-flip-modal-card.home-card--flipped .home-card-face--front {
+  pointer-events: none;
 }
 
 /* 마이 플립 모달 전면: 장식 레이어 + 상단만 플립 히트(액션과 겹침 제거) */

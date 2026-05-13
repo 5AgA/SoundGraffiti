@@ -265,8 +265,9 @@ function MyPageFlipCardChrome({
   isPreviewPlaying = false,
   onTogglePreview,
   onNoPreviewTap,
+  ownLikersOpen = false,
+  onOpenOwnLikers,
 }) {
-  const [likersOpen, setLikersOpen] = useState(false);
   if (!fp) return null;
   const track = trackFromPost(fp);
   const author = postAuthorUserFromPost(fp);
@@ -316,10 +317,11 @@ function MyPageFlipCardChrome({
           className="home-action-btn home-action-btn--own-post-likes"
           onClick={(e) => {
             e.stopPropagation();
-            setLikersOpen(true);
+            onOpenOwnLikers?.();
           }}
           aria-label="좋아요한 사람 보기"
           aria-haspopup="dialog"
+          aria-expanded={ownLikersOpen}
         >
           <img
             className="home-action-icon home-action-icon--own-post-likes"
@@ -399,12 +401,6 @@ function MyPageFlipCardChrome({
           </button>
         ) : null}
       </div>
-      {likersOpen ? (
-        <OwnPostLikersDialog
-          post={fp}
-          onClose={() => setLikersOpen(false)}
-        />
-      ) : null}
     </>
   );
 }
@@ -487,6 +483,7 @@ export default function MyPage() {
   );
   const [commentAccessPending, setCommentAccessPending] = useState(false);
   const [commentAccessReady, setCommentAccessReady] = useState(false);
+  const [mypageFlipLikersOpen, setMypageFlipLikersOpen] = useState(false);
   const [playbackNotice, setPlaybackNotice] = useState("");
   const [flipTrackMetaOnLightBg, setFlipTrackMetaOnLightBg] = useState(false);
   /** writeMyPageSessionCache 시 최신 profile·postCount 등 (좋아요 토글 직후 캐시 동기화) */
@@ -559,6 +556,7 @@ export default function MyPage() {
   }, [flipPost, posts]);
 
   const closeFlipModal = useCallback(() => {
+    setMypageFlipLikersOpen(false);
     setCommentSheetPost(null);
     setCommentAccessPending(false);
     setCommentAccessReady(false);
@@ -733,6 +731,18 @@ export default function MyPage() {
     setCommentSheetPost(post);
     commentSheetPostRef.current = post;
 
+    const postAuthorNum = Number(post?.user_id);
+    const meNum = Number(pageUserId);
+    const isOwnMyPost =
+      Number.isFinite(postAuthorNum) &&
+      Number.isFinite(meNum) &&
+      postAuthorNum === meNum;
+
+    if (isOwnMyPost) {
+      void runCommentAccessCheck(0, 0);
+      return;
+    }
+
     if (insecure && devCoords) {
       void runCommentAccessCheck(devCoords.lat, devCoords.lng);
       return;
@@ -781,6 +791,35 @@ export default function MyPage() {
         maximumAge: 120000,
       },
     );
+  }, [pageUserId]);
+
+  const handleFlipCommentDeleted = useCallback((commentId) => {
+    const postId = commentSheetPostRef.current?.post_id;
+    if (postId == null) return;
+    setPosts((prev) =>
+      prev.map((p) => {
+        if (String(p?.post_id) !== String(postId)) return p;
+        const raw = p?.Comments ?? p?.comments;
+        const list = Array.isArray(raw) ? raw : raw != null ? [raw] : [];
+        return {
+          ...p,
+          Comments: list.filter(
+            (r) => r == null || String(r?.comment_id) !== String(commentId),
+          ),
+        };
+      }),
+    );
+    setCommentSheetPost((prev) => {
+      if (!prev || String(prev.post_id) !== String(postId)) return prev;
+      const raw = prev?.Comments ?? prev?.comments;
+      const list = Array.isArray(raw) ? raw : raw != null ? [raw] : [];
+      return {
+        ...prev,
+        Comments: list.filter(
+          (r) => r == null || String(r?.comment_id) !== String(commentId),
+        ),
+      };
+    });
   }, []);
 
   const handleFlipCommentRowCreated = useCallback((row) => {
@@ -807,17 +846,7 @@ export default function MyPage() {
       setFlipEntered(false);
       return;
     }
-    setFlipEntered(false);
-    let cancelled = false;
-    const id = window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        if (!cancelled) setFlipEntered(true);
-      });
-    });
-    return () => {
-      cancelled = true;
-      window.cancelAnimationFrame(id);
-    };
+    setFlipEntered(true);
   }, [flipPost]);
 
   useEffect(() => {
@@ -1201,6 +1230,8 @@ export default function MyPage() {
                         longPressDidOpenDeleteRef.current = false;
                         return;
                       }
+                      setFlipEntered(true);
+                      setMypageFlipLikersOpen(false);
                       setFlipPost({ ...post });
                     }}
                   >
@@ -1246,7 +1277,14 @@ export default function MyPage() {
         <div
           className="mypage-flip-overlay"
           role="presentation"
-          onClick={() => closeFlipModal()}
+          onClick={() => {
+            if (mypageFlipLikersOpen) {
+              setMypageFlipLikersOpen(false);
+              setFlipEntered(true);
+              return;
+            }
+            closeFlipModal();
+          }}
         >
           {playbackNotice ? (
             <div className="mypage-flip-playback-notice" role="status">
@@ -1254,7 +1292,9 @@ export default function MyPage() {
             </div>
           ) : null}
           <div
-            className="mypage-flip-shell"
+            className={`mypage-flip-shell${
+              mypageFlipLikersOpen ? " mypage-flip-shell--likers-open" : ""
+            }`}
             role="dialog"
             aria-modal="true"
             aria-label="포스트 미디어"
@@ -1281,7 +1321,7 @@ export default function MyPage() {
             <article
               className={`home-card home-card--active mypage-flip-modal-card${
                 flipEntered ? " home-card--flipped" : ""
-              }`}
+              }${mypageFlipLikersOpen ? " mypage-flip-modal-card--likers-open" : ""}`}
             >
               <div className="home-card-flip-inner">
                 <div className="home-card-face home-card-face--front mypage-flip-modal-front">
@@ -1332,6 +1372,8 @@ export default function MyPage() {
                     isPreviewPlaying={isPreviewPlaying}
                     onTogglePreview={togglePreviewPlayback}
                     onNoPreviewTap={notifyNoPreviewButtonPress}
+                    ownLikersOpen={mypageFlipLikersOpen}
+                    onOpenOwnLikers={() => setMypageFlipLikersOpen(true)}
                   />
                 </div>
                 <div
@@ -1392,11 +1434,23 @@ export default function MyPage() {
                     isPreviewPlaying={isPreviewPlaying}
                     onTogglePreview={togglePreviewPlayback}
                     onNoPreviewTap={notifyNoPreviewButtonPress}
+                    ownLikersOpen={mypageFlipLikersOpen}
+                    onOpenOwnLikers={() => setMypageFlipLikersOpen(true)}
                   />
                 </div>
               </div>
             </article>
           </div>
+          {mypageFlipLikersOpen ? (
+            <OwnPostLikersDialog
+              post={flipDisplayPost ?? flipPost}
+              backdropPassthrough
+              onClose={() => {
+                setMypageFlipLikersOpen(false);
+                setFlipEntered(true);
+              }}
+            />
+          ) : null}
         </div>
       ) : null}
       <MyPageFlipCommentSheet
@@ -1415,6 +1469,7 @@ export default function MyPage() {
           setCommentAccessReady(false);
         }}
         onCommentCreated={handleFlipCommentRowCreated}
+        onCommentDeleted={handleFlipCommentDeleted}
       />
       {deleteConfirmPostId != null ? (
         <div
