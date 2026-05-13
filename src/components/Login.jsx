@@ -57,26 +57,6 @@ export default function Login({ active = false }) {
           <div className="login-social-item">
             <button
               className="login-social-btn"
-              onClick={() => handleOAuthLogin("spotify")}
-              type="button"
-              disabled={isSubmitting}
-            >
-              <img
-                className="login-social-icon"
-                src="/signup_spotify_light.svg"
-                alt="Spotify 로그인"
-              />
-            </button>
-            <p className="login-social-label">
-              Spotify로
-              <br />
-              로그인
-            </p>
-          </div>
-
-          <div className="login-social-item">
-            <button
-              className="login-social-btn"
               onClick={() => handleOAuthLogin("google")}
               type="button"
               disabled={isSubmitting}
@@ -95,11 +75,11 @@ export default function Login({ active = false }) {
           </div>
         </div>
 
-        {errorMessage && (
+        {errorMessage ? (
           <p className={`login-error${active ? " is-visible" : ""}`}>
             {errorMessage}
           </p>
-        )}
+        ) : null}
       </div>
     </section>
   );

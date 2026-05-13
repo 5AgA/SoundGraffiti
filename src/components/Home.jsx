@@ -7,7 +7,7 @@ import {
 import { toggleLike } from "../api/likes";
 import { getUserById } from "../api/users";
 import { useAuth } from "../contexts/AuthContextCore";
-import { useSpotifyAutoPreview } from "../hooks/useSpotifyAutoPreview";
+import { useTrackPreviewAudio } from "../hooks/useTrackPreviewAudio";
 import {
   DEFAULT_PROFILE_IMAGE,
   resolvedProfileImageUrl,
@@ -406,7 +406,7 @@ function Home({
   const [playbackNotice, setPlaybackNotice] = useState("");
   /** 앨범 커버 색감 기준: 밝으면 상단 트랙 타이틀·가수를 검정, 어두우면 흰색 */
   const [trackMetaOnLightBg, setTrackMetaOnLightBg] = useState(false);
-  const { spotifyToken, user, refreshSpotifyToken } = useAuth();
+  const { user } = useAuth();
   /** Auth 메타데이터에 없을 때 Users 테이블 프로필 (고정 id·OAuth 병행) */
   const [dbUserProfileUrl, setDbUserProfileUrl] = useState(null);
 
@@ -1144,33 +1144,32 @@ function Home({
   const activePost = !isLoading ? list[activeIndex] ?? null : null;
 
   const showPlaybackUnavailable = useCallback(({ track, reason }) => {
-    if (reason === "token_expired") {
-      void refreshSpotifyToken({ forceRefresh: true }).then((token) => {
-        if (!token) {
-          setPlaybackNotice(
-            "Spotify 인증이 만료됐어요. 마이페이지에서 재인증해 주세요.",
-          );
-        }
-      });
+    const previewTitle =
+      typeof track?.track_title === "string" && track.track_title.trim()
+        ? track.track_title.trim()
+        : "이 트랙";
+
+    if (reason === "interaction_required") {
+      setPlaybackNotice("화면을 한 번 터치하면 미리듣기가 재생돼요.");
       return;
     }
-    if (reason === "device_unavailable") {
-      setPlaybackNotice(
-        "Spotify 재생 기기를 준비하지 못했어요. 잠시 후 다시 시도해 주세요.",
-      );
+
+    if (reason === "no_preview") {
+      setPlaybackNotice(`${previewTitle}은(는) 미리듣기를 제공하지 않아요.`);
       return;
     }
-    if (reason === "premium_required") {
-      setPlaybackNotice("Spotify Premium 계정에서만 앱 내 재생을 지원해요.");
+
+    if (reason === "preview_failed") {
+      setPlaybackNotice(`${previewTitle} 미리듣기를 재생하지 못했어요.`);
       return;
     }
 
     const title =
       typeof track?.track_title === "string" && track.track_title.trim()
         ? track.track_title.trim()
-        : "이 노래";
-    setPlaybackNotice(`${title}은(는) Spotify에서 재생할 수 없어요.`);
-  }, [refreshSpotifyToken]);
+        : "? ??";
+    setPlaybackNotice(`${title} ????? ???? ????.`);
+  }, []);
 
   const openTrackInSpotify = useCallback((track) => {
     const url = spotifyTrackUrl(track);
@@ -1182,7 +1181,7 @@ function Home({
     window.open(url, "_blank", "noopener,noreferrer");
   }, []);
 
-  useSpotifyAutoPreview(activePost, spotifyToken, {
+  useTrackPreviewAudio(activePost, {
     onUnavailable: showPlaybackUnavailable,
   });
 

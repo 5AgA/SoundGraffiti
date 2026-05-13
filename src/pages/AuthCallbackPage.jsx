@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { storeSpotifyTokensFromSession } from "../api/spotifyAuth";
 import { supabase } from "../supabaseClient";
 import {
   clearPendingIdentityLink,
@@ -38,6 +37,15 @@ function cleanMessage(params) {
   return "로그인 세션을 확인하지 못했습니다.";
 }
 
+const LINK_CONFIRM_RETRY_DELAYS_MS = [0, 300, 800, 1500, 2500];
+
+function waitMs(ms) {
+  if (ms <= 0) return Promise.resolve();
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
 function safeReturnTo(returnTo) {
   if (
     typeof returnTo !== "string" ||
@@ -52,32 +60,67 @@ function safeReturnTo(returnTo) {
   return returnTo;
 }
 
-function pendingReturnTo() {
-  return safeReturnTo(
-    getPendingIdentityLink()?.returnTo || getPendingOAuth()?.returnTo || "/home",
+function pendingFlow() {
+  const link = getPendingIdentityLink();
+  if (link) {
+    return {
+      type: "link",
+      provider: normalizeProvider(link.provider),
+      returnTo: safeReturnTo(link.returnTo),
+    };
+  }
+
+  const oauth = getPendingOAuth();
+  if (oauth) {
+    return {
+      type: "oauth",
+      provider: normalizeProvider(oauth.provider),
+      returnTo: safeReturnTo(oauth.returnTo),
+    };
+  }
+
+  return {
+    type: "",
+    provider: "",
+    returnTo: "/home",
+  };
+}
+
+function hasLinkedProvider(identities, provider) {
+  const normalized = normalizeProvider(provider);
+  if (!normalized) return false;
+  return (Array.isArray(identities) ? identities : []).some(
+    (identity) => normalizeProvider(identity?.provider) === normalized,
   );
 }
 
-function pendingProvider() {
-  return normalizeProvider(
-    getPendingIdentityLink()?.provider || getPendingOAuth()?.provider,
-  );
+async function waitForLinkedIdentity(provider, isCancelled) {
+  for (const delayMs of LINK_CONFIRM_RETRY_DELAYS_MS) {
+    await waitMs(delayMs);
+    if (isCancelled()) return false;
+
+    const { data, error } = await supabase.auth.getUserIdentities();
+    if (error) {
+      console.warn("Failed to confirm linked identity:", error.message);
+      continue;
+    }
+
+    if (hasLinkedProvider(data?.identities, provider)) return true;
+  }
+
+  return false;
 }
 
-function linkErrorMessage(params) {
-  const provider = pendingProvider();
+function linkErrorMessage(params, flow = pendingFlow()) {
+  const provider = flow.provider;
   if (params.errorCode === "identity_already_exists") {
     return `${providerLabel(provider)} 계정이 이미 연결되어 있거나 다른 계정에 연결되어 있습니다.`;
   }
   return cleanMessage(params);
 }
 
-async function persistSpotifyToken(session) {
-  try {
-    await storeSpotifyTokensFromSession(session);
-  } catch (error) {
-    console.warn("Failed to persist Spotify token:", error?.message || error);
-  }
+function identityLinkMissingMessage(provider) {
+  return `${providerLabel(provider)} 계정 연결이 완료되지 않았어요. 다시 시도해 주세요.`;
 }
 
 export default function AuthCallbackPage() {
@@ -89,10 +132,11 @@ export default function AuthCallbackPage() {
     let cancelled = false;
 
     async function completeLogin() {
+      const flow = pendingFlow();
       if (params.error || params.errorCode || params.errorDescription) {
         setErrorInfo({
           code: params.errorCode || params.error || "oauth_error",
-          message: linkErrorMessage(params),
+          message: linkErrorMessage(params, flow),
         });
         clearPendingIdentityLink();
         clearPendingOAuth();
@@ -100,13 +144,13 @@ export default function AuthCallbackPage() {
       }
 
       if (params.code) {
-        const { data, error } = await supabase.auth.exchangeCodeForSession(
+        const { error } = await supabase.auth.exchangeCodeForSession(
           params.code,
         );
         if (cancelled) return;
 
         if (error) {
-          const provider = pendingProvider();
+          const provider = flow.provider;
           setErrorInfo({
             code: "session_exchange_failed",
             message:
@@ -118,11 +162,24 @@ export default function AuthCallbackPage() {
           return;
         }
 
-        if (pendingProvider() === "spotify") {
-          await persistSpotifyToken(data?.session);
+        if (flow.type === "link") {
+          const linked = await waitForLinkedIdentity(
+            flow.provider,
+            () => cancelled,
+          );
+          if (cancelled) return;
+          if (!linked) {
+            setErrorInfo({
+              code: "identity_link_missing",
+              message: identityLinkMissingMessage(flow.provider),
+            });
+            clearPendingIdentityLink();
+            clearPendingOAuth();
+            return;
+          }
         }
 
-        const returnTo = pendingReturnTo();
+        const returnTo = flow.returnTo;
         clearPendingIdentityLink();
         clearPendingOAuth();
         navigate(returnTo, { replace: true });
@@ -136,10 +193,23 @@ export default function AuthCallbackPage() {
       if (cancelled) return;
 
       if (session) {
-        if (pendingProvider() === "spotify") {
-          await persistSpotifyToken(session);
+        if (flow.type === "link") {
+          const linked = await waitForLinkedIdentity(
+            flow.provider,
+            () => cancelled,
+          );
+          if (cancelled) return;
+          if (!linked) {
+            setErrorInfo({
+              code: "identity_link_missing",
+              message: identityLinkMissingMessage(flow.provider),
+            });
+            clearPendingIdentityLink();
+            clearPendingOAuth();
+            return;
+          }
         }
-        const returnTo = pendingReturnTo();
+        const returnTo = flow.returnTo;
         clearPendingIdentityLink();
         clearPendingOAuth();
         navigate(returnTo, { replace: true });

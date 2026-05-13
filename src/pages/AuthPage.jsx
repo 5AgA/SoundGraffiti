@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import LandingPage from "../components/LandingPage";
 import Login from "../components/Login";
 import { useAuth } from "../contexts/AuthContextCore";
+import AuthCallbackPage from "./AuthCallbackPage";
 
 function AuthFlowScreen({ phase }) {
   return (
@@ -30,9 +31,17 @@ export default function AuthPage() {
   const path = location.pathname;
   const [phase, setPhase] = useState(path === "/login" ? "login" : "landing");
   const isAuthRoute = path === "/" || path === "/login";
+  const oauthParams = new URLSearchParams(
+    `${location.search || ""}${location.hash ? `&${location.hash.replace(/^#/, "")}` : ""}`,
+  );
+  const hasOAuthCallbackParams =
+    oauthParams.has("code") ||
+    oauthParams.has("error") ||
+    oauthParams.has("error_code") ||
+    oauthParams.has("error_description");
 
   useEffect(() => {
-    if (!isAuthRoute) return;
+    if (!isAuthRoute || hasOAuthCallbackParams) return;
     if (phase === "login") return;
 
     const startMoveTimer = window.setTimeout(() => {
@@ -47,18 +56,22 @@ export default function AuthPage() {
       window.clearTimeout(startMoveTimer);
       window.clearTimeout(showLoginTimer);
     };
-  }, [isAuthRoute, phase]);
+  }, [hasOAuthCallbackParams, isAuthRoute, phase]);
 
   useEffect(() => {
-    if (!isAuthRoute) return;
+    if (!isAuthRoute || hasOAuthCallbackParams) return;
     const nextPath = phase === "landing" ? "/" : "/login";
     if (path !== nextPath) {
       navigate(nextPath, { replace: true });
     }
-  }, [isAuthRoute, navigate, path, phase]);
+  }, [hasOAuthCallbackParams, isAuthRoute, navigate, path, phase]);
 
   if (!loading && session) {
     return <Navigate to="/home" replace />;
+  }
+
+  if (hasOAuthCallbackParams) {
+    return <AuthCallbackPage />;
   }
 
   return <AuthFlowScreen phase={phase} />;

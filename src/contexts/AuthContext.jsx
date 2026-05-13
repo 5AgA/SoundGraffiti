@@ -1,17 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getCurrentUser } from "../api/users";
-import {
-  fetchSpotifyAccessToken,
-  spotifySessionToken,
-  storeSpotifyTokensFromSession,
-} from "../api/spotifyAuth";
 import { supabase } from "../supabaseClient";
 import { AuthContext } from "./AuthContextCore";
 import {
-  getPendingIdentityLink,
-  getPendingOAuth,
   getSessionProvider,
-  normalizeProvider,
   providerSetFromIdentities,
 } from "../utils/authProviders";
 import { clearHomeFeedSessionCache } from "../utils/homeFeedSessionCache";
@@ -79,55 +71,13 @@ async function resolveIdentities(session) {
   return data?.identities ?? fallback;
 }
 
-function providerHintForSession(session) {
-  const pendingLinkProvider = normalizeProvider(getPendingIdentityLink()?.provider);
-  const pendingOAuthProvider = normalizeProvider(getPendingOAuth()?.provider);
-  return pendingLinkProvider || pendingOAuthProvider || getSessionProvider(session);
-}
-
-function hasSpotifyIdentity(identities) {
-  return providerSetFromIdentities(identities).has("spotify");
-}
-
-async function resolveSpotifyTokenInfo(session, identities) {
-  const providerHint = providerHintForSession(session);
-
-  if (providerHint === "spotify" && spotifySessionToken(session)) {
-    try {
-      return await storeSpotifyTokensFromSession(session);
-    } catch (error) {
-      console.warn("Failed to store Spotify token:", error?.message || error);
-      return {
-        accessToken: session.provider_token,
-        expiresAt: new Date(Date.now() + 55 * 60 * 1000).toISOString(),
-        hasRefreshToken: Boolean(session.provider_refresh_token),
-        error,
-      };
-    }
-  }
-
-  if (!hasSpotifyIdentity(identities)) return null;
-
-  return await fetchSpotifyAccessToken();
-}
-
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
   const [identities, setIdentities] = useState([]);
   const [currentProvider, setCurrentProvider] = useState("");
-  const [spotifyToken, setSpotifyToken] = useState(null);
-  const [spotifyTokenExpiresAt, setSpotifyTokenExpiresAt] = useState("");
-  const [spotifyAuthError, setSpotifyAuthError] = useState(null);
-  const [spotifyAuthLoading, setSpotifyAuthLoading] = useState(false);
   const [authError, setAuthError] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  const applySpotifyTokenInfo = useCallback((tokenInfo) => {
-    setSpotifyToken(tokenInfo?.accessToken || null);
-    setSpotifyTokenExpiresAt(tokenInfo?.expiresAt || "");
-    setSpotifyAuthError(tokenInfo?.error || null);
-  }, []);
 
   const applySession = useCallback(
     async (nextSession, { showLoading = false, isMounted = () => true } = {}) => {
@@ -140,20 +90,12 @@ export function AuthProvider({ children }) {
           resolveSessionUser(nextSession),
           resolveIdentities(nextSession),
         ]);
-        const spotifyTokenInfo = await resolveSpotifyTokenInfo(
-          nextSession,
-          resolvedIdentities,
-        ).catch((error) => {
-          console.warn("Failed to resolve Spotify token:", error?.message || error);
-          return { accessToken: "", expiresAt: "", error };
-        });
         if (!isMounted()) return;
 
         setSession(nextSession);
         setUser(resolvedUser);
         setIdentities(resolvedIdentities);
         setCurrentProvider(getSessionProvider(nextSession));
-        applySpotifyTokenInfo(spotifyTokenInfo);
         setAuthError(null);
       } catch (error) {
         if (!isMounted()) return;
@@ -162,7 +104,6 @@ export function AuthProvider({ children }) {
         setUser(nextSession?.user ?? null);
         setIdentities([]);
         setCurrentProvider(getSessionProvider(nextSession));
-        applySpotifyTokenInfo(null);
         setAuthError(error);
       } finally {
         if (isMounted()) {
@@ -170,25 +111,7 @@ export function AuthProvider({ children }) {
         }
       }
     },
-    [applySpotifyTokenInfo],
-  );
-
-  const refreshSpotifyToken = useCallback(
-    async ({ forceRefresh = false } = {}) => {
-      setSpotifyAuthLoading(true);
-      try {
-        const tokenInfo = await fetchSpotifyAccessToken({ forceRefresh });
-        applySpotifyTokenInfo(tokenInfo);
-        return tokenInfo?.accessToken || null;
-      } catch (error) {
-        console.warn("Failed to refresh Spotify token:", error?.message || error);
-        applySpotifyTokenInfo({ accessToken: "", expiresAt: "", error });
-        return null;
-      } finally {
-        setSpotifyAuthLoading(false);
-      }
-    },
-    [applySpotifyTokenInfo],
+    [],
   );
 
   const refreshAuthState = useCallback(async () => {
@@ -224,22 +147,6 @@ export function AuthProvider({ children }) {
     };
   }, [applySession]);
 
-  useEffect(() => {
-    if (!spotifyToken || !spotifyTokenExpiresAt) return undefined;
-
-    const expiresAtMs = new Date(spotifyTokenExpiresAt).getTime();
-    if (!Number.isFinite(expiresAtMs)) return undefined;
-
-    const refreshInMs = Math.max(30_000, expiresAtMs - Date.now() - 120_000);
-    const timer = window.setTimeout(() => {
-      void refreshSpotifyToken();
-    }, refreshInMs);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [refreshSpotifyToken, spotifyToken, spotifyTokenExpiresAt]);
-
   const linkedProviders = useMemo(
     () => providerSetFromIdentities(identities),
     [identities],
@@ -252,14 +159,9 @@ export function AuthProvider({ children }) {
       identities,
       linkedProviders,
       currentProvider,
-      spotifyToken,
-      spotifyTokenExpiresAt,
-      spotifyAuthError,
-      spotifyAuthLoading,
       loading,
       authError,
       refreshAuthState,
-      refreshSpotifyToken,
     }),
     [
       session,
@@ -267,14 +169,9 @@ export function AuthProvider({ children }) {
       identities,
       linkedProviders,
       currentProvider,
-      spotifyToken,
-      spotifyTokenExpiresAt,
-      spotifyAuthError,
-      spotifyAuthLoading,
       loading,
       authError,
       refreshAuthState,
-      refreshSpotifyToken,
     ],
   );
 

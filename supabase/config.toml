@@ -394,11 +394,11 @@ entrypoint = "./functions/spotify-search/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/spotify-search/*.html" ]
 
-[functions.spotify-token]
+[functions.resolve-track-preview]
 enabled = true
 verify_jwt = true
-import_map = "./functions/spotify-token/deno.json"
-entrypoint = "./functions/spotify-token/index.ts"
+import_map = "./functions/resolve-track-preview/deno.json"
+entrypoint = "./functions/resolve-track-preview/index.ts"
 
 [functions.create-post]
 enabled = true

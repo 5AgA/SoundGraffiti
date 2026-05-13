@@ -5,11 +5,11 @@ import TrackSearch from './TrackSearch';
 import AIRecommend from './AIRecommend';
 import { supabase } from '../supabaseClient';
 
-const spotifyIcon = '/spotify.svg';
+const musicIcon = '/spotify.svg';
 const mapIcon = '/map_pin.svg';
 const aiIcon = '/AI.svg';
 
-function UploadGraffiti({ onGoToHome }) {
+function UploadGraffiti() {
   const navigate = useNavigate();
   const [content, setContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -49,7 +49,7 @@ function UploadGraffiti({ onGoToHome }) {
     }
   }, []);
 
-  const handleSpotifyAdd = () => setActiveSheet('spotify');
+  const handleMusicSearch = () => setActiveSheet('music');
   const handleAIRecommend = () => setActiveSheet('ai');
   const handlePlaceSearchOpen = () => setActiveSheet('place');
   
@@ -93,7 +93,7 @@ function UploadGraffiti({ onGoToHome }) {
     if (dy > 0) setSheetTranslateY(dy); // 아래로만 드래그 허용
   };
 
-  const onPointerUp = (e) => {
+  const onPointerUp = () => {
     if (!isDragging) return;
     setIsDragging(false);
     if (sheetTranslateY > 150) { // 150px 이상 드래그하면 닫기
@@ -163,7 +163,7 @@ function UploadGraffiti({ onGoToHome }) {
       } else {
         alert(data.message || "해당 장소 반경 200m 이내에서만 작성할 수 있습니다.");
       }
-    } catch (err) {
+    } catch {
       alert("위치 검증에 실패했습니다.");
     } finally {
       setIsVerifyingLoc(false);
@@ -321,9 +321,9 @@ return (
           </div>
 
           <div className="upload-btn-group">
-            <button className="upload-dark-btn" onClick={handleSpotifyAdd} disabled={isLoading}>
-              <div className="btn-icon-circle"><img src={spotifyIcon} alt="Spotify" width="20" height="20" /></div>
-              <span>Spotify로 음악 추가</span>
+            <button className="upload-dark-btn" onClick={handleMusicSearch} disabled={isLoading}>
+              <div className="btn-icon-circle"><img src={musicIcon} alt="" width="20" height="20" /></div>
+              <span>음악 추가</span>
             </button>
             <button className="upload-dark-btn" onClick={handleAIRecommend} disabled={isLoading}>
               <div className="btn-icon-circle"><img src={aiIcon} alt="AI" width="20" height="20" /></div>
@@ -362,7 +362,7 @@ return (
           </div>
           
           <div className="sheet-content-area">
-            {activeSheet === 'spotify' && <TrackSearch onSelect={handleTrackSelect} />}
+            {activeSheet === 'music' && <TrackSearch onSelect={handleTrackSelect} />}
             {activeSheet === 'ai' && <AIRecommend onSelect={handleTrackSelect} />}
             
             {/* 바텀 시트 내부의 장소 검색 UI */}

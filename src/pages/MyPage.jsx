@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import BottomNav from "../components/BottomNav";
 import { getPostsByUserId, deletePost } from "../api/posts";
-import { deleteStoredSpotifyTokens } from "../api/spotifyAuth";
 import { getUserById, getUserPostCount } from "../api/users";
 import { resolvedProfileImageUrl } from "../utils/profileImage";
 import { supabase } from "../supabaseClient";
@@ -12,12 +11,10 @@ import {
   PROVIDER_INFO,
   authOptionsForProvider,
   clearPendingIdentityLink,
-  clearPendingOAuth,
   getProviderIcon,
   identityEmail,
   providerLabel,
   rememberPendingIdentityLink,
-  rememberPendingOAuth,
 } from "../utils/authProviders";
 import {
   clearMyPageSessionCache,
@@ -157,10 +154,9 @@ function PinIcon() {
   );
 }
 
-function providerStatusText({ linked, current, provider, spotifyToken }) {
+function providerStatusText({ linked, current }) {
   if (current) return "현재 접속";
   if (!linked) return "미연결";
-  if (provider === "spotify" && !spotifyToken) return "재인증 필요";
   return "연결됨";
 }
 
@@ -170,7 +166,6 @@ export default function MyPage() {
     identities,
     linkedProviders,
     currentProvider,
-    spotifyToken,
     refreshAuthState,
   } = useAuth();
   const pageUserId = user?.appUserId ?? user?.id ?? null;
@@ -370,25 +365,6 @@ export default function MyPage() {
     }
   };
 
-  const reauthSpotify = async () => {
-    if (accountBusy) return;
-    setAccountBusy("spotify");
-    setAccountError("");
-    setAccountMessage("");
-    rememberPendingOAuth("spotify", "/mypage");
-
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "spotify",
-      options: authOptionsForProvider("spotify"),
-    });
-
-    if (error) {
-      clearPendingOAuth();
-      setAccountBusy("");
-      setAccountError(error.message || "Spotify 재인증을 시작하지 못했습니다.");
-    }
-  };
-
   const unlinkProvider = async (provider, identity) => {
     if (accountBusy || !identity) return;
     const ok = window.confirm(`${providerLabel(provider)} 연결을 해제할까요?`);
@@ -405,11 +381,6 @@ export default function MyPage() {
           error.message || `${providerLabel(provider)} 연결을 해제하지 못했습니다.`,
         );
         return;
-      }
-      if (provider === "spotify") {
-        await deleteStoredSpotifyTokens().catch((error) => {
-          console.warn("Failed to delete stored Spotify token:", error);
-        });
       }
       await refreshAuthState();
       setAccountMessage(`${providerLabel(provider)} 연결을 해제했습니다.`);
@@ -618,8 +589,6 @@ export default function MyPage() {
                   const statusText = providerStatusText({
                     linked: row.linked,
                     current: row.current,
-                    provider: row.provider,
-                    spotifyToken,
                   });
                   const canUnlink =
                     row.linked && !row.current && linkedProviderCount > 1;
@@ -643,12 +612,6 @@ export default function MyPage() {
                               row.current
                                 ? " mypage-account__status--current"
                                 : ""
-                            }${
-                              row.provider === "spotify" &&
-                              row.linked &&
-                              !spotifyToken
-                                ? " mypage-account__status--warning"
-                                : ""
                             }`}
                           >
                             {statusText}
@@ -667,17 +630,6 @@ export default function MyPage() {
                               disabled={Boolean(accountBusy)}
                             >
                               {busy ? "연결 중..." : "연결"}
-                            </button>
-                          ) : null}
-                          {row.provider === "spotify" &&
-                          row.linked &&
-                          !spotifyToken ? (
-                            <button
-                              type="button"
-                              onClick={() => void reauthSpotify()}
-                              disabled={Boolean(accountBusy)}
-                            >
-                              {busy ? "인증 중..." : "재인증"}
                             </button>
                           ) : null}
                           {canUnlink ? (
