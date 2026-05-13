@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import { flushSync } from "react-dom/client";
 import { resolveTrackPreview } from "../api/trackPreview";
 
 function getTrackFromPost(post) {
@@ -82,20 +89,35 @@ export function useTrackPreviewAudio(activePost, options = {}) {
       setPlaybackActivated(true);
     };
 
-    window.addEventListener("pointerdown", activatePlayback);
-    window.addEventListener("keydown", activatePlayback);
-    window.addEventListener("touchstart", activatePlayback, { passive: true });
+    window.addEventListener("pointerdown", activatePlayback, true);
+    window.addEventListener("keydown", activatePlayback, true);
+    window.addEventListener("touchstart", activatePlayback, {
+      capture: true,
+      passive: true,
+    });
 
     return () => {
-      window.removeEventListener("pointerdown", activatePlayback);
-      window.removeEventListener("keydown", activatePlayback);
-      window.removeEventListener("touchstart", activatePlayback);
+      window.removeEventListener("pointerdown", activatePlayback, true);
+      window.removeEventListener("keydown", activatePlayback, true);
+      window.removeEventListener("touchstart", activatePlayback, {
+        capture: true,
+        passive: true,
+      });
     };
   }, [playbackActivated]);
 
   const togglePreviewPlayback = useCallback(() => {
+    if (previewUnavailable) return;
+
+    if (!audioRef.current) {
+      flushSync(() => {
+        setPlaybackActivated(true);
+      });
+    }
+
     const a = audioRef.current;
-    if (!a || previewUnavailable) return;
+    if (!a) return;
+
     if (a.paused) {
       void a.play().catch(() => {});
     } else {
@@ -103,7 +125,7 @@ export function useTrackPreviewAudio(activePost, options = {}) {
     }
   }, [previewUnavailable]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
 
