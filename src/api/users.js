@@ -53,6 +53,73 @@ export async function getUserPostCount(userId) {
   return typeof count === "number" ? count : 0;
 }
 
+const PROFILE_IMAGE_BUCKET = "post-media";
+
+/** @param {string} ext */
+function normalizeImageExt(ext, mime) {
+  const e = (ext || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const allowed = new Set(["jpg", "jpeg", "png", "gif", "webp"]);
+  if (allowed.has(e)) return e === "jpeg" ? "jpg" : e;
+  if (mime === "image/png") return "png";
+  if (mime === "image/gif") return "gif";
+  if (mime === "image/webp") return "webp";
+  if (mime === "image/jpeg" || mime === "image/jpg") return "jpg";
+  return "jpg";
+}
+
+/**
+ * 프로필 사진을 Storage에 올리고 공개 URL을 반환합니다 (`post-media/avatars/{userId}/…`).
+ * @param {number} userId `Users.user_id`
+ * @param {File} file
+ * @returns {Promise<{ ok: true; publicUrl: string } | { ok: false; error: string }>}
+ */
+export async function uploadUserProfileImage(userId, file) {
+  const id = Number(userId);
+  if (!Number.isFinite(id)) {
+    return { ok: false, error: "사용자 정보가 올바르지 않아요." };
+  }
+  if (!(file instanceof File) || file.size < 1) {
+    return { ok: false, error: "이미지 파일을 선택해 주세요." };
+  }
+  if (!file.type.startsWith("image/")) {
+    return { ok: false, error: "이미지 파일만 업로드할 수 있어요." };
+  }
+  const maxBytes = 5 * 1024 * 1024;
+  if (file.size > maxBytes) {
+    return { ok: false, error: "5MB 이하 이미지를 선택해 주세요." };
+  }
+
+  const rawExt = file.name.includes(".") ? file.name.split(".").pop() || "" : "";
+  const ext = normalizeImageExt(rawExt, file.type);
+  const path = `avatars/${id}/${Date.now()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(PROFILE_IMAGE_BUCKET)
+    .upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: file.type || `image/${ext}`,
+    });
+
+  if (uploadError) {
+    console.error("uploadUserProfileImage:", uploadError);
+    return {
+      ok: false,
+      error: uploadError.message ?? "이미지를 업로드하지 못했어요.",
+    };
+  }
+
+  const { data } = supabase.storage
+    .from(PROFILE_IMAGE_BUCKET)
+    .getPublicUrl(path);
+
+  const publicUrl = data?.publicUrl;
+  if (typeof publicUrl !== "string" || !publicUrl.trim()) {
+    return { ok: false, error: "업로드 URL을 만들지 못했어요." };
+  }
+  return { ok: true, publicUrl: publicUrl.trim() };
+}
+
 /**
  * @param {number} userId `Users.user_id`
  * @param {{ user_name?: string; user_profile_url?: string | null }} patch

@@ -1,6 +1,7 @@
 /* 레이아웃·헤더·뒤로가기는 `CreatePost.css`의 `.upload-wrap` … `.upload-close-btn`과 동일 */
 
 .profile-edit-card {
+  position: relative;
   padding: 16px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.82);
@@ -11,8 +12,98 @@
   margin-bottom: 14px;
 }
 
-.profile-edit-field:last-of-type {
-  margin-bottom: 0;
+.profile-edit-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.profile-edit-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.profile-edit-avatar-preview-btn {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  line-height: 0;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 0 0 1px rgba(50, 54, 70, 0.12);
+}
+
+.profile-edit-avatar-preview-btn:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.profile-edit-avatar-preview-btn:not(:disabled):active {
+  opacity: 0.92;
+}
+
+.profile-edit-avatar-preview-btn:focus-visible {
+  outline: 2px solid #0075ff;
+  outline-offset: 3px;
+}
+
+.profile-edit-avatar-preview {
+  display: block;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #e8ecf2;
+}
+
+.profile-edit-avatar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-edit-avatar-btn {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid rgba(50, 54, 70, 0.18);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: #323646;
+  cursor: pointer;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.profile-edit-avatar-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.profile-edit-avatar-btn--ghost {
+  background: transparent;
+  color: rgba(50, 54, 70, 0.75);
+}
+
+.profile-edit-avatar-btn:focus-visible {
+  outline: 2px solid #0075ff;
+  outline-offset: 2px;
 }
 
 .profile-edit-label {
@@ -45,12 +136,12 @@
 }
 
 .profile-edit-hint {
-  margin: 6px 0 0;
+  margin: 14px 0 0;
   font-family: var(--sans);
   font-size: 12px;
   font-weight: 500;
   color: rgba(32, 35, 50, 0.45);
-  line-height: 1.35;
+  line-height: 1.45;
 }
 
 .profile-edit-error {
@@ -96,6 +187,123 @@
 }
 
 .profile-edit-save:focus-visible {
+  outline: 2px solid #0075ff;
+  outline-offset: 2px;
+}
+
+/* —— 프로필 사진 크롭 모달 —— */
+.profile-crop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+  background: rgba(15, 18, 28, 0.52);
+  backdrop-filter: blur(5px);
+}
+
+.profile-crop-dialog {
+  width: 100%;
+  max-width: 400px;
+  max-height: min(92vh, 640px);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 16px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 14px 48px rgba(0, 0, 0, 0.2);
+  box-sizing: border-box;
+}
+
+.profile-crop-title {
+  margin: 0 0 6px;
+  font-family: var(--sans);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: #1a1d26;
+}
+
+.profile-crop-hint {
+  margin: 0 0 12px;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: rgba(32, 35, 50, 0.52);
+}
+
+.profile-crop-stage {
+  position: relative;
+  width: 100%;
+  height: min(72vw, 300px);
+  max-height: 46vh;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0f1118;
+}
+
+.profile-crop-zoom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.profile-crop-zoom-label {
+  flex-shrink: 0;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(32, 35, 50, 0.65);
+}
+
+.profile-crop-zoom input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  accent-color: #323646;
+}
+
+.profile-crop-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.profile-crop-btn {
+  flex: 1;
+  margin: 0;
+  padding: 11px 12px;
+  border-radius: 11px;
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.profile-crop-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.profile-crop-btn--ghost {
+  border: 1px solid rgba(50, 54, 70, 0.2);
+  background: rgba(255, 255, 255, 0.9);
+  color: rgba(50, 54, 70, 0.85);
+}
+
+.profile-crop-btn--primary {
+  border: none;
+  background: #323646;
+  color: #fff;
+}
+
+.profile-crop-btn:focus-visible {
   outline: 2px solid #0075ff;
   outline-offset: 2px;
 }
