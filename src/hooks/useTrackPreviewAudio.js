@@ -39,6 +39,8 @@ export function useTrackPreviewAudio(activePost, options = {}) {
   const audioRef = useRef(null);
   const requestRef = useRef(0);
   const previewCacheRef = useRef(new Map());
+  const activePostRef = useRef(activePost);
+  activePostRef.current = activePost;
   const [playbackActivated, setPlaybackActivated] = useState(false);
   const onUnavailableRef = useRef(options.onUnavailable);
   const [previewUnavailable, setPreviewUnavailable] = useState(false);
@@ -113,7 +115,7 @@ export function useTrackPreviewAudio(activePost, options = {}) {
       audioRef.current = null;
     }
 
-    const track = getTrackFromPost(activePost);
+    const track = getTrackFromPost(activePostRef.current);
     if (!track || !playbackActivated || document.hidden) return undefined;
 
     let cancelled = false;
@@ -232,7 +234,7 @@ export function useTrackPreviewAudio(activePost, options = {}) {
       }
       setIsPreviewPlaying(false);
     };
-  }, [activePost, playbackActivated]);
+  }, [activePostKey, playbackActivated]);
 
   useEffect(() => {
     return () => {
