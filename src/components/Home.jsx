@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   checkCommentAccess,
   createComment,
@@ -36,9 +43,7 @@ function commentsFromPost(post) {
   const raw = post?.Comments ?? post?.comments;
   if (raw == null) return [];
   const list = Array.isArray(raw) ? raw : [raw];
-  return list.filter(
-    (row) => row != null && row.comment_deleted == null,
-  );
+  return list.filter((row) => row != null && row.comment_deleted == null);
 }
 
 function commentUserFromRow(row) {
@@ -582,8 +587,8 @@ function Home({
     d.bestDy = 0;
     d.lastStretchDown = 0;
     d.expandDragStartHeight = sheetExpandedRef.current
-      ? commentSheetRef.current?.offsetHeight ??
-        getCommentSheetExpandedHeightPx()
+      ? (commentSheetRef.current?.offsetHeight ??
+        getCommentSheetExpandedHeightPx())
       : null;
     d.startTranslate = sheetTranslateYRef.current;
     d.lastOffset = sheetTranslateYRef.current;
@@ -609,8 +614,7 @@ function Home({
       }
       const stretchDown = dy;
       d.lastStretchDown = stretchDown;
-      const exp =
-        d.expandDragStartHeight ?? getCommentSheetExpandedHeightPx();
+      const exp = d.expandDragStartHeight ?? getCommentSheetExpandedHeightPx();
       const peek = getCommentSheetPeekHeightPx(commentSheetFromFlipView);
       const shrunk = Math.max(peek, Math.round(exp - stretchDown));
       const overflowDown = Math.max(0, stretchDown - (exp - peek));
@@ -669,10 +673,7 @@ function Home({
       const releaseStretch = Math.max(0, d.startY - minCy);
       const peek = getCommentSheetPeekHeightPx(commentSheetFromFlipView);
       const exp = getCommentSheetExpandedHeightPx();
-      const expandThresholdPx = Math.max(
-        56,
-        Math.round((exp - peek) * 0.22),
-      );
+      const expandThresholdPx = Math.max(56, Math.round((exp - peek) * 0.22));
 
       const sheetH = commentSheetRef.current?.offsetHeight ?? 320;
       const dismissPeek = Math.min(112, sheetH * 0.28);
@@ -700,8 +701,7 @@ function Home({
 
     /* 확장: 높이 줄였을 때도 peek/닫기 판정 · 많이 내려야 완전 닫힘 */
     const peek = getCommentSheetPeekHeightPx(commentSheetFromFlipView);
-    const exp =
-      d.expandDragStartHeight ?? getCommentSheetExpandedHeightPx();
+    const exp = d.expandDragStartHeight ?? getCommentSheetExpandedHeightPx();
     const draggedHeightSnap = sheetInteractiveHeightPx;
     const shrinkProgress =
       exp > peek && draggedHeightSnap != null
@@ -820,8 +820,7 @@ function Home({
 
   const handleCommentRowPointerEnd = (e) => {
     const lp = commentLongPressRef.current;
-    if (lp.pointerId == null || !String(lp.pointerId).startsWith("p:"))
-      return;
+    if (lp.pointerId == null || !String(lp.pointerId).startsWith("p:")) return;
     const pid = Number(String(lp.pointerId).slice(2));
     if (!Number.isFinite(pid) || pid !== e.pointerId) return;
     flushCommentLongPressTimer();
@@ -851,8 +850,7 @@ function Home({
 
   const handleCommentRowTouchEndOrCancel = (e) => {
     const lp = commentLongPressRef.current;
-    if (lp.pointerId == null || !String(lp.pointerId).startsWith("t:"))
-      return;
+    if (lp.pointerId == null || !String(lp.pointerId).startsWith("t:")) return;
     const tid = Number(String(lp.pointerId).slice(2));
     if (!Number.isFinite(tid)) return;
     const ended = Array.from(e.changedTouches).some(
@@ -905,16 +903,14 @@ function Home({
     if (!post?.post_id || commentAccessBusy) return;
 
     if (!feedFocused) {
-      feedScrollBeforeFocusRef.current =
-        feedScrollRef.current?.scrollTop ?? 0;
+      feedScrollBeforeFocusRef.current = feedScrollRef.current?.scrollTop ?? 0;
       setFeedFocused(true);
     }
     if (!cardFlipped) {
       setCardFlipped(true);
     }
 
-    const insecure =
-      typeof window !== "undefined" && !window.isSecureContext;
+    const insecure = typeof window !== "undefined" && !window.isSecureContext;
     const devCoords = getDevCommentCoordinates();
 
     const runCommentAccessCheck = async (lat, lng) => {
@@ -925,9 +921,7 @@ function Home({
 
         if (result?.invokeError) {
           closeCommentSheet();
-          alert(
-            "댓글을 조회할 수 없습니다. 네트워크 상태를 확인해 주세요.",
-          );
+          alert("댓글을 조회할 수 없습니다. 네트워크 상태를 확인해 주세요.");
           return;
         }
 
@@ -984,10 +978,7 @@ function Home({
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        await runCommentAccessCheck(
-          pos.coords.latitude,
-          pos.coords.longitude,
-        );
+        await runCommentAccessCheck(pos.coords.latitude, pos.coords.longitude);
       },
       (geoErr) => {
         setCommentAccessBusy(false);
@@ -1001,13 +992,9 @@ function Home({
               "• Safari(iOS): 설정 → Safari → 위치 서비스에서 Safari 웹사이트 허용",
           );
         } else if (code === 2 || code === 3) {
-          alert(
-            "위치를 확인할 수 없어 댓글을 조회할 수 없습니다.",
-          );
+          alert("위치를 확인할 수 없어 댓글을 조회할 수 없습니다.");
         } else {
-          alert(
-            "위치를 확인할 수 없어 댓글을 조회할 수 없습니다.",
-          );
+          alert("위치를 확인할 수 없어 댓글을 조회할 수 없습니다.");
         }
       },
       {
@@ -1057,9 +1044,7 @@ function Home({
         const displayName =
           user?.user_metadata?.user_name ||
           user?.user_metadata?.full_name ||
-          (typeof user?.email === "string"
-            ? user.email.split("@")[0]
-            : null) ||
+          (typeof user?.email === "string" ? user.email.split("@")[0] : null) ||
           "나";
         setPendingSheetComments((prev) => [
           ...prev,
@@ -1091,7 +1076,7 @@ function Home({
     }
   }, [activeIndex, list.length]);
 
-  const blurPost = !isLoading ? list[activeIndex] ?? null : null;
+  const blurPost = !isLoading ? (list[activeIndex] ?? null) : null;
   const blurTrack = trackFromPost(blurPost);
   const blurBackground =
     typeof blurTrack?.album_image_url === "string"
@@ -1121,10 +1106,7 @@ function Home({
         let sum = 0;
         const pixels = data.length / 4;
         for (let i = 0; i < data.length; i += 4) {
-          sum +=
-            0.2126 * data[i] +
-            0.7152 * data[i + 1] +
-            0.0722 * data[i + 2];
+          sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
         }
         const avg = sum / pixels / 255;
         if (!cancelled) setTrackMetaOnLightBg(avg > 0.48);
@@ -1141,7 +1123,7 @@ function Home({
     };
   }, [feedFocused, blurBackground]);
 
-  const activePost = !isLoading ? list[activeIndex] ?? null : null;
+  const activePost = !isLoading ? (list[activeIndex] ?? null) : null;
 
   const showPlaybackUnavailable = useCallback(({ track, reason }) => {
     const previewTitle =
@@ -1853,7 +1835,10 @@ function Home({
                         {isActive ? (
                           <>
                             <div className="home-card-top-shadow" aria-hidden />
-                            <div className="home-card-bottom-shadow" aria-hidden />
+                            <div
+                              className="home-card-bottom-shadow"
+                              aria-hidden
+                            />
                             <div className="home-user">
                               <img
                                 className="home-avatar"

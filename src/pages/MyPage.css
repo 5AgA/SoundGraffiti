@@ -498,9 +498,13 @@
   text-transform: uppercase;
 }
 
-.mypage-card__pin {
+.mypage-card__location-icon {
   flex-shrink: 0;
-  color: #fff;
+  width: 11px;
+  height: 13px;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
 }
 
 .mypage-card__time {
@@ -731,7 +735,9 @@
   cursor: pointer;
   border: none;
   -webkit-tap-highlight-color: transparent;
-  transition: opacity 0.15s ease, background 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
 }
 
 .mypage-delete-dialog__btn:disabled {
@@ -755,4 +761,66 @@
 
 .mypage-delete-dialog__btn--danger:not(:disabled):active {
   opacity: 0.92;
+}
+
+/* 그리드 카드 탭 → 홈 피드와 동일 3D 플립(뒷면: 첨부 사진 또는 앨범) */
+.mypage-flip-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) 20px
+    calc(100px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  background: rgba(15, 18, 28, 0.5);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mypage-flip-shell {
+  --home-feed-track-gap: 24px;
+  width: 100%;
+  max-width: 344px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  pointer-events: auto;
+}
+
+.mypage-flip-modal-card {
+  margin: 0 auto;
+  width: 100%;
+  max-width: 344px;
+  height: min(450px, calc(100dvh - 180px));
+  min-height: 280px;
+}
+
+.mypage-flip-shell:has(> .home-feed-item-track-slot) .mypage-flip-modal-card {
+  height: min(410px, calc(100dvh - 260px));
+  min-height: 240px;
+}
+
+.mypage-flip-comment-overlay {
+  z-index: 100;
+}
+
+.mypage-flip-playback-notice {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(108px + env(safe-area-inset-bottom, 0px));
+  z-index: 95;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(20, 24, 32, 0.88);
+  color: rgba(255, 255, 255, 0.92);
+  font-family: "Pretendard", system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  text-align: center;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }

@@ -3,7 +3,15 @@ import { useNavigate } from "react-router-dom";
 import BottomNav from "../components/BottomNav";
 import { getPostsByUserId, deletePost } from "../api/posts";
 import { getUserById, getUserPostCount } from "../api/users";
-import { resolvedProfileImageUrl } from "../utils/profileImage";
+import { checkCommentAccess } from "../api/comments";
+import { toggleLike } from "../api/likes";
+import {
+  resolvedProfileImageUrl,
+  DEFAULT_PROFILE_IMAGE,
+} from "../utils/profileImage";
+import { useTrackPreviewAudio } from "../hooks/useTrackPreviewAudio";
+import { getDevGeoCoordinates } from "../utils/devGeoCoords";
+import MyPageFlipCommentSheet from "../components/MyPageFlipCommentSheet";
 import { supabase } from "../supabaseClient";
 import { useAuth } from "../contexts/AuthContextCore";
 import {
@@ -21,6 +29,7 @@ import {
   readMyPageSessionCache,
   writeMyPageSessionCache,
 } from "../utils/myPageSessionCache";
+import "../components/Home.css";
 import "./MyPage.css";
 
 /** public/MY graffiti.svg와 동일 path — 인라인 SVG(img 미사용) */
@@ -45,9 +54,15 @@ function formatRelativeKo(iso) {
 }
 
 /** @param {Record<string, unknown>} post */
+function trackFromPost(post) {
+  const raw = post?.Tracks ?? post?.tracks;
+  if (raw == null) return null;
+  return Array.isArray(raw) ? raw[0] : raw;
+}
+
+/** @param {Record<string, unknown>} post */
 function resolveAlbumCover(post) {
-  const t = post?.Tracks;
-  const track = Array.isArray(t) ? t[0] : t;
+  const track = trackFromPost(post);
   const album = track?.album_image_url?.trim?.();
   if (album) return album;
 
@@ -57,6 +72,106 @@ function resolveAlbumCover(post) {
   return first?.media_url?.trim?.() ?? "";
 }
 
+/** PostMedia 행 → URL 목록 (홈과 동일 규칙) */
+function postMediaUrlsFromPost(post) {
+  const raw = post?.PostMedia ?? post?.post_media;
+  const rows = Array.isArray(raw)
+    ? raw
+    : raw != null && typeof raw === "object"
+      ? [raw]
+      : [];
+  const sorted = [...rows].sort((a, b) => {
+    const oa = Number(a?.display_order);
+    const ob = Number(b?.display_order);
+    if (Number.isFinite(oa) && Number.isFinite(ob) && oa !== ob) {
+      return oa - ob;
+    }
+    return 0;
+  });
+  const seen = new Set();
+  const out = [];
+  for (const row of sorted) {
+    const u = typeof row?.media_url === "string" ? row.media_url.trim() : "";
+    if (u && !seen.has(u)) {
+      seen.add(u);
+      out.push(u);
+    }
+  }
+  return out;
+}
+
+/** 홈 피드 앞면과 동일: 트랙 앨범 이미지 URL만 */
+function trackAlbumArtFromPost(post) {
+  const track = trackFromPost(post);
+  return typeof track?.album_image_url === "string"
+    ? track.album_image_url.trim()
+    : "";
+}
+
+/** @param {{ urls: string[]; imageAlt: string }} props */
+function MyPageFlipMediaStrip({ urls, imageAlt }) {
+  const scrollRef = useRef(null);
+  const [activeDot, setActiveDot] = useState(0);
+
+  const syncDot = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el || urls.length < 2) return;
+    const w = el.clientWidth;
+    if (!(w > 0)) return;
+    const i = Math.min(
+      urls.length - 1,
+      Math.max(0, Math.round(el.scrollLeft / w)),
+    );
+    setActiveDot(i);
+  }, [urls.length]);
+
+  const onScroll = useCallback(() => {
+    syncDot();
+  }, [syncDot]);
+
+  useEffect(() => {
+    syncDot();
+  }, [urls, syncDot]);
+
+  if (!urls.length) return null;
+
+  return (
+    <div className="home-card-media-wrap">
+      <div
+        className="home-card-media-strip"
+        ref={scrollRef}
+        onScroll={onScroll}
+        role="list"
+        aria-label="포스트에 첨부된 이미지"
+      >
+        {urls.map((url, i) => (
+          <div
+            className="home-card-media-slide"
+            key={`${url}-${i}`}
+            role="listitem"
+          >
+            <img
+              className="home-card-image"
+              src={url}
+              alt={i === 0 ? imageAlt || "포스트 사진" : ""}
+            />
+          </div>
+        ))}
+      </div>
+      {urls.length > 1 ? (
+        <div className="home-card-media-dots" aria-hidden>
+          {urls.map((_, i) => (
+            <span
+              key={i}
+              className={`home-card-media-dot${i === activeDot ? " home-card-media-dot--active" : ""}`}
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /** @param {Record<string, unknown>} post */
 function resolvePlaceName(post) {
   const p = post?.Places;
@@ -64,10 +179,18 @@ function resolvePlaceName(post) {
   return row?.place_name?.trim?.() || "장소 미설정";
 }
 
-/** @param {unknown} post */
-function postBody(post) {
-  const c = post?.content;
-  return typeof c === "string" ? c.trim() : "";
+/** @param {Record<string, unknown>} post */
+function resolveTrackLine(post) {
+  const raw = post?.Tracks ?? post?.tracks;
+  const track = Array.isArray(raw) ? raw[0] : raw;
+  const title =
+    typeof track?.track_title === "string" ? track.track_title.trim() : "";
+  const artist =
+    typeof track?.artist_name === "string" ? track.artist_name.trim() : "";
+  if (title && artist) return `${title} - ${artist}`;
+  if (title) return title;
+  if (artist) return artist;
+  return "노래 정보 없음";
 }
 
 /** @param {Record<string, unknown>} post */
@@ -81,9 +204,185 @@ function activeCommentCount(post) {
   const raw = post?.Comments ?? post?.comments;
   if (raw == null) return 0;
   const list = Array.isArray(raw) ? raw : [raw];
-  return list.filter(
-    (row) => row != null && row.comment_deleted == null,
-  ).length;
+  return list.filter((row) => row != null && row.comment_deleted == null)
+    .length;
+}
+
+function likesFromPost(post) {
+  const raw = post?.Likes ?? post?.likes;
+  if (raw == null) return [];
+  return Array.isArray(raw) ? raw : [raw];
+}
+
+function userMatchesLike(like, userId) {
+  if (userId == null || like?.user_id == null) return false;
+  return String(like.user_id) === String(userId);
+}
+
+function postAuthorUserFromPost(post) {
+  const raw = post?.Users ?? post?.users;
+  const u = Array.isArray(raw) ? raw[0] : raw;
+  return u != null && typeof u === "object" ? u : {};
+}
+
+function profileRawFromUserAndRow(u, row) {
+  const candidates = [
+    u?.user_profile_url,
+    u?.profile_image_url,
+    row?.user_profile_url,
+    row?.profile_image_url,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string" && c.trim() !== "") return c.trim();
+  }
+  return "";
+}
+
+function postAuthorProfileRawFromPost(post) {
+  return profileRawFromUserAndRow(postAuthorUserFromPost(post), post);
+}
+
+function postBodyText(post) {
+  const c = post?.content;
+  return typeof c === "string" ? c.trim() : "";
+}
+
+function spotifyTrackUrl(track) {
+  const id = typeof track?.track_id === "string" ? track.track_id.trim() : "";
+  return id ? `https://open.spotify.com/track/${encodeURIComponent(id)}` : "";
+}
+
+function getFlipCommentDevCoords() {
+  const g = getDevGeoCoordinates();
+  if (g) return g;
+  if (!import.meta.env.DEV) return null;
+  const combined = import.meta.env.VITE_DEV_COMMENT_COORDS;
+  if (typeof combined === "string" && combined.trim()) {
+    const parts = combined.split(",").map((s) => Number(s.trim()));
+    if (
+      parts.length >= 2 &&
+      Number.isFinite(parts[0]) &&
+      Number.isFinite(parts[1])
+    ) {
+      return { lat: parts[0], lng: parts[1] };
+    }
+  }
+  const lat = Number(import.meta.env.VITE_DEV_COMMENT_LAT);
+  const lng = Number(import.meta.env.VITE_DEV_COMMENT_LNG);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    return { lat, lng };
+  }
+  return null;
+}
+
+function MyPageFlipCardChrome({
+  fp,
+  displayName,
+  viewerProfileRaw,
+  likeUserId,
+  likeStateByPostId,
+  onLike,
+  onComment,
+  onSpotify,
+  overlayShading = false,
+}) {
+  if (!fp) return null;
+  const track = trackFromPost(fp);
+  const author = postAuthorUserFromPost(fp);
+  const userName = author?.user_name || displayName || "anonymous";
+  const placeName = resolvePlaceName(fp);
+  const body = postBodyText(fp);
+  const meRaw =
+    typeof viewerProfileRaw === "string" && viewerProfileRaw.trim() !== ""
+      ? viewerProfileRaw.trim()
+      : "";
+  /** 마이페이지 그리드는 본인 글만 — 아바타는 항상 로그인 사용자(세션) 프로필 */
+  const avatarRaw = meRaw || postAuthorProfileRawFromPost(fp);
+  const avatarSrcFlip = resolvedProfileImageUrl(avatarRaw);
+  const pid = fp?.post_id;
+  const likes = likesFromPost(fp);
+  const serverLiked = likes.some((like) => userMatchesLike(like, likeUserId));
+  const serverLikeCount = likes.length;
+  const localLike = pid != null ? likeStateByPostId[pid] : null;
+  const isLiked = localLike?.liked ?? serverLiked;
+  const likeCountDisplay = localLike?.count ?? serverLikeCount;
+  const isLikePending = localLike?.pending ?? false;
+  const commentCount = activeCommentCount(fp);
+  const trackTitle =
+    typeof track?.track_title === "string" ? track.track_title.trim() : "";
+
+  return (
+    <>
+      {overlayShading ? (
+        <>
+          <div className="home-card-top-shadow" aria-hidden />
+          <div className="home-card-bottom-shadow" aria-hidden />
+        </>
+      ) : null}
+      <div className="home-user">
+        <img
+          className="home-avatar"
+          src={avatarSrcFlip}
+          alt={userName}
+          onError={(e) => {
+            e.currentTarget.src = DEFAULT_PROFILE_IMAGE;
+          }}
+        />
+        <div>
+          <p className="home-name">{userName}</p>
+          <p className="home-place">{placeName}</p>
+        </div>
+      </div>
+      <p className="home-content">
+        {body || "이 공간에 남긴 이야기가 여기에 표시돼요."}
+      </p>
+      <div className="home-actions">
+        <button
+          type="button"
+          className="home-action-btn"
+          onClick={() => onLike(fp)}
+          disabled={isLikePending}
+        >
+          <img
+            className="home-action-icon"
+            src={isLiked ? "/heart.fill.svg" : "/heart.empty.svg"}
+            alt=""
+            aria-hidden
+          />
+          <span>{likeCountDisplay}</span>
+        </button>
+        <button
+          type="button"
+          className="home-action-btn"
+          onClick={() => onComment(fp)}
+          aria-label="댓글 작성"
+        >
+          <img
+            className="home-action-icon"
+            src="/bubble.fill.svg"
+            alt=""
+            aria-hidden
+          />
+          <span>{commentCount}</span>
+        </button>
+        <button
+          type="button"
+          className="home-action-btn home-action-btn--spotify"
+          onClick={() => track && onSpotify(track)}
+          aria-label={
+            trackTitle ? `${trackTitle} Spotify에서 열기` : "Spotify에서 열기"
+          }
+        >
+          <img
+            className="home-action-icon home-action-icon--spotify"
+            src="/spotify.btn.svg"
+            alt=""
+            aria-hidden
+          />
+        </button>
+      </div>
+    </>
+  );
 }
 
 /** @param {Record<string, unknown>[]} list @param {'latest'|'popular'} order */
@@ -137,23 +436,6 @@ function MyPageGridSkeleton() {
   ));
 }
 
-function PinIcon() {
-  return (
-    <svg
-      className="mypage-card__pin"
-      width={11}
-      height={13}
-      viewBox="0 0 11 13"
-      aria-hidden
-    >
-      <path
-        fill="currentColor"
-        d="M5.5 0C3.02 0 1 2.02 1 4.6c0 3.21 4.5 7.95 4.7 8.15a.45.45 0 0 0 .6 0C6.5 12.55 11 7.81 11 4.6 11 2.02 8.98 0 5.5 0Zm0 6.25a1.65 1.65 0 1 1 0-3.3 1.65 1.65 0 0 1 0 3.3Z"
-      />
-    </svg>
-  );
-}
-
 function providerStatusText({ linked, current }) {
   if (current) return "현재 접속";
   if (!linked) return "미연결";
@@ -187,6 +469,25 @@ export default function MyPage() {
     /** @type {number | null} */ (null),
   );
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [flipPost, setFlipPost] = useState(
+    /** @type {Record<string, unknown> | null} */ (null),
+  );
+  const [flipEntered, setFlipEntered] = useState(false);
+  const [likeStateByPostId, setLikeStateByPostId] = useState(
+    /** @type {Record<string, { liked: boolean; count: number; pending: boolean }>} */ ({}),
+  );
+  const [commentSheetPost, setCommentSheetPost] = useState(
+    /** @type {Record<string, unknown> | null} */ (null),
+  );
+  const [commentAccessPending, setCommentAccessPending] = useState(false);
+  const [commentAccessReady, setCommentAccessReady] = useState(false);
+  const [playbackNotice, setPlaybackNotice] = useState("");
+  const [flipTrackMetaOnLightBg, setFlipTrackMetaOnLightBg] = useState(false);
+  const commentSheetPostRef = useRef(
+    /** @type {Record<string, unknown> | null} */ (null),
+  );
+
+  const longPressDidOpenDeleteRef = useRef(false);
 
   const longPressRef = useRef({
     /** @type {ReturnType<typeof setTimeout> | null} */
@@ -226,6 +527,341 @@ export default function MyPage() {
     () => sortMyPosts(posts, sortOrder),
     [posts, sortOrder],
   );
+
+  const flipDisplayPost = useMemo(() => {
+    if (!flipPost) return null;
+    if (flipPost.post_id == null || flipPost.post_id === "") return flipPost;
+    return (
+      posts.find((p) => String(p.post_id) === String(flipPost.post_id)) ??
+      flipPost
+    );
+  }, [flipPost, posts]);
+
+  const closeFlipModal = useCallback(() => {
+    setCommentSheetPost(null);
+    setCommentAccessPending(false);
+    setCommentAccessReady(false);
+    setFlipPost(null);
+    setFlipEntered(false);
+  }, []);
+
+  useEffect(() => {
+    commentSheetPostRef.current = commentSheetPost;
+  }, [commentSheetPost]);
+
+  const flipBlurBackground = useMemo(() => {
+    const p = flipDisplayPost ?? flipPost;
+    if (!p) return "";
+    const track = trackFromPost(p);
+    const u = track?.album_image_url;
+    return typeof u === "string" ? u.trim() : "";
+  }, [flipDisplayPost, flipPost]);
+
+  useEffect(() => {
+    if (!flipPost || !flipBlurBackground) {
+      setFlipTrackMetaOnLightBg(false);
+      return;
+    }
+    let cancelled = false;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      if (cancelled) return;
+      try {
+        const w = 28;
+        const h = 28;
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0, w, h);
+        const { data } = ctx.getImageData(0, 0, w, h);
+        let sum = 0;
+        const pixels = data.length / 4;
+        for (let i = 0; i < data.length; i += 4) {
+          sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+        }
+        const avg = sum / pixels / 255;
+        if (!cancelled) setFlipTrackMetaOnLightBg(avg > 0.48);
+      } catch {
+        if (!cancelled) setFlipTrackMetaOnLightBg(false);
+      }
+    };
+    img.onerror = () => {
+      if (!cancelled) setFlipTrackMetaOnLightBg(false);
+    };
+    img.src = flipBlurBackground;
+    return () => {
+      cancelled = true;
+    };
+  }, [flipPost, flipBlurBackground]);
+
+  const flipModalTrack = useMemo(() => {
+    const p = flipDisplayPost ?? flipPost;
+    if (!p) return null;
+    return trackFromPost(p);
+  }, [flipDisplayPost, flipPost]);
+
+  const flipTrackTitle =
+    typeof flipModalTrack?.track_title === "string"
+      ? flipModalTrack.track_title.trim()
+      : "";
+  const flipArtistName =
+    typeof flipModalTrack?.artist_name === "string"
+      ? flipModalTrack.artist_name.trim()
+      : "";
+  const showFlipTrackAbove =
+    flipPost != null && (Boolean(flipTrackTitle) || Boolean(flipArtistName));
+
+  const showPlaybackUnavailable = useCallback(({ track, reason }) => {
+    const previewTitle =
+      typeof track?.track_title === "string" && track.track_title.trim()
+        ? track.track_title.trim()
+        : "이 트랙";
+
+    if (reason === "interaction_required") {
+      setPlaybackNotice("화면을 한 번 터치하면 미리듣기가 재생돼요.");
+      return;
+    }
+    if (reason === "no_preview") {
+      setPlaybackNotice(`${previewTitle}은(는) 미리듣기를 제공하지 않아요.`);
+      return;
+    }
+    if (reason === "preview_failed") {
+      setPlaybackNotice(`${previewTitle} 미리듣기를 재생하지 못했어요.`);
+      return;
+    }
+    const title =
+      typeof track?.track_title === "string" && track.track_title.trim()
+        ? track.track_title.trim()
+        : "이 트랙";
+    setPlaybackNotice(`${title} 미리듣기를 준비하지 못했어요.`);
+  }, []);
+
+  const previewAnchorPost =
+    commentSheetPost ?? (flipPost ? (flipDisplayPost ?? flipPost) : null);
+  useTrackPreviewAudio(previewAnchorPost, {
+    onUnavailable: showPlaybackUnavailable,
+  });
+
+  useEffect(() => {
+    if (!playbackNotice) return undefined;
+    const t = window.setTimeout(() => setPlaybackNotice(""), 2800);
+    return () => clearTimeout(t);
+  }, [playbackNotice]);
+
+  const handleFlipLikeToggle = useCallback(
+    async (post) => {
+      const postId = post?.post_id;
+      const userId = user?.id;
+      if (!postId || !userId) return;
+
+      const likes = likesFromPost(post);
+      const serverLiked = likes.some((like) => userMatchesLike(like, userId));
+      const serverCount = likes.length;
+      const currentState = likeStateByPostId[postId];
+      const isLiked = currentState?.liked ?? serverLiked;
+      const likeCount = currentState?.count ?? serverCount;
+      const nextLiked = !isLiked;
+      const nextCount = Math.max(0, likeCount + (nextLiked ? 1 : -1));
+
+      setLikeStateByPostId((prev) => ({
+        ...prev,
+        [postId]: { liked: nextLiked, count: nextCount, pending: true },
+      }));
+
+      const result = await toggleLike(postId, userId);
+      if (result?.error) {
+        setLikeStateByPostId((prev) => ({
+          ...prev,
+          [postId]: { liked: isLiked, count: likeCount, pending: false },
+        }));
+        return;
+      }
+
+      setLikeStateByPostId((prev) => ({
+        ...prev,
+        [postId]: { liked: nextLiked, count: nextCount, pending: false },
+      }));
+
+      setPosts((prevPosts) =>
+        prevPosts.map((p) => {
+          if (String(p?.post_id) !== String(postId)) return p;
+          const prevLikes = likesFromPost(p);
+          let nextLikes;
+          if (nextLiked) {
+            nextLikes = [
+              ...prevLikes,
+              { like_id: `local-${Date.now()}`, user_id: userId },
+            ];
+          } else {
+            nextLikes = prevLikes.filter((lk) => !userMatchesLike(lk, userId));
+          }
+          return { ...p, Likes: nextLikes };
+        }),
+      );
+    },
+    [user?.id, likeStateByPostId],
+  );
+
+  const openSpotifyTrack = useCallback((track) => {
+    const url = spotifyTrackUrl(track);
+    if (!url) {
+      setPlaybackNotice("Spotify에서 열 수 있는 트랙 정보가 없어요.");
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+  }, []);
+
+  const tryOpenFlipCommentSheet = useCallback((post) => {
+    if (!post?.post_id) return;
+
+    const insecure = typeof window !== "undefined" && !window.isSecureContext;
+    const devCoords = getFlipCommentDevCoords();
+
+    const runCommentAccessCheck = async (lat, lng) => {
+      const postId = post.post_id;
+      try {
+        const result = await checkCommentAccess(postId, lat, lng);
+        if (commentSheetPostRef.current?.post_id !== postId) return;
+
+        if (result?.invokeError) {
+          setCommentSheetPost(null);
+          setCommentAccessPending(false);
+          alert("댓글을 조회할 수 없습니다. 네트워크 상태를 확인해 주세요.");
+          return;
+        }
+
+        if (result?.is_accessible) {
+          setCommentAccessReady(true);
+        } else {
+          const detail =
+            typeof result?.message === "string" && result.message.trim()
+              ? `\n\n${result.message.trim()}`
+              : "";
+          setCommentSheetPost(null);
+          setCommentAccessPending(false);
+          alert(`조회할 수 없습니다.${detail}`);
+        }
+      } catch {
+        if (commentSheetPostRef.current?.post_id !== postId) return;
+        setCommentSheetPost(null);
+        setCommentAccessPending(false);
+        alert("댓글을 조회할 수 없습니다. 잠시 후 다시 시도해 주세요.");
+      } finally {
+        setCommentAccessPending(false);
+      }
+    };
+
+    setCommentAccessReady(false);
+    setCommentAccessPending(true);
+    setCommentSheetPost(post);
+    commentSheetPostRef.current = post;
+
+    if (insecure && devCoords) {
+      void runCommentAccessCheck(devCoords.lat, devCoords.lng);
+      return;
+    }
+
+    if (insecure && !devCoords) {
+      setCommentSheetPost(null);
+      setCommentAccessPending(false);
+      alert(
+        "지금 주소가 HTTP(비보안)라서 브라우저가 위치 API를 사용하지 못합니다.\n\n" +
+          "[개발] .env.local 에 VITE_DEV_GEO_COORDS=위도,경도 또는 VITE_DEV_COMMENT_COORDS 를 넣고 npm run dev 를 다시 실행해 주세요.\n\n" +
+          "[배포] HTTPS 로 접속하면 실제 GPS를 씁니다.",
+      );
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      setCommentSheetPost(null);
+      setCommentAccessPending(false);
+      alert(
+        "이 기기에서는 위치 정보를 사용할 수 없어 댓글을 조회할 수 없습니다.",
+      );
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        await runCommentAccessCheck(pos.coords.latitude, pos.coords.longitude);
+      },
+      (geoErr) => {
+        setCommentAccessPending(false);
+        setCommentSheetPost(null);
+        const code = geoErr?.code;
+        if (code === 1) {
+          alert(
+            "이 사이트에 대한 위치 접근이 허용되지 않았습니다.\n\n" +
+              "브라우저 설정에서 위치를 허용했는지 확인해 주세요.",
+          );
+        } else {
+          alert("위치를 확인할 수 없어 댓글을 조회할 수 없습니다.");
+        }
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 15000,
+        maximumAge: 120000,
+      },
+    );
+  }, []);
+
+  const handleFlipCommentRowCreated = useCallback((row) => {
+    const postId = commentSheetPostRef.current?.post_id;
+    if (postId == null) return;
+    setPosts((prev) =>
+      prev.map((p) => {
+        if (String(p?.post_id) !== String(postId)) return p;
+        const raw = p?.Comments ?? p?.comments;
+        const list = Array.isArray(raw) ? raw : raw != null ? [raw] : [];
+        return { ...p, Comments: [...list, row] };
+      }),
+    );
+    setCommentSheetPost((prev) => {
+      if (!prev || String(prev.post_id) !== String(postId)) return prev;
+      const raw = prev?.Comments ?? prev?.comments;
+      const list = Array.isArray(raw) ? raw : raw != null ? [raw] : [];
+      return { ...prev, Comments: [...list, row] };
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!flipPost) {
+      setFlipEntered(false);
+      return;
+    }
+    setFlipEntered(false);
+    let cancelled = false;
+    const id = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        if (!cancelled) setFlipEntered(true);
+      });
+    });
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(id);
+    };
+  }, [flipPost]);
+
+  useEffect(() => {
+    if (!flipPost && !commentSheetPost) return undefined;
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      if (commentSheetPost) {
+        setCommentSheetPost(null);
+        setCommentAccessPending(false);
+        setCommentAccessReady(false);
+        return;
+      }
+      closeFlipModal();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [flipPost, commentSheetPost, closeFlipModal]);
+
   const accountRows = useMemo(
     () =>
       ACCOUNT_PROVIDERS.map((provider) => {
@@ -292,7 +928,9 @@ export default function MyPage() {
           loadError: profileErr,
         });
       } catch {
-        setLoadError("게시글을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+        setLoadError(
+          "게시글을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        );
         if (!silent) {
           clearMyPageSessionCache();
         }
@@ -338,10 +976,29 @@ export default function MyPage() {
     user?.user_metadata?.name ||
     (typeof user?.email === "string" ? user.email.split("@")[0] : "");
   const displayName = profile?.user_name || authName || "…";
-  const handle = pageUserId ? `@userid${pageUserId}` : user?.email || "@unknown";
+  const handle = pageUserId
+    ? `@userid${pageUserId}`
+    : user?.email || "@unknown";
+  /** 세션 사용자 ID에 묶인 DB 프로필 URL: 마이페이지 캐시·getUserById → Auth의 appUser 순 */
+  const sessionUserProfileUrl =
+    (typeof profile?.user_profile_url === "string" &&
+      profile.user_profile_url.trim()) ||
+    (typeof user?.appUser?.user_profile_url === "string" &&
+      user.appUser.user_profile_url.trim()) ||
+    "";
   const avatarSrc = resolvedProfileImageUrl(
-    profile?.user_profile_url || user?.user_metadata?.user_profile_url,
+    sessionUserProfileUrl ||
+      (typeof user?.user_metadata?.user_profile_url === "string"
+        ? user.user_metadata.user_profile_url.trim()
+        : ""),
   );
+  const meProfileRaw =
+    sessionUserProfileUrl ||
+    (typeof user?.user_metadata?.user_profile_url === "string" &&
+      user.user_metadata.user_profile_url.trim()) ||
+    user?.user_metadata?.avatar_url ||
+    user?.user_metadata?.picture ||
+    "";
   const isLoading = !postsLoaded;
 
   const linkProvider = async (provider) => {
@@ -360,7 +1017,8 @@ export default function MyPage() {
       clearPendingIdentityLink();
       setAccountBusy("");
       setAccountError(
-        error.message || `${providerLabel(provider)} 계정 연결을 시작하지 못했습니다.`,
+        error.message ||
+          `${providerLabel(provider)} 계정 연결을 시작하지 못했습니다.`,
       );
     }
   };
@@ -378,7 +1036,8 @@ export default function MyPage() {
       const { error } = await supabase.auth.unlinkIdentity(identity);
       if (error) {
         setAccountError(
-          error.message || `${providerLabel(provider)} 연결을 해제하지 못했습니다.`,
+          error.message ||
+            `${providerLabel(provider)} 연결을 해제하지 못했습니다.`,
         );
         return;
       }
@@ -420,9 +1079,7 @@ export default function MyPage() {
         alert(res.error ?? "삭제하지 못했습니다.");
         return;
       }
-      const nextPosts = posts.filter(
-        (p) => Number(p?.post_id) !== Number(pid),
-      );
+      const nextPosts = posts.filter((p) => Number(p?.post_id) !== Number(pid));
       const nextCount =
         typeof postCount === "number"
           ? Math.max(0, postCount - 1)
@@ -440,13 +1097,7 @@ export default function MyPage() {
     } finally {
       setDeleteBusy(false);
     }
-  }, [
-    deleteConfirmPostId,
-    pageUserId,
-    posts,
-    postCount,
-    profile,
-  ]);
+  }, [deleteConfirmPostId, pageUserId, posts, postCount, profile]);
 
   /** @param {number} postIdNum */
   function longPressPropsFor(postIdNum) {
@@ -459,6 +1110,7 @@ export default function MyPage() {
         clearLongPressTimer();
         longPressRef.current.timer = window.setTimeout(() => {
           longPressRef.current.timer = null;
+          longPressDidOpenDeleteRef.current = true;
           setDeleteConfirmPostId(postIdNum);
         }, MYPAGE_LONG_PRESS_MS);
       },
@@ -466,10 +1118,7 @@ export default function MyPage() {
         if (longPressRef.current.timer == null) return;
         const dx = Math.abs(e.clientX - longPressRef.current.x);
         const dy = Math.abs(e.clientY - longPressRef.current.y);
-        if (
-          dx > MYPAGE_LONG_PRESS_MOVE_PX ||
-          dy > MYPAGE_LONG_PRESS_MOVE_PX
-        ) {
+        if (dx > MYPAGE_LONG_PRESS_MOVE_PX || dy > MYPAGE_LONG_PRESS_MOVE_PX) {
           clearLongPressTimer();
         }
       },
@@ -707,7 +1356,7 @@ export default function MyPage() {
                 const cover = resolveAlbumCover(post);
                 const place = resolvePlaceName(post);
                 const time = formatRelativeKo(post?.post_created);
-                const body = postBody(post);
+                const trackLine = resolveTrackLine(post);
                 const postIdNum = Number(post?.post_id);
                 const canLongPress = Number.isFinite(postIdNum);
 
@@ -716,6 +1365,13 @@ export default function MyPage() {
                     key={id}
                     className="mypage-card mypage-card--longpress"
                     {...(canLongPress ? longPressPropsFor(postIdNum) : {})}
+                    onClick={() => {
+                      if (longPressDidOpenDeleteRef.current) {
+                        longPressDidOpenDeleteRef.current = false;
+                        return;
+                      }
+                      setFlipPost({ ...post });
+                    }}
                   >
                     <div className="mypage-card__media">
                       {cover ? (
@@ -730,12 +1386,17 @@ export default function MyPage() {
                       )}
                       <div className="mypage-card__shade" aria-hidden />
                       <div className="mypage-card__footer">
-                        {body ? (
-                          <p className="mypage-card__content">{body}</p>
-                        ) : null}
+                        <p className="mypage-card__content">{trackLine}</p>
                         <div className="mypage-card__meta">
                           <span className="mypage-card__place">
-                            <PinIcon />
+                            <img
+                              className="mypage-card__location-icon"
+                              src="/location.png"
+                              alt=""
+                              width={11}
+                              height={13}
+                              decoding="async"
+                            />
                             {place}
                           </span>
                           <span className="mypage-card__time">{time}</span>
@@ -749,7 +1410,173 @@ export default function MyPage() {
           </div>
         </div>
       </section>
-      <BottomNav />
+      {!commentSheetPost ? <BottomNav /> : null}
+      {flipPost ? (
+        <div
+          className="mypage-flip-overlay"
+          role="presentation"
+          onClick={() => closeFlipModal()}
+        >
+          {playbackNotice ? (
+            <div className="mypage-flip-playback-notice" role="status">
+              {playbackNotice}
+            </div>
+          ) : null}
+          <div
+            className="mypage-flip-shell"
+            role="dialog"
+            aria-modal="true"
+            aria-label="포스트 미디어"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {showFlipTrackAbove ? (
+              <div className="home-feed-item-track-slot">
+                <div
+                  className={`home-track-meta home-track-meta--above${
+                    flipTrackMetaOnLightBg
+                      ? " home-track-meta--above--light-bg"
+                      : " home-track-meta--above--dark-bg"
+                  }`}
+                >
+                  {flipTrackTitle ? (
+                    <p className="home-track-title">{flipTrackTitle}</p>
+                  ) : null}
+                  {flipArtistName ? (
+                    <p className="home-track-artist">{flipArtistName}</p>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+            <article
+              className={`home-card home-card--active mypage-flip-modal-card${
+                flipEntered ? " home-card--flipped" : ""
+              }`}
+            >
+              <div className="home-card-flip-inner">
+                <div className="home-card-face home-card-face--front">
+                  <button
+                    type="button"
+                    className="home-card-flip-trigger"
+                    aria-expanded={flipEntered}
+                    aria-label={
+                      postMediaUrlsFromPost(flipDisplayPost ?? flipPost)
+                        .length > 0
+                        ? "업로드한 사진 보기"
+                        : trackAlbumArtFromPost(flipDisplayPost ?? flipPost)
+                          ? "앨범 표지 보기"
+                          : "한 장 보기"
+                    }
+                    onClick={() => setFlipEntered(true)}
+                  >
+                    <div className="home-card-flip-trigger-media">
+                      {trackAlbumArtFromPost(flipDisplayPost ?? flipPost) ? (
+                        <img
+                          className="home-card-image"
+                          src={trackAlbumArtFromPost(
+                            flipDisplayPost ?? flipPost,
+                          )}
+                          alt=""
+                        />
+                      ) : (
+                        <div className="home-card-image home-card-image-empty" />
+                      )}
+                    </div>
+                    <div className="home-card-top-shadow" aria-hidden />
+                    <div className="home-card-bottom-shadow" aria-hidden />
+                  </button>
+                  <MyPageFlipCardChrome
+                    fp={flipDisplayPost ?? flipPost}
+                    displayName={displayName}
+                    viewerProfileRaw={meProfileRaw}
+                    likeUserId={user?.id}
+                    likeStateByPostId={likeStateByPostId}
+                    onLike={handleFlipLikeToggle}
+                    onComment={tryOpenFlipCommentSheet}
+                    onSpotify={openSpotifyTrack}
+                    overlayShading={false}
+                  />
+                </div>
+                <div
+                  className="home-card-face home-card-face--back"
+                  role="presentation"
+                  onClick={(e) => {
+                    const t = e.target;
+                    if (
+                      t instanceof Element &&
+                      (t.closest(".home-user") ||
+                        t.closest(".home-content") ||
+                        t.closest(".home-actions"))
+                    ) {
+                      return;
+                    }
+                    closeFlipModal();
+                  }}
+                >
+                  <div className="home-card-back-bg">
+                    {(() => {
+                      const fp = flipDisplayPost ?? flipPost;
+                      const urls = postMediaUrlsFromPost(fp);
+                      const albumArt = trackAlbumArtFromPost(fp);
+                      const place = resolvePlaceName(fp);
+                      if (urls.length > 0) {
+                        return (
+                          <MyPageFlipMediaStrip
+                            urls={urls}
+                            imageAlt={place || "포스트 사진"}
+                          />
+                        );
+                      }
+                      if (albumArt) {
+                        return (
+                          <img
+                            className="home-card-image home-card-image--album-cover"
+                            src={albumArt}
+                            alt=""
+                          />
+                        );
+                      }
+                      return (
+                        <div
+                          className="home-card-image home-card-image-empty"
+                          aria-hidden
+                        />
+                      );
+                    })()}
+                  </div>
+                  <MyPageFlipCardChrome
+                    fp={flipDisplayPost ?? flipPost}
+                    displayName={displayName}
+                    viewerProfileRaw={meProfileRaw}
+                    likeUserId={user?.id}
+                    likeStateByPostId={likeStateByPostId}
+                    onLike={handleFlipLikeToggle}
+                    onComment={tryOpenFlipCommentSheet}
+                    onSpotify={openSpotifyTrack}
+                    overlayShading
+                  />
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+      ) : null}
+      <MyPageFlipCommentSheet
+        open={Boolean(commentSheetPost)}
+        post={commentSheetPost}
+        appUserId={
+          Number.isFinite(Number(pageUserId)) ? Number(pageUserId) : null
+        }
+        meProfileRaw={meProfileRaw}
+        displayName={displayName}
+        accessPending={commentAccessPending}
+        accessReady={commentAccessReady}
+        onClose={() => {
+          setCommentSheetPost(null);
+          setCommentAccessPending(false);
+          setCommentAccessReady(false);
+        }}
+        onCommentCreated={handleFlipCommentRowCreated}
+      />
       {deleteConfirmPostId != null ? (
         <div
           className="mypage-delete-overlay"
