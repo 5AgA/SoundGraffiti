@@ -1,0 +1,101 @@
+/* 레이아웃·헤더·뒤로가기는 `CreatePost.css`의 `.upload-wrap` … `.upload-close-btn`과 동일 */
+
+.profile-edit-card {
+  padding: 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.82);
+  margin-bottom: 14px;
+}
+
+.profile-edit-field {
+  margin-bottom: 14px;
+}
+
+.profile-edit-field:last-of-type {
+  margin-bottom: 0;
+}
+
+.profile-edit-label {
+  display: block;
+  margin: 0 0 6px;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: #202332;
+}
+
+.profile-edit-input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(50, 54, 70, 0.14);
+  border-radius: 10px;
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: #1a1d26;
+  background: #fff;
+}
+
+.profile-edit-input:focus {
+  outline: none;
+  border-color: rgba(0, 117, 255, 0.45);
+  box-shadow: 0 0 0 2px rgba(0, 117, 255, 0.12);
+}
+
+.profile-edit-hint {
+  margin: 6px 0 0;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(32, 35, 50, 0.45);
+  line-height: 1.35;
+}
+
+.profile-edit-error {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: #8b2738;
+  background: rgba(230, 70, 90, 0.08);
+}
+
+.profile-edit-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.profile-edit-save {
+  flex: 1;
+  margin: 0;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 12px;
+  background: #323646;
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #fff;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.profile-edit-save:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.profile-edit-save:not(:disabled):active {
+  opacity: 0.92;
+}
+
+.profile-edit-save:focus-visible {
+  outline: 2px solid #0075ff;
+  outline-offset: 2px;
+}

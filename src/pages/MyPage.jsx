@@ -14,16 +14,6 @@ import MyPageFlipCommentSheet from "../components/MyPageFlipCommentSheet";
 import { supabase } from "../supabaseClient";
 import { useAuth } from "../contexts/AuthContextCore";
 import {
-  ACCOUNT_PROVIDERS,
-  PROVIDER_INFO,
-  authOptionsForProvider,
-  clearPendingIdentityLink,
-  getProviderIcon,
-  identityEmail,
-  providerLabel,
-  rememberPendingIdentityLink,
-} from "../utils/authProviders";
-import {
   clearMyPageSessionCache,
   readMyPageSessionCache,
   writeMyPageSessionCache,
@@ -470,20 +460,8 @@ function MyPageGridSkeleton() {
   ));
 }
 
-function providerStatusText({ linked, current }) {
-  if (current) return "현재 접속";
-  if (!linked) return "미연결";
-  return "연결됨";
-}
-
 export default function MyPage() {
-  const {
-    user,
-    identities,
-    linkedProviders,
-    currentProvider,
-    refreshAuthState,
-  } = useAuth();
+  const { user } = useAuth();
   const pageUserId = user?.appUserId ?? user?.id ?? null;
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
@@ -492,9 +470,6 @@ export default function MyPage() {
   const [postsLoaded, setPostsLoaded] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [logoutBusy, setLogoutBusy] = useState(false);
-  const [accountBusy, setAccountBusy] = useState("");
-  const [accountMessage, setAccountMessage] = useState("");
-  const [accountError, setAccountError] = useState("");
   const [sortOrder, setSortOrder] = useState(
     /** @type {'latest' | 'popular'} */ ("latest"),
   );
@@ -861,25 +836,6 @@ export default function MyPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [flipPost, commentSheetPost, closeFlipModal]);
 
-  const accountRows = useMemo(
-    () =>
-      ACCOUNT_PROVIDERS.map((provider) => {
-        const identity =
-          identities?.find((item) => item?.provider === provider) ?? null;
-        const linked = Boolean(linkedProviders?.has(provider));
-        return {
-          provider,
-          identity,
-          linked,
-          current: currentProvider === provider,
-          email: identityEmail(identity),
-          info: PROVIDER_INFO[provider],
-        };
-      }),
-    [currentProvider, identities, linkedProviders],
-  );
-  const linkedProviderCount = accountRows.filter((row) => row.linked).length;
-
   const loadMyPageData = useCallback(
     async ({ silent = false } = {}) => {
       if (!silent) {
@@ -975,9 +931,6 @@ export default function MyPage() {
     user?.user_metadata?.name ||
     (typeof user?.email === "string" ? user.email.split("@")[0] : "");
   const displayName = profile?.user_name || authName || "…";
-  const handle = pageUserId
-    ? `@userid${pageUserId}`
-    : user?.email || "@unknown";
   /** 세션 사용자 ID에 묶인 DB 프로필 URL: 마이페이지 캐시·getUserById → Auth의 appUser 순 */
   const sessionUserProfileUrl =
     (typeof profile?.user_profile_url === "string" &&
@@ -999,53 +952,6 @@ export default function MyPage() {
     user?.user_metadata?.picture ||
     "";
   const isLoading = !postsLoaded;
-
-  const linkProvider = async (provider) => {
-    if (accountBusy) return;
-    setAccountBusy(provider);
-    setAccountError("");
-    setAccountMessage("");
-    rememberPendingIdentityLink(provider, "/mypage");
-
-    const { error } = await supabase.auth.linkIdentity({
-      provider,
-      options: authOptionsForProvider(provider),
-    });
-
-    if (error) {
-      clearPendingIdentityLink();
-      setAccountBusy("");
-      setAccountError(
-        error.message ||
-          `${providerLabel(provider)} 계정 연결을 시작하지 못했습니다.`,
-      );
-    }
-  };
-
-  const unlinkProvider = async (provider, identity) => {
-    if (accountBusy || !identity) return;
-    const ok = window.confirm(`${providerLabel(provider)} 연결을 해제할까요?`);
-    if (!ok) return;
-
-    setAccountBusy(provider);
-    setAccountError("");
-    setAccountMessage("");
-
-    try {
-      const { error } = await supabase.auth.unlinkIdentity(identity);
-      if (error) {
-        setAccountError(
-          error.message ||
-            `${providerLabel(provider)} 연결을 해제하지 못했습니다.`,
-        );
-        return;
-      }
-      await refreshAuthState();
-      setAccountMessage(`${providerLabel(provider)} 연결을 해제했습니다.`);
-    } finally {
-      setAccountBusy("");
-    }
-  };
 
   const handleLogout = async () => {
     if (logoutBusy) return;
@@ -1166,14 +1072,23 @@ export default function MyPage() {
               <path fill="#323646" d={MY_GRAFFITI_WORDMARK_PATH} />
             </svg>
           </button>
-          <button
-            type="button"
-            className="mypage-logout"
-            onClick={() => void handleLogout()}
-            disabled={logoutBusy}
-          >
-            {logoutBusy ? "나가는 중…" : "로그아웃"}
-          </button>
+          <div className="mypage-header-actions">
+            <button
+              type="button"
+              className="mypage-settings-btn"
+              onClick={() => navigate("/mypage/settings")}
+            >
+              설정
+            </button>
+            <button
+              type="button"
+              className="mypage-logout"
+              onClick={() => void handleLogout()}
+              disabled={logoutBusy}
+            >
+              {logoutBusy ? "나가는 중…" : "로그아웃"}
+            </button>
+          </div>
         </header>
         <div className="mypage-inner">
           {loadError ? (
@@ -1187,119 +1102,36 @@ export default function MyPage() {
               className="mypage-profile-card mypage-profile-card--skeleton"
               aria-hidden
             >
-              <div className="mypage-skel mypage-skel-avatar" />
-              <div className="mypage-skel-profile-lines">
-                <div className="mypage-skel mypage-skel-name" />
-                <div className="mypage-skel mypage-skel-handle" />
+              <div className="mypage-profile-card__main">
+                <div className="mypage-skel mypage-skel-avatar" />
+                <div className="mypage-skel-profile-lines">
+                  <div className="mypage-skel mypage-skel-name" />
+                </div>
               </div>
             </div>
           ) : (
             <div className="mypage-profile-card">
-              <img
-                className="mypage-avatar"
-                src={avatarSrc}
-                alt=""
-                width={49}
-                height={49}
-              />
-              <div className="mypage-profile-text">
-                <p className="mypage-name">{displayName}</p>
-                <p className="mypage-handle">{handle}</p>
-              </div>
-            </div>
-          )}
-
-          {!isLoading ? (
-            <section className="mypage-account" aria-label="소셜 계정 연결">
-              <div className="mypage-account__header">
-                <div>
-                  <h2>소셜 계정</h2>
-                  <p>
-                    {currentProvider
-                      ? `${providerLabel(currentProvider)}로 접속 중`
-                      : "접속 provider를 확인하는 중"}
-                  </p>
+              <div className="mypage-profile-card__main">
+                <img
+                  className="mypage-avatar"
+                  src={avatarSrc}
+                  alt=""
+                  width={49}
+                  height={49}
+                />
+                <div className="mypage-profile-text">
+                  <p className="mypage-name">{displayName}</p>
                 </div>
               </div>
-
-              {accountError ? (
-                <p className="mypage-account__notice mypage-account__notice--error">
-                  {accountError}
-                </p>
-              ) : null}
-              {accountMessage ? (
-                <p className="mypage-account__notice">{accountMessage}</p>
-              ) : null}
-
-              <div className="mypage-account__list">
-                {accountRows.map((row) => {
-                  const busy = accountBusy === row.provider;
-                  const statusText = providerStatusText({
-                    linked: row.linked,
-                    current: row.current,
-                  });
-                  const canUnlink =
-                    row.linked && !row.current && linkedProviderCount > 1;
-
-                  return (
-                    <div className="mypage-account__row" key={row.provider}>
-                      <img
-                        className="mypage-account__icon"
-                        src={getProviderIcon(row.provider)}
-                        alt=""
-                        width={32}
-                        height={32}
-                      />
-                      <div className="mypage-account__body">
-                        <div className="mypage-account__title-row">
-                          <p className="mypage-account__name">
-                            {row.info.koLabel}
-                          </p>
-                          <span
-                            className={`mypage-account__status${
-                              row.current
-                                ? " mypage-account__status--current"
-                                : ""
-                            }`}
-                          >
-                            {statusText}
-                          </span>
-                        </div>
-                        <p className="mypage-account__meta">
-                          {row.linked
-                            ? row.email || "연결 완료"
-                            : "아직 연결되지 않았어요"}
-                        </p>
-                        <div className="mypage-account__actions">
-                          {!row.linked ? (
-                            <button
-                              type="button"
-                              onClick={() => void linkProvider(row.provider)}
-                              disabled={Boolean(accountBusy)}
-                            >
-                              {busy ? "연결 중..." : "연결"}
-                            </button>
-                          ) : null}
-                          {canUnlink ? (
-                            <button
-                              type="button"
-                              className="mypage-account__unlink"
-                              onClick={() =>
-                                void unlinkProvider(row.provider, row.identity)
-                              }
-                              disabled={Boolean(accountBusy)}
-                            >
-                              {busy ? "해제 중..." : "해제"}
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          ) : null}
+              <button
+                type="button"
+                className="mypage-profile-edit"
+                onClick={() => navigate("/mypage/profile-edit")}
+              >
+                프로필 수정
+              </button>
+            </div>
+          )}
 
           {isLoading ? (
             <div

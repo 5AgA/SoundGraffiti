@@ -37,10 +37,49 @@
   box-sizing: border-box;
 }
 
-.mypage-logout {
+.mypage-header-actions {
   position: absolute;
   top: calc(env(safe-area-inset-top, 0px) + 10px);
   right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 6;
+}
+
+.mypage-settings-btn {
+  margin: 0;
+  padding: 8px 14px;
+  border: 1px solid rgba(50, 54, 70, 0.18);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: #323646;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.mypage-settings-btn:hover {
+  background: rgba(255, 255, 255, 1);
+}
+
+.mypage-settings-btn:active {
+  opacity: 0.85;
+}
+
+.mypage-settings-btn:focus-visible {
+  outline: 2px solid #0075ff;
+  outline-offset: 2px;
+}
+
+.mypage-logout {
+  position: static;
   margin: 0;
   padding: 8px 14px;
   border: 1px solid rgba(50, 54, 70, 0.18);
@@ -116,13 +155,55 @@
 .mypage-profile-card {
   display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: space-between;
+  gap: 12px;
   min-height: 76px;
   padding: 13px 17px;
   box-sizing: border-box;
   background: rgba(255, 255, 255, 0.8);
   border-radius: 14px;
   margin-bottom: 16px;
+}
+
+.mypage-profile-card__main {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  flex: 1;
+}
+
+.mypage-profile-edit {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid rgba(50, 54, 70, 0.16);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: #323646;
+  cursor: pointer;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.mypage-profile-edit:hover {
+  background: rgba(255, 255, 255, 1);
+}
+
+.mypage-profile-edit:active {
+  opacity: 0.88;
+}
+
+.mypage-profile-edit:focus-visible {
+  outline: 2px solid #0075ff;
+  outline-offset: 2px;
 }
 
 .mypage-avatar {
@@ -151,16 +232,6 @@
   font-weight: 600;
   letter-spacing: -0.04em;
   color: #000;
-  line-height: 1.2;
-}
-
-.mypage-handle {
-  margin: 0;
-  font-family: var(--sans);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: -0.04em;
-  color: rgba(0, 0, 0, 0.3);
   line-height: 1.2;
 }
 
@@ -547,12 +618,6 @@
   width: 120px;
   height: 16px;
   background: #eef2f7;
-}
-
-.mypage-skel-handle {
-  width: 88px;
-  height: 12px;
-  background: #d9dee6;
 }
 
 .mypage-toolbar--skeleton {

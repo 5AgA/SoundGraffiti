@@ -8,6 +8,8 @@ import AuthCallbackPage from "./pages/AuthCallbackPage";
 import HomePage from "./pages/HomePage";
 import MapPage from "./pages/MapPage";
 import MyPage from "./pages/MyPage";
+import ProfileEditPage from "./pages/ProfileEditPage";
+import SettingsPage from "./pages/SettingsPage";
 import UploadGraffiti from "./components/CreatePost";
 
 function ProtectedRoute({ children }) {
@@ -43,6 +45,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <MapPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mypage/settings"
+              element={
+                <ProtectedRoute>
+                  <SettingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mypage/profile-edit"
+              element={
+                <ProtectedRoute>
+                  <ProfileEditPage />
                 </ProtectedRoute>
               }
             />

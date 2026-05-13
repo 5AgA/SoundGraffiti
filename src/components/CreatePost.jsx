@@ -7,7 +7,7 @@ import { supabase } from '../supabaseClient';
 
 const musicIcon = '/spotify.svg';
 const mapIcon = '/map_pin.svg';
-const aiIcon = '/AI.svg';
+const aiIcon = "/AI.png";
 
 function UploadGraffiti() {
   const navigate = useNavigate();
@@ -322,12 +322,12 @@ return (
 
           <div className="upload-btn-group">
             <button className="upload-dark-btn" onClick={handleMusicSearch} disabled={isLoading}>
-              <div className="btn-icon-circle"><img src={musicIcon} alt="" width="20" height="20" /></div>
-              <span>음악 추가</span>
+              <div className="btn-icon-circle"><img src={musicIcon} alt="" /></div>
+              <span>Spotify로 음악 추가</span>
             </button>
             <button className="upload-dark-btn" onClick={handleAIRecommend} disabled={isLoading}>
-              <div className="btn-icon-circle"><img src={aiIcon} alt="AI" width="20" height="20" /></div>
-              <span>AI로 음악 추천</span>
+              <div className="btn-icon-circle"><img src={aiIcon} alt="" /></div>
+              <span>AI로 음악 추천 받기</span>
             </button>
           </div>
 
@@ -336,7 +336,7 @@ return (
             {imagePreview ? (
               <><img src={imagePreview} alt="preview" className="upload-preview-img" /><button className="image-remove-btn" onClick={handleRemoveImage}>✕</button></>
             ) : (
-              <><span className="plus-icon">⊕</span><p>사진을 추가해보세요</p></>
+              <><img className="plus-icon" src="/plus.circle.png" alt="" /><p>이 공간의 이미지를 추가하세요</p></>
             )}
             {selectedTrack && (
               <div className="selected-track-overlay" onClick={(e) => e.stopPropagation()}>
