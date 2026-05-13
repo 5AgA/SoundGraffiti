@@ -1,13 +1,20 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMapPosts } from "./api/posts";
 import "./KakaoMap.css";
 import { getDevGeoCoordinates } from "./utils/devGeoCoords";
 import { resolvedProfileImageUrl } from "./utils/profileImage";
+import {
+  readMapSessionCache,
+  writeMapSessionCache,
+} from "./utils/mapSessionCache";
+import { MAP_RECENTER_USER_EVENT } from "./constants/appEvents";
 
 const SEOUL_CENTER = { latitude: 37.5665, longitude: 126.978 };
 const KAKAO_MAP_SDK_SRC = "https://dapi.kakao.com/v2/maps/sdk.js";
 const MAX_VISIBLE_DOTS = 5;
+/** 내 위치로 맞출 때 카카오 맵 zoom level (숫자가 작을수록 더 확대) */
+const MAP_USER_ZOOM_LEVEL = 4;
 
 let kakaoMapsSdkPromise = null;
 
@@ -176,7 +183,12 @@ function KakaoMap() {
   const carouselRef = useRef(null);
   const hasFitBoundsRef = useRef(false);
   const dragStartYRef = useRef(null);
+  const sheetCloseLockRef = useRef(false);
+  const isMountedRef = useRef(true);
+  const enableAutoFitBoundsRef = useRef(false);
+  const myLocationOverlayRef = useRef(null);
   const [posts, setPosts] = useState([]);
+  const [mapRefreshing, setMapRefreshing] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(7);
   const [selectedPlace, setSelectedPlace] = useState(null);
@@ -255,55 +267,145 @@ function KakaoMap() {
     });
   }, [placeGroups, zoomLevel]);
 
-  useEffect(() => {
-    let cancelled = false;
+  const resolveMapCoords = useCallback(async () => {
+    const insecure = typeof window !== "undefined" && !window.isSecureContext;
+    const devCoords = getDevGeoCoordinates();
+    if (insecure && devCoords) {
+      return { lat: devCoords.lat, lng: devCoords.lng };
+    }
+    if (typeof navigator !== "undefined" && navigator.geolocation) {
+      return await new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) =>
+            resolve({
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+            }),
+          () => resolve(null),
+          {
+            enableHighAccuracy: false,
+            timeout: 15000,
+            maximumAge: 120000,
+          },
+        );
+      });
+    }
+    return null;
+  }, []);
 
-    async function fetchPosts(coords = null) {
+  const runMyLocationFocus = useCallback(async () => {
+    const map = mapInstanceRef.current;
+    if (!map || !window.kakao?.maps) return;
+
+    const c = await resolveMapCoords();
+    if (!c || mapInstanceRef.current !== map) return;
+
+    const pos = new window.kakao.maps.LatLng(c.lat, c.lng);
+    map.setCenter(pos);
+    map.setLevel(MAP_USER_ZOOM_LEVEL);
+    setZoomLevel(map.getLevel());
+
+    myLocationOverlayRef.current?.setMap(null);
+    const el = document.createElement("div");
+    el.className = "map-my-location-dot";
+    el.title = "내 위치";
+
+    const overlay = new window.kakao.maps.CustomOverlay({
+      position: pos,
+      content: el,
+      xAnchor: 0.5,
+      yAnchor: 0.5,
+      zIndex: 25,
+    });
+    overlay.setMap(map);
+    myLocationOverlayRef.current = overlay;
+  }, [resolveMapCoords]);
+
+  const loadMapPosts = useCallback(async (options = {}) => {
+    const { fitBoundsAfter = false } = options;
+    setMapRefreshing(true);
+    hasFitBoundsRef.current = false;
+    setSelectedPlace(null);
+    setActiveTrackIndex(0);
+    try {
+      const coords = await resolveMapCoords();
+      if (!isMountedRef.current) return;
       const { posts: mapPosts, error } = await getMapPosts(
         coords?.lat,
         coords?.lng,
       );
-
-      if (cancelled) return;
+      if (!isMountedRef.current) return;
       if (error) {
         console.error("Failed to receive map posts:", error);
         setPosts([]);
+        writeMapSessionCache([]);
         return;
       }
-
-      setPosts(Array.isArray(mapPosts) ? mapPosts : []);
+      const arr = Array.isArray(mapPosts) ? mapPosts : [];
+      setPosts(arr);
+      writeMapSessionCache(arr);
+      if (fitBoundsAfter) {
+        enableAutoFitBoundsRef.current = true;
+        hasFitBoundsRef.current = false;
+      } else {
+        enableAutoFitBoundsRef.current = false;
+      }
+    } finally {
+      if (isMountedRef.current) setMapRefreshing(false);
     }
+  }, [resolveMapCoords]);
 
-    const insecure = typeof window !== "undefined" && !window.isSecureContext;
-    const devCoords = getDevGeoCoordinates();
+  const handleLogoRefresh = useCallback(async () => {
+    await loadMapPosts({ fitBoundsAfter: false });
+    await runMyLocationFocus();
+  }, [loadMapPosts, runMyLocationFocus]);
 
-    if (insecure && devCoords) {
-      void fetchPosts(devCoords);
-    } else if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          void fetchPosts({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-          });
-        },
-        () => {
-          void fetchPosts();
-        },
-        {
-          enableHighAccuracy: false,
-          timeout: 15000,
-          maximumAge: 120000,
-        },
-      );
+  useEffect(() => {
+    isMountedRef.current = true;
+    const snap = readMapSessionCache();
+    if (snap != null && Array.isArray(snap.posts)) {
+      setPosts(snap.posts);
     } else {
-      void fetchPosts();
+      void loadMapPosts();
     }
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [loadMapPosts]);
+
+  /** 지도 탭 진입: 내 위치로 이동·줌인 + 내 위치 표시 */
+  useEffect(() => {
+    if (!isMapReady || !mapInstanceRef.current || !window.kakao?.maps) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      await runMyLocationFocus();
+      if (cancelled) {
+        myLocationOverlayRef.current?.setMap(null);
+        myLocationOverlayRef.current = null;
+      }
+    })();
 
     return () => {
       cancelled = true;
+      myLocationOverlayRef.current?.setMap(null);
+      myLocationOverlayRef.current = null;
     };
-  }, []);
+  }, [isMapReady, runMyLocationFocus]);
+
+  useEffect(() => {
+    const onRecenter = () => {
+      if (!isMapReady || !mapInstanceRef.current || !window.kakao?.maps) {
+        return;
+      }
+      void runMyLocationFocus();
+    };
+    window.addEventListener(MAP_RECENTER_USER_EVENT, onRecenter);
+    return () => window.removeEventListener(MAP_RECENTER_USER_EVENT, onRecenter);
+  }, [isMapReady, runMyLocationFocus]);
 
   useEffect(() => {
     let cancelled = false;
@@ -390,7 +492,11 @@ function KakaoMap() {
       bounds.extend(position);
     });
 
-    if (visibleGroups.length > 0 && !hasFitBoundsRef.current) {
+    if (
+      visibleGroups.length > 0 &&
+      !hasFitBoundsRef.current &&
+      enableAutoFitBoundsRef.current
+    ) {
       map.setBounds(bounds);
       hasFitBoundsRef.current = true;
     }
@@ -402,6 +508,8 @@ function KakaoMap() {
   }, [isMapReady, visibleGroups]);
 
   const closeSheet = () => {
+    if (sheetCloseLockRef.current) return;
+    sheetCloseLockRef.current = true;
     setIsSheetClosing(true);
     setSheetDragY(140);
 
@@ -411,6 +519,7 @@ function KakaoMap() {
       setSheetDragY(0);
       setIsSheetClosing(false);
       setIsSheetDragging(false);
+      sheetCloseLockRef.current = false;
     }, 220);
   };
 
@@ -501,24 +610,38 @@ function KakaoMap() {
   const visibleDotTracks = selectedTracks.slice(dotRange.start, dotRange.end);
 
   return (
-    <div className="sound-map-shell">
+    <div
+      className={`sound-map-shell${
+        selectedPlace ? " sound-map-shell--sheet-open" : ""
+      }`}
+    >
       <div ref={mapContainerRef} className="sound-map" />
 
       <header className="map-header" aria-label="Graffiti Map">
-        <img
-          className="map-logo"
-          src="/GraffitiMap.svg"
-          alt="Graffiti Map"
-          draggable={false}
-        />
+        <button
+          type="button"
+          className="map-logo-btn"
+          onClick={() => void handleLogoRefresh()}
+          disabled={mapRefreshing}
+          aria-label="Graffiti Map, 포스트 새로고침 및 내 위치로 이동"
+          title="새로고침 · 내 위치"
+        >
+          <img
+            className="map-logo"
+            src="/GraffitiMap.svg"
+            alt=""
+            draggable={false}
+          />
+        </button>
       </header>
 
       {selectedPlace && (
         <button
           type="button"
           className="map-sheet-backdrop"
-          aria-label="Close music popup"
+          aria-label="뒤쪽 배경을 눌러 닫기"
           onClick={closeSheet}
+          onPointerDown={closeSheet}
         />
       )}
 

@@ -15,6 +15,7 @@ import {
   providerSetFromIdentities,
 } from "../utils/authProviders";
 import { clearHomeFeedSessionCache } from "../utils/homeFeedSessionCache";
+import { clearMapSessionCache } from "../utils/mapSessionCache";
 
 function authDisplayName(authUser) {
   return (
@@ -212,6 +213,7 @@ export function AuthProvider({ children }) {
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT") {
         clearHomeFeedSessionCache();
+        clearMapSessionCache();
       }
       void applySession(session, { isMounted });
     });

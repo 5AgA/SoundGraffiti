@@ -1,4 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { MAP_RECENTER_USER_EVENT } from "../constants/appEvents";
 import "./BottomNav.css";
 
 export default function BottomNav() {
@@ -39,7 +40,13 @@ export default function BottomNav() {
           <button
             type="button"
             className="bottom-nav__btn"
-            onClick={() => navigate("/map")}
+            onClick={() => {
+              if (onMap) {
+                window.dispatchEvent(new CustomEvent(MAP_RECENTER_USER_EVENT));
+              } else {
+                navigate("/map");
+              }
+            }}
             aria-label="지도"
             aria-current={onMap ? "page" : undefined}
           >
