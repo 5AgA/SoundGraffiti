@@ -1,27 +1,27 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-type SaveTrackBody = {
-  trackId?: string
+type PreviewInput = {
   trackTitle?: string
   artistName?: string
   albumName?: string
-  albumImageUrl?: string
   durationMs?: number
-  previewUrl?: string
+  country?: string
 }
 
 type ItunesTrack = {
   wrapperType?: string
   kind?: string
+  trackId?: number
   trackName?: string
   artistName?: string
   collectionName?: string
   previewUrl?: string
+  artworkUrl100?: string
+  trackViewUrl?: string
   trackTimeMillis?: number
   country?: string
 }
@@ -73,7 +73,7 @@ function durationScore(candidateMs: unknown, targetMs: unknown) {
   return 0
 }
 
-function scoreCandidate(track: ItunesTrack, input: SaveTrackBody) {
+function scoreCandidate(track: ItunesTrack, input: PreviewInput) {
   const title = textScore(track.trackName, input.trackTitle)
   const artist = textScore(track.artistName, input.artistName)
   const album = input.albumName ? textScore(track.collectionName, input.albumName) : 0.5
@@ -82,7 +82,7 @@ function scoreCandidate(track: ItunesTrack, input: SaveTrackBody) {
   return title * 0.48 + artist * 0.32 + album * 0.08 + duration * 0.12
 }
 
-async function searchItunes(input: SaveTrackBody, country: string) {
+async function searchItunes(input: PreviewInput, country: string) {
   const term = [input.trackTitle, input.artistName].filter(Boolean).join(' ')
   if (!term.trim()) return []
 
@@ -101,9 +101,14 @@ async function searchItunes(input: SaveTrackBody, country: string) {
   return Array.isArray(data?.results) ? data.results as ItunesTrack[] : []
 }
 
-async function resolveItunesPreview(input: SaveTrackBody) {
+async function resolveItunesPreview(input: PreviewInput) {
+  const countries = [
+    String(input.country || 'KR').slice(0, 2).toUpperCase(),
+    'US',
+  ].filter((country, index, list) => country && list.indexOf(country) === index)
+
   const candidates: Array<ItunesTrack & { confidence: number }> = []
-  for (const country of ['KR', 'US']) {
+  for (const country of countries) {
     const results = await searchItunes(input, country)
     for (const result of results) {
       if (
@@ -121,13 +126,17 @@ async function resolveItunesPreview(input: SaveTrackBody) {
       })
     }
 
-    candidates.sort((a, b) => b.confidence - a.confidence)
-    if (candidates[0]?.confidence >= 0.78) break
+    const bestForCountry = candidates
+      .filter((candidate) => candidate.country === country || !candidate.country)
+      .sort((a, b) => b.confidence - a.confidence)[0]
+    if (bestForCountry?.confidence >= 0.78) break
   }
 
   candidates.sort((a, b) => b.confidence - a.confidence)
   const best = candidates[0]
-  return best && best.confidence >= 0.58 ? best.previewUrl ?? '' : ''
+  if (!best || best.confidence < 0.58) return null
+
+  return best
 }
 
 Deno.serve(async (req) => {
@@ -135,55 +144,29 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  try {
-    const body = await req.json() as SaveTrackBody
-    const {
-      trackId,
-      trackTitle,
-      artistName,
-      albumName,
-      albumImageUrl,
-      durationMs,
-    } = body
+  if (req.method !== 'POST') {
+    return jsonResponse({ error: 'Method not allowed' }, 405)
+  }
 
-    if (!trackId || !trackTitle) {
-      return jsonResponse({ error: 'trackId and trackTitle are required' }, 400)
+  try {
+    const input = await req.json().catch(() => ({})) as PreviewInput
+    const match = await resolveItunesPreview(input)
+    if (!match) {
+      return jsonResponse({ previewUrl: '', reason: 'not_found' })
     }
 
-    const previewUrl =
-      typeof body.previewUrl === 'string' && body.previewUrl.trim()
-        ? body.previewUrl.trim()
-        : await resolveItunesPreview(body)
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    )
-
-    const { error: trackError } = await supabase.from('Tracks').upsert({
-      track_id: trackId,
-      track_title: trackTitle,
-      artist_name: artistName,
-      album_name: albumName,
-      album_image_url: albumImageUrl,
-      duration_ms: durationMs,
-      preview_url: previewUrl || null,
-      cached_at: new Date(),
-    }, {
-      onConflict: 'track_id',
-    })
-
-    if (trackError) throw trackError
-
     return jsonResponse({
-      success: true,
-      message: 'Track saved',
-      previewUrl,
-      previewProvider: previewUrl ? 'itunes' : '',
+      provider: 'itunes',
+      previewUrl: match.previewUrl,
+      trackId: match.trackId,
+      trackName: match.trackName,
+      artistName: match.artistName,
+      artworkUrl: match.artworkUrl100,
+      trackViewUrl: match.trackViewUrl,
+      confidence: Number(match.confidence.toFixed(3)),
     })
-  } catch (e) {
-    const message = e instanceof Error ? e.message : 'Unexpected server error'
-    console.log('save-track error:', message)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unexpected server error'
     return jsonResponse({ error: message }, 500)
   }
 })

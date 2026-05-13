@@ -1,17 +1,12 @@
 export const AUTH_CALLBACK_PATH = "/auth/callback";
 
-export const ACCOUNT_PROVIDERS = ["kakao", "spotify", "google"];
+export const ACCOUNT_PROVIDERS = ["kakao", "google"];
 
 export const PROVIDER_INFO = {
   kakao: {
     label: "Kakao",
     koLabel: "카카오",
     icon: "/signup_kakao_light.svg",
-  },
-  spotify: {
-    label: "Spotify",
-    koLabel: "스포티파이",
-    icon: "/signup_spotify_light.svg",
   },
   google: {
     label: "Google",
@@ -20,14 +15,8 @@ export const PROVIDER_INFO = {
   },
 };
 
-export const SPOTIFY_AUTH_SCOPES =
-  "user-read-email user-read-private streaming user-modify-playback-state user-read-playback-state";
-
 const PENDING_OAUTH_KEY = "soundgraffiti.pendingOAuth";
 const PENDING_LINK_KEY = "soundgraffiti.pendingIdentityLink";
-const SPOTIFY_PROMPT_DISMISSED_PREFIX =
-  "soundgraffiti.spotifyPromptDismissed.";
-const SPOTIFY_PROMPT_SNOOZED_PREFIX = "soundgraffiti.spotifyPromptSnoozed.";
 
 function canUseBrowserStorage() {
   return typeof window !== "undefined" && Boolean(window.localStorage);
@@ -64,12 +53,6 @@ function removeStorageItem(storage, key) {
 
 function localStore() {
   return canUseBrowserStorage() ? window.localStorage : null;
-}
-
-function sessionStore() {
-  return typeof window !== "undefined" && window.sessionStorage
-    ? window.sessionStorage
-    : null;
 }
 
 export function getAuthRedirectUrl() {
@@ -162,48 +145,8 @@ export function clearPendingIdentityLink() {
   removeStorageItem(localStore(), PENDING_LINK_KEY);
 }
 
-export function authOptionsForProvider(provider) {
-  const options = {
+export function authOptionsForProvider() {
+  return {
     redirectTo: getAuthRedirectUrl(),
   };
-
-  if (normalizeProvider(provider) === "spotify") {
-    options.scopes = SPOTIFY_AUTH_SCOPES;
-  }
-
-  return options;
-}
-
-function spotifyPromptKey(authUserId, prefix) {
-  return `${prefix}${authUserId}`;
-}
-
-export function isSpotifyPromptDismissed(authUserId) {
-  if (!authUserId) return false;
-  return localStore()?.getItem(
-    spotifyPromptKey(authUserId, SPOTIFY_PROMPT_DISMISSED_PREFIX),
-  ) === "1";
-}
-
-export function dismissSpotifyPrompt(authUserId) {
-  if (!authUserId) return;
-  localStore()?.setItem(
-    spotifyPromptKey(authUserId, SPOTIFY_PROMPT_DISMISSED_PREFIX),
-    "1",
-  );
-}
-
-export function isSpotifyPromptSnoozed(authUserId) {
-  if (!authUserId) return false;
-  return sessionStore()?.getItem(
-    spotifyPromptKey(authUserId, SPOTIFY_PROMPT_SNOOZED_PREFIX),
-  ) === "1";
-}
-
-export function snoozeSpotifyPrompt(authUserId) {
-  if (!authUserId) return;
-  sessionStore()?.setItem(
-    spotifyPromptKey(authUserId, SPOTIFY_PROMPT_SNOOZED_PREFIX),
-    "1",
-  );
 }

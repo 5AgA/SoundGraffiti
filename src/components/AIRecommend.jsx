@@ -33,8 +33,6 @@ function AIRecommend({ onSelect }) {
       console.error(err);
       
       // 💡 백엔드에서 넘어온 진짜 에러 메시지를 잡아서 화면에 보여줌!
-      const errorMessage = err.message || "알 수 없는 오류가 발생했습니다.";
-      
       setMessages([
         { role: 'user', content: userMsg },
         { 

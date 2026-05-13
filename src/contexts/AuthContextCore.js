@@ -11,14 +11,9 @@ export function useAuth() {
       identities: [],
       linkedProviders: new Set(),
       currentProvider: "",
-      spotifyToken: null,
-      spotifyTokenExpiresAt: "",
-      spotifyAuthError: null,
-      spotifyAuthLoading: false,
       loading: false,
       authError: null,
       refreshAuthState: async () => {},
-      refreshSpotifyToken: async () => null,
     };
   }
   return context;

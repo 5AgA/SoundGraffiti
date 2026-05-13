@@ -9,7 +9,6 @@ import HomePage from "./pages/HomePage";
 import MapPage from "./pages/MapPage";
 import MyPage from "./pages/MyPage";
 import UploadGraffiti from "./components/CreatePost";
-import SpotifyLinkPrompt from "./components/SpotifyLinkPrompt";
 
 function ProtectedRoute({ children }) {
   const { loading, session } = useAuth();
@@ -68,7 +67,6 @@ function App() {
             <Route path="/" element={<AuthPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-          <SpotifyLinkPrompt />
         </Layout>
       </AuthProvider>
     </BrowserRouter>
