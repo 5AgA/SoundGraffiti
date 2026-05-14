@@ -530,8 +530,14 @@ function UploadGraffiti() {
 
     void (async () => {
       try {
-        await submitGraffitiFromSnapshot(snapshot);
-        window.dispatchEvent(new CustomEvent(UPLOAD_SUCCESS_EVENT));
+        const created = await submitGraffitiFromSnapshot(snapshot);
+        const postId =
+          created?.post_id != null ? String(created.post_id) : null;
+        window.dispatchEvent(
+          new CustomEvent(UPLOAD_SUCCESS_EVENT, {
+            detail: postId ? { postId } : {},
+          }),
+        );
       } catch (err) {
         console.error(err);
         window.dispatchEvent(new CustomEvent(UPLOAD_ERROR_EVENT));

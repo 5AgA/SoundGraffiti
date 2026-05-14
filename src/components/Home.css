@@ -894,6 +894,18 @@
   border: 0;
 }
 
+/* HomePage 전역 — 피드 댓글 삭제 확인과 동일 레이아웃·톤 */
+.home-feed-dialog-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
 /* 댓글 바텀시트 (Figma home ver.1 댓글 패널) */
 .home-comment-overlay {
   position: fixed;

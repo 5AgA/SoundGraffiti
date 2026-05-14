@@ -24,6 +24,7 @@ import {
 import {
   isViewerAuthorOfPost,
 } from "../utils/likesUi";
+import { openSpotifyTrackInBrowser } from "../utils/spotifyLinks";
 import OwnPostLikersDialog from "./OwnPostLikersDialog";
 import "./Home.css";
 import { supabase } from "../supabaseClient";
@@ -303,17 +304,6 @@ function HomeCardMediaStrip({ urls, imageAlt }) {
       ) : null}
     </div>
   );
-}
-
-function spotifyTrackUrl(track) {
-  const raw = track?.track_id;
-  const id =
-    typeof raw === "string"
-      ? raw.trim()
-      : typeof raw === "number" && Number.isFinite(raw)
-        ? String(raw)
-        : "";
-  return id ? `https://open.spotify.com/track/${encodeURIComponent(id)}` : "";
 }
 
 /** feed 가 null 이면 로딩 중, 배열이면 로딩 완료(빈 배열 가능) */
@@ -1083,13 +1073,16 @@ function Home({
   );
 
   const openTrackInSpotify = useCallback((track) => {
-    const url = spotifyTrackUrl(track);
-    if (!url) {
+    const r = openSpotifyTrackInBrowser(track);
+    if (r === "no_track") {
       setPlaybackNotice("Spotify에서 열 수 있는 트랙 정보가 없어요.");
       return;
     }
-
-    window.open(url, "_blank", "noopener,noreferrer");
+    if (r === "blocked") {
+      setPlaybackNotice(
+        "새 창이 막혀 있을 수 있어요. 브라우저 설정에서 팝업을 허용해 주세요.",
+      );
+    }
   }, []);
 
   useEffect(() => {
@@ -1810,7 +1803,11 @@ function Home({
                               <button
                                 type="button"
                                 className="home-action-btn home-action-btn--spotify"
-                                onClick={() => openTrackInSpotify(track)}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  openTrackInSpotify(track);
+                                }}
                                 aria-label={
                                   trackTitle
                                     ? `${trackTitle} Spotify에서 열기`
@@ -1970,7 +1967,11 @@ function Home({
                               <button
                                 type="button"
                                 className="home-action-btn home-action-btn--spotify"
-                                onClick={() => openTrackInSpotify(track)}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  openTrackInSpotify(track);
+                                }}
                                 aria-label={
                                   trackTitle
                                     ? `${trackTitle} Spotify에서 열기`

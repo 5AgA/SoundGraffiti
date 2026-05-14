@@ -15,6 +15,8 @@ const SEOUL_CENTER = { latitude: 37.5665, longitude: 126.978 };
 const KAKAO_MAP_SDK_SRC = "https://dapi.kakao.com/v2/maps/sdk.js";
 const MAX_VISIBLE_DOTS = 5;
 const DISTANCE_LOCKED_MESSAGE = "200m 이내 노래만 확인할 수 있어요";
+/** 이 거리(m)보다 멀면 지도 시트에서 ‘이 장소에서 포스트’ 버튼을 숨김 */
+const POST_AT_PLACE_MAX_DISTANCE_M = 200;
 /** 지도 클릭 좌표와 음악 핀 장소가 이 거리(m) 안이면 음악 시트를 우선 */
 const MAP_CLICK_MATCH_POST_PLACE_M = 48;
 /** 내 위치로 맞출 때 카카오 맵 zoom level (숫자가 작을수록 더 확대) */
@@ -124,6 +126,34 @@ function distanceMeters(
   return 2 * earthRadiusMeters * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
+/** 중심(lat,lng)에서 반경 `radiusM` 만큼 떨어진 폐곡선 링 — `Polygon`/`Polyline` path 용 */
+function latLngPairsRingMeters(centerLat, centerLng, radiusM, pointCount = 72) {
+  const R = 6371000;
+  const φ1 = (centerLat * Math.PI) / 180;
+  const λ1 = (centerLng * Math.PI) / 180;
+  const δ = radiusM / R;
+  const pairs = [];
+  for (let i = 0; i <= pointCount; i++) {
+    const θ = (2 * Math.PI * i) / pointCount;
+    const sinφ1 = Math.sin(φ1);
+    const cosφ1 = Math.cos(φ1);
+    const sinδ = Math.sin(δ);
+    const cosδ = Math.cos(δ);
+    const sinφ2 = sinφ1 * cosδ + cosφ1 * sinδ * Math.cos(θ);
+    const φ2 = Math.asin(Math.min(1, Math.max(-1, sinφ2)));
+    const λ2 =
+      λ1 +
+      Math.atan2(
+        Math.sin(θ) * sinδ * cosφ1,
+        cosδ - sinφ1 * Math.sin(φ2),
+      );
+    let degLng = (λ2 * 180) / Math.PI;
+    degLng = ((((degLng + 180) % 360) + 360) % 360) - 180;
+    pairs.push([(φ2 * 180) / Math.PI, degLng]);
+  }
+  return pairs;
+}
+
 function findNearestPlaceGroup(lat, lng, groups, maxMeters) {
   let best = null;
   let bestD = Infinity;
@@ -227,6 +257,8 @@ function KakaoMap() {
   const isMountedRef = useRef(true);
   const enableAutoFitBoundsRef = useRef(false);
   const myLocationOverlayRef = useRef(null);
+  /** 내 위치 기준 200m 반경 — `Polygon`(또는 `Polyline`) 지오데식 링 */
+  const feedRadiusRingRef = useRef(null);
   const mapCoordinatePickSuppressedUntilRef = useRef(0);
   const [posts, setPosts] = useState([]);
   const [mapRefreshing, setMapRefreshing] = useState(false);
@@ -238,6 +270,8 @@ function KakaoMap() {
   const [isSheetDragging, setIsSheetDragging] = useState(false);
   const [isSheetClosing, setIsSheetClosing] = useState(false);
   const [mapNotice, setMapNotice] = useState("");
+  /** 피드/작성 거리 판정용 — `resolveMapCoords`로 얻은 최근 좌표 */
+  const [userCoordsForMap, setUserCoordsForMap] = useState(null);
 
   const placeGroups = useMemo(() => {
     const groups = new Map();
@@ -417,6 +451,10 @@ function KakaoMap() {
     const c = await resolveMapCoords();
     if (!c || mapInstanceRef.current !== map) return;
 
+    if (Number.isFinite(c.lat) && Number.isFinite(c.lng)) {
+      setUserCoordsForMap({ lat: c.lat, lng: c.lng });
+    }
+
     const pos = new window.kakao.maps.LatLng(c.lat, c.lng);
     map.setCenter(pos);
     map.setLevel(MAP_USER_ZOOM_LEVEL);
@@ -454,6 +492,15 @@ function KakaoMap() {
     try {
       const coords = await resolveMapCoords();
       if (!isMountedRef.current) return;
+      if (
+        coords &&
+        Number.isFinite(coords.lat) &&
+        Number.isFinite(coords.lng)
+      ) {
+        setUserCoordsForMap({ lat: coords.lat, lng: coords.lng });
+      } else {
+        setUserCoordsForMap(null);
+      }
       const { posts: mapPosts, error } = await getMapPosts(
         coords?.lat,
         coords?.lng,
@@ -592,6 +639,86 @@ function KakaoMap() {
       setIsMapReady(false);
     };
   }, []);
+
+  /** 내 위치 기준 200m 반경 — 맵 생성 effect보다 뒤: unmount 시 링을 맵 파괴보다 먼저 제거 */
+  useEffect(() => {
+    if (!isMapReady || !mapInstanceRef.current || !window.kakao?.maps) {
+      try {
+        feedRadiusRingRef.current?.setMap(null);
+      } catch {
+        /* noop */
+      }
+      feedRadiusRingRef.current = null;
+      return undefined;
+    }
+
+    const map = mapInstanceRef.current;
+    const u = userCoordsForMap;
+
+    if (!u || !Number.isFinite(u.lat) || !Number.isFinite(u.lng)) {
+      try {
+        feedRadiusRingRef.current?.setMap(null);
+      } catch {
+        /* noop */
+      }
+      return undefined;
+    }
+
+    const kakao = window.kakao.maps;
+    if (typeof kakao.LatLng !== "function") {
+      return undefined;
+    }
+
+    const path = latLngPairsRingMeters(
+      u.lat,
+      u.lng,
+      POST_AT_PLACE_MAX_DISTANCE_M,
+    ).map(([lat, lng]) => new kakao.LatLng(lat, lng));
+
+    try {
+      feedRadiusRingRef.current?.setMap(null);
+      feedRadiusRingRef.current = null;
+
+      const PolyCtor = kakao.Polygon;
+      const LineCtor = kakao.Polyline;
+
+      if (typeof PolyCtor === "function") {
+        feedRadiusRingRef.current = new PolyCtor({
+          path,
+          strokeWeight: 2,
+          strokeColor: "#005eff",
+          strokeOpacity: 0.82,
+          strokeStyle: "solid",
+          fillColor: "#005eff",
+          fillOpacity: 0.1,
+          zIndex: 8,
+        });
+      } else if (typeof LineCtor === "function") {
+        feedRadiusRingRef.current = new LineCtor({
+          path,
+          strokeWeight: 2,
+          strokeColor: "#005eff",
+          strokeOpacity: 0.88,
+          strokeStyle: "solid",
+          zIndex: 8,
+        });
+      } else {
+        return undefined;
+      }
+
+      feedRadiusRingRef.current.setMap(map);
+    } catch (err) {
+      console.warn("[KakaoMap] feed radius ring:", err);
+    }
+
+    return () => {
+      try {
+        feedRadiusRingRef.current?.setMap(null);
+      } catch {
+        /* noop */
+      }
+    };
+  }, [isMapReady, userCoordsForMap]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -778,7 +905,6 @@ function KakaoMap() {
 
   const handleTrackCardClick = (post, index) => {
     if (post?.post_id != null) {
-      /* 위치 권한이 없어도 within_feed_radius 가 false일 수 있음 — 그래도 홈에서 해당 글(또는 주변 피드)로 이동 */
       navigate("/home", { state: { mapFocusPostId: post.post_id } });
       return;
     }
@@ -822,8 +948,30 @@ function KakaoMap() {
     (sheetPlace?.external_place_id != null &&
       String(sheetPlace.external_place_id).trim() !== "");
 
+  const distanceToSelectedPlaceM = useMemo(() => {
+    if (!sheetPlace) return null;
+    const u = userCoordsForMap;
+    if (!u || !Number.isFinite(u.lat) || !Number.isFinite(u.lng)) {
+      return null;
+    }
+    const plat = Number(sheetPlace.latitude);
+    const plng = Number(sheetPlace.longitude);
+    if (!Number.isFinite(plat) || !Number.isFinite(plng)) return null;
+    return distanceMeters(u.lat, u.lng, plat, plng);
+  }, [sheetPlace, userCoordsForMap]);
+
+  const hidePostRowDueToDistance =
+    distanceToSelectedPlaceM != null &&
+    distanceToSelectedPlaceM > POST_AT_PLACE_MAX_DISTANCE_M;
+
   const handlePostAtThisPlace = () => {
     if (!sheetPlace) return;
+    if (
+      distanceToSelectedPlaceM != null &&
+      distanceToSelectedPlaceM > POST_AT_PLACE_MAX_DISTANCE_M
+    ) {
+      return;
+    }
     if (!canPostAtSelectedPlace) {
       setMapNotice(
         "이 장소로 글을 남기려면 카카오 장소 정보가 필요해요. 다른 위치를 눌러 보세요.",
@@ -913,16 +1061,18 @@ function KakaoMap() {
             </div>
           ) : null}
 
-          <div className="map-sheet-post-row">
-            <button
-              type="button"
-              className="map-sheet-post-btn"
-              onClick={handlePostAtThisPlace}
-              disabled={!canPostAtSelectedPlace}
-            >
-              이 장소에서 포스트
-            </button>
-          </div>
+          {!hidePostRowDueToDistance ? (
+            <div className="map-sheet-post-row">
+              <button
+                type="button"
+                className="map-sheet-post-btn"
+                onClick={handlePostAtThisPlace}
+                disabled={!canPostAtSelectedPlace}
+              >
+                이 장소에서 포스트
+              </button>
+            </div>
+          ) : null}
 
           <div
             ref={carouselRef}
@@ -943,9 +1093,13 @@ function KakaoMap() {
                     post?.within_feed_radius ? " is-feed-link" : ""
                   }${isDistanceLocked ? " is-distance-locked" : ""}`}
                   key={post.post_id}
-                  onClick={() => handleTrackCardClick(post, index)}
+                  onClick={
+                    isDistanceLocked
+                      ? undefined
+                      : () => handleTrackCardClick(post, index)
+                  }
                   title={
-                    post?.post_id != null
+                    post?.post_id != null && !isDistanceLocked
                       ? "홈 피드에서 이 게시물 보기"
                       : undefined
                   }

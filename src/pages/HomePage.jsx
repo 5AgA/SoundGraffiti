@@ -138,8 +138,10 @@ export default function HomePage() {
     reloadFeedScrollBumpDoneRef.current = true;
     setFeedScrollResetSignal((n) => n + 1);
   }, [pageReload, focusPostId]);
-  /** 업로드 완료/실패 알림 — `/upload`에서 홈으로 보낸 뒤 백그라운드 업로드 결과 */
+  /** 업로드 실패 시 짧은 알림만 */
   const [uploadToast, setUploadToast] = useState(null);
+  /** 업로드 성공 후 ‘작성된 포스트로 이동’ 제안 — postId 있을 때만 모달 */
+  const [uploadCompletePostId, setUploadCompletePostId] = useState(null);
 
   const coordsRef = useRef(null);
   const isMountedRef = useRef(true);
@@ -159,7 +161,12 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    const onUploadSuccess = () => setUploadToast("success");
+    const onUploadSuccess = (e) => {
+      const raw = e?.detail?.postId;
+      if (raw != null && String(raw).trim() !== "") {
+        setUploadCompletePostId(String(raw).trim());
+      }
+    };
     const onUploadError = () => setUploadToast("error");
     window.addEventListener("soundgraffiti-upload-success", onUploadSuccess);
     window.addEventListener("soundgraffiti-upload-error", onUploadError);
@@ -348,6 +355,23 @@ export default function HomePage() {
     });
   };
 
+  const handleUploadGoToPost = useCallback(() => {
+    if (!uploadCompletePostId) return;
+    const id = uploadCompletePostId;
+    setUploadCompletePostId(null);
+    clearHomeFeedSessionCache();
+    window.location.assign(
+      new URL(
+        `home?postId=${encodeURIComponent(id)}`,
+        `${window.location.origin}${import.meta.env.BASE_URL}`,
+      ).href,
+    );
+  }, [uploadCompletePostId]);
+
+  const handleUploadDialogCancel = useCallback(() => {
+    setUploadCompletePostId(null);
+  }, []);
+
   return (
     <>
       {devGeoBypassNotice && (
@@ -408,14 +432,48 @@ export default function HomePage() {
           ) : null}
         </div>
       )}
-      {uploadToast === "success" ? (
-        <div className="home-upload-notice" role="status">
-          작성 완료! 새로고침하세요
-        </div>
-      ) : null}
       {uploadToast === "error" ? (
         <div className="home-upload-notice" role="alert">
           업로드에 실패했습니다.
+        </div>
+      ) : null}
+      {uploadCompletePostId ? (
+        <div className="home-feed-dialog-layer">
+          <button
+            type="button"
+            className="home-comment-delete-layer__backdrop"
+            aria-label="취소"
+            onClick={handleUploadDialogCancel}
+          />
+          <div
+            className="home-comment-delete-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="upload-complete-dialog-title"
+          >
+            <p
+              id="upload-complete-dialog-title"
+              className="home-comment-delete-dialog__title"
+            >
+              작성 완료! 작성된 포스트로 이동하시겠습니까?
+            </p>
+            <div className="home-comment-delete-dialog__actions">
+              <button
+                type="button"
+                className="home-comment-delete-dialog__btn home-comment-delete-dialog__btn--ghost"
+                onClick={handleUploadDialogCancel}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                className="home-comment-delete-dialog__btn home-comment-delete-dialog__btn--danger"
+                onClick={handleUploadGoToPost}
+              >
+                이동
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
       <Home

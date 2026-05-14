@@ -18,6 +18,7 @@ import {
   readMyPageSessionCache,
   writeMyPageSessionCache,
 } from "../utils/myPageSessionCache";
+import { openSpotifyTrackInBrowser } from "../utils/spotifyLinks";
 import OwnPostLikersDialog from "../components/OwnPostLikersDialog";
 import "../components/Home.css";
 import "./MyPage.css";
@@ -224,17 +225,6 @@ function postAuthorProfileRawFromPost(post) {
 function postBodyText(post) {
   const c = post?.content;
   return typeof c === "string" ? c.trim() : "";
-}
-
-function spotifyTrackUrl(track) {
-  const raw = track?.track_id;
-  const id =
-    typeof raw === "string"
-      ? raw.trim()
-      : typeof raw === "number" && Number.isFinite(raw)
-        ? String(raw)
-        : "";
-  return id ? `https://open.spotify.com/track/${encodeURIComponent(id)}` : "";
 }
 
 function getFlipCommentDevCoords() {
@@ -684,12 +674,16 @@ export default function MyPage() {
   }, [playbackNotice]);
 
   const openSpotifyTrack = useCallback((track) => {
-    const url = spotifyTrackUrl(track);
-    if (!url) {
+    const r = openSpotifyTrackInBrowser(track);
+    if (r === "no_track") {
       setPlaybackNotice("Spotify에서 열 수 있는 트랙 정보가 없어요.");
       return;
     }
-    window.open(url, "_blank", "noopener,noreferrer");
+    if (r === "blocked") {
+      setPlaybackNotice(
+        "새 창이 막혀 있을 수 있어요. 브라우저 설정에서 팝업을 허용해 주세요.",
+      );
+    }
   }, []);
 
   const tryOpenFlipCommentSheet = useCallback((post) => {
