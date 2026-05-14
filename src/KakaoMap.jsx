@@ -444,7 +444,7 @@ function KakaoMap({ initialPlaceId }) {
     return null;
   }, []);
 
-  const runMyLocationFocus = useCallback(async (moveCamera = true) => {
+  const runMyLocationFocus = useCallback(async () => {
     const map = mapInstanceRef.current;
     if (!map || !window.kakao?.maps) return;
 
@@ -456,11 +456,9 @@ function KakaoMap({ initialPlaceId }) {
     }
 
     const pos = new window.kakao.maps.LatLng(c.lat, c.lng);
-    if (moveCamera) {
-      map.setCenter(pos);
-      map.setLevel(MAP_USER_ZOOM_LEVEL);
-      setZoomLevel(map.getLevel());
-    }
+    map.setCenter(pos);
+    map.setLevel(MAP_USER_ZOOM_LEVEL);
+    setZoomLevel(map.getLevel());
 
     myLocationOverlayRef.current?.setMap(null);
     const el = document.createElement("div");
@@ -555,7 +553,7 @@ function KakaoMap({ initialPlaceId }) {
     let cancelled = false;
 
     void (async () => {
-      await runMyLocationFocus(!initialPlaceId);
+      await runMyLocationFocus();
       if (cancelled) {
         myLocationOverlayRef.current?.setMap(null);
         myLocationOverlayRef.current = null;
@@ -567,7 +565,7 @@ function KakaoMap({ initialPlaceId }) {
       myLocationOverlayRef.current?.setMap(null);
       myLocationOverlayRef.current = null;
     };
-  }, [isMapReady, runMyLocationFocus, initialPlaceId]);
+  }, [isMapReady, runMyLocationFocus]);
 
   useEffect(() => {
     const onRecenter = () => {
@@ -597,9 +595,8 @@ function KakaoMap({ initialPlaceId }) {
 
       // 좌표가 정상적이면 카메라 스무스하게 이동 후 바텀시트 띄우기
       if (Number.isFinite(lat) && Number.isFinite(lng)) {
-        mapInstanceRef.current.setCenter(moveLatLon);
-        mapInstanceRef.current.setLevel(MAP_USER_ZOOM_LEVEL);
-        setZoomLevel(mapInstanceRef.current.getLevel());
+        const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
+        mapInstanceRef.current.panTo(moveLatLon);
 
         // 해당 장소 핀을 직접 클릭한 것과 100% 동일한 효과 (바텀시트 열기)
         setSelectedPlace(targetGroup);
