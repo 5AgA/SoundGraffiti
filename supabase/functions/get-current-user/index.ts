@@ -24,16 +24,6 @@ function authDisplayName(authUser: {
   return '사용자'
 }
 
-function authProfileUrl(authUser: { user_metadata?: Record<string, unknown> }) {
-  const metadata = authUser.user_metadata ?? {}
-  const value =
-    metadata.user_profile_url ??
-    metadata.avatar_url ??
-    metadata.picture
-
-  return typeof value === 'string' ? value.trim() : ''
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -80,7 +70,6 @@ Deno.serve(async (req) => {
 
   const now = new Date().toISOString()
   const displayName = authDisplayName(authUser)
-  const profileUrl = authProfileUrl(authUser)
 
   const { data: linkedUser, error: linkedError } = await adminClient
     .from('Users')
@@ -141,7 +130,7 @@ Deno.serve(async (req) => {
         auth_user_id: authUser.id,
         user_email: authUser.email,
         user_name: displayName,
-        user_profile_url: profileUrl || null,
+        user_profile_url: null,
         user_password: '',
         user_created: now,
         last_login: now,

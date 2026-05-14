@@ -24,6 +24,7 @@ function UploadGraffiti() {
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
   /** @type {React.MutableRefObject<import('react-easy-crop').Area | null>} */
   const croppedPixelsRef = useRef(null);
   const cropOriginalNameRef = useRef("");
@@ -114,6 +115,7 @@ function UploadGraffiti() {
     if (cropBusy) return;
     closeCropModal();
     if (fileInputRef.current) fileInputRef.current.value = "";
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
   }, [cropBusy, closeCropModal]);
 
   const openReCrop = useCallback(
@@ -131,7 +133,14 @@ function UploadGraffiti() {
 
   const handleMusicSearch = () => setActiveSheet('music');
   const handleAIRecommend = () => setActiveSheet('ai');
-  const handlePlaceSearchOpen = () => setActiveSheet('place');
+  const handlePlaceSearchOpen = () => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+      searchTimeoutRef.current = null;
+    }
+    setSearchKeyword("");
+    setActiveSheet("place");
+  };
   
   const handleTrackSelect = (track) => {
     setSelectedTrack(track); 
@@ -145,7 +154,8 @@ function UploadGraffiti() {
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
-    if (fileInputRef.current) e.target.value = "";
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
     if (!file) return;
     if (!file.type.startsWith("image/")) {
       alert("이미지 파일만 선택할 수 있습니다.");
@@ -172,6 +182,9 @@ function UploadGraffiti() {
     setImagePreview(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
+    }
+    if (cameraInputRef.current) {
+      cameraInputRef.current.value = "";
     }
   };
 
@@ -200,31 +213,70 @@ function UploadGraffiti() {
     if (!activeSheet) setSheetTranslateY(0);
   }, [activeSheet]);
 
+  useEffect(() => {
+    if (activeSheet !== "place") return undefined;
+    if (!userLoc) {
+      setSearchResults([]);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      if (cancelled) return;
+      setIsSearching(true);
+      try {
+        const { data, error } = await supabase.functions.invoke(
+          "search-places",
+          {
+            body: { keyword: "", x: userLoc.lng, y: userLoc.lat },
+          },
+        );
+        if (cancelled) return;
+        if (error) throw error;
+        setSearchResults(data?.results ?? []);
+      } catch (err) {
+        console.error("장소 검색 오류:", err);
+        if (!cancelled) setSearchResults([]);
+      } finally {
+        if (!cancelled) setIsSearching(false);
+      }
+    }, 100);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [activeSheet, userLoc]);
+
   // 카카오 장소 검색
   const handleSearchChange = (e) => {
     const keyword = e.target.value;
     setSearchKeyword(keyword);
-    
-    // 타이핑 중이면 이전 요청 취소 (디바운스)
+
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-    
-    if (!keyword.trim()) {
+
+    const trimmed = keyword.trim();
+    if (!trimmed && !userLoc) {
       setSearchResults([]);
       return;
     }
 
-    setIsSearching(true);
-    // 타이핑 멈추고 0.3초 뒤에 검색 API 호출
+    const delay = trimmed ? 300 : 200;
+
     searchTimeoutRef.current = setTimeout(async () => {
       try {
-        const payload = { keyword };
+        setIsSearching(true);
+        const payload = { keyword: trimmed };
         if (userLoc) {
           payload.x = userLoc.lng;
           payload.y = userLoc.lat;
         }
-        const { data, error } = await supabase.functions.invoke('search-places', {
-          body: payload
-        });
+        const { data, error } = await supabase.functions.invoke(
+          "search-places",
+          {
+            body: payload,
+          },
+        );
 
         if (error) throw error;
         setSearchResults(data.results || []);
@@ -234,7 +286,7 @@ function UploadGraffiti() {
       } finally {
         setIsSearching(false);
       }
-    }, 300); 
+    }, delay);
   };
 
   // 장소 선택 시 200m 이내 검증 (엣지 펑션 호출)
@@ -441,6 +493,14 @@ return (
               style={{ display: "none" }}
               onChange={handleFileChange}
             />
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              ref={cameraInputRef}
+              style={{ display: "none" }}
+              onChange={handleFileChange}
+            />
             {imagePreview ? (
               <>
                 <img
@@ -459,6 +519,18 @@ return (
                   </button>
                   <button
                     type="button"
+                    className="upload-image-edit-btn"
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      cameraInputRef.current?.click();
+                    }}
+                    disabled={!!activeSheet || cropBusy || !!cropSrc}
+                    aria-label="카메라로 다시 촬영"
+                  >
+                    촬영
+                  </button>
+                  <button
+                    type="button"
                     className="image-remove-btn"
                     onClick={handleRemoveImage}
                   >
@@ -473,6 +545,16 @@ return (
                 <p className="upload-image-hint">
                   선택 후 화면에서 위치·확대를 맞출 수 있어요.
                 </p>
+                <button
+                  type="button"
+                  className="upload-image-camera-btn"
+                  onClick={(ev) => {
+                    ev.stopPropagation();
+                    cameraInputRef.current?.click();
+                  }}
+                >
+                  카메라로 찍기
+                </button>
               </>
             )}
             {selectedTrack && (
@@ -510,7 +592,7 @@ return (
                   <input 
                     type="text" 
                     className="place-search-input" 
-                    placeholder="장소 이름을 입력하세요"
+                    placeholder="그래피티를 남길 장소를 검색하세요"
                     value={searchKeyword}
                     onChange={handleSearchChange}
                     disabled={isVerifyingLoc}
