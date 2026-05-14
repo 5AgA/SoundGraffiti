@@ -13,6 +13,7 @@ import { MAP_RECENTER_USER_EVENT } from "./constants/appEvents";
 const SEOUL_CENTER = { latitude: 37.5665, longitude: 126.978 };
 const KAKAO_MAP_SDK_SRC = "https://dapi.kakao.com/v2/maps/sdk.js";
 const MAX_VISIBLE_DOTS = 5;
+const DISTANCE_LOCKED_MESSAGE = "200m 이내 노래만 확인할 수 있어요";
 /** 내 위치로 맞출 때 카카오 맵 zoom level (숫자가 작을수록 더 확대) */
 const MAP_USER_ZOOM_LEVEL = 4;
 
@@ -141,6 +142,8 @@ const getPinSize = (postCount) => {
   return Math.round(48 + Math.min(scale * 9, 32));
 };
 
+const isDistanceLockedPost = (post) => post?.within_feed_radius === false;
+
 const getClusterCellSize = (level) => {
   if (level <= 4) return 0;
   return 0.003 * 2 ** (level - 5);
@@ -152,11 +155,12 @@ const createAlbumPinElement = (placeGroup) => {
   const albumImageUrl = featuredPost?.Tracks?.album_image_url;
   const placeName = placeGroup.place.place_name ?? "Unknown place";
   const pinSize = getPinSize(placeGroup.posts.length);
+  const isDistanceLocked = isDistanceLockedPost(featuredPost);
 
   element.type = "button";
   element.className = `album-map-pin${albumImageUrl ? "" : " is-empty"}${
     placeGroup.posts.length > 1 ? " has-multiple-posts" : ""
-  }`;
+  }${isDistanceLocked ? " is-distance-locked" : ""}`;
   element.style.setProperty("--pin-size", `${pinSize}px`);
   element.setAttribute("aria-label", `${placeName} music posts`);
 
@@ -196,7 +200,6 @@ function KakaoMap() {
   const [sheetDragY, setSheetDragY] = useState(0);
   const [isSheetDragging, setIsSheetDragging] = useState(false);
   const [isSheetClosing, setIsSheetClosing] = useState(false);
-  const [mapNotice, setMapNotice] = useState("");
 
   const placeGroups = useMemo(() => {
     const groups = new Map();
@@ -569,15 +572,8 @@ function KakaoMap() {
       return;
     }
 
-    setMapNotice("현재 위치에서 200m 밖이라 피드로 이동할 수 없어요.");
     scrollToTrack(index);
   };
-
-  useEffect(() => {
-    if (!mapNotice) return undefined;
-    const timer = window.setTimeout(() => setMapNotice(""), 2400);
-    return () => window.clearTimeout(timer);
-  }, [mapNotice]);
 
   const handleSheetPointerDown = (event) => {
     event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -668,12 +664,6 @@ function KakaoMap() {
             {selectedPlace.place.place_name ?? "Unknown place"}
           </p>
 
-          {mapNotice ? (
-            <div className="map-sheet-notice" role="status">
-              {mapNotice}
-            </div>
-          ) : null}
-
           <div
             ref={carouselRef}
             className="map-track-carousel"
@@ -685,12 +675,13 @@ function KakaoMap() {
               const artistName = post?.Tracks?.artist_name ?? "Unknown artist";
               const userName = getUserName(post);
               const profileImageUrl = getUserProfileImage(post);
+              const isDistanceLocked = isDistanceLockedPost(post);
 
               return (
                 <article
                   className={`map-track-card${
                     post?.within_feed_radius ? " is-feed-link" : ""
-                  }`}
+                  }${isDistanceLocked ? " is-distance-locked" : ""}`}
                   key={post.post_id}
                   onClick={() => handleTrackCardClick(post, index)}
                   title={
@@ -704,7 +695,7 @@ function KakaoMap() {
                       <img
                         className="map-track-art"
                         src={albumImageUrl}
-                        alt={trackTitle}
+                        alt={isDistanceLocked ? "" : trackTitle}
                       />
                     ) : (
                       <div className="map-track-art map-track-art-empty">♪</div>
@@ -719,8 +710,16 @@ function KakaoMap() {
                       <span>{userName}</span>
                     </div>
                   </div>
-                  <h2 className="map-track-title">{trackTitle}</h2>
-                  <p className="map-track-artist">{artistName}</p>
+                  {isDistanceLocked ? (
+                    <p className="map-track-locked-message">
+                      {DISTANCE_LOCKED_MESSAGE}
+                    </p>
+                  ) : (
+                    <>
+                      <h2 className="map-track-title">{trackTitle}</h2>
+                      <p className="map-track-artist">{artistName}</p>
+                    </>
+                  )}
                 </article>
               );
             })}
