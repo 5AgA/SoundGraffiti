@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { getNearbyPosts } from "../api/posts";
 import BottomNav from "../components/BottomNav";
@@ -42,6 +42,22 @@ function isDocumentReload() {
   return false;
 }
 
+function readSuppressMapFocusOnce() {
+  try {
+    return sessionStorage.getItem("soundgraffitiSuppressMapFocusOnce") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function clearSuppressMapFocusOnce() {
+  try {
+    sessionStorage.removeItem("soundgraffitiSuppressMapFocusOnce");
+  } catch {
+    /* noop */
+  }
+}
+
 function initialHomeStateFromSessionCache() {
   const snap = readHomeFeedSessionCache();
   if (snap.feed === null) {
@@ -63,25 +79,46 @@ export default function HomePage() {
   const location = useLocation();
   const navigate = useNavigate();
   const pageReload = isDocumentReload();
+  const suppressMapFocusOnce = readSuppressMapFocusOnce();
   const postIdFromQuery = searchParams.get("postId");
   const postIdFromState =
     location.state?.mapFocusPostId != null
       ? String(location.state.mapFocusPostId)
       : null;
   /**
-   * 최초 진입이 리로드였어도 navigation.type 은 세션 내내 reload 로 남는다.
-   * 그래서 “리로드 시 맨 위”는 URL ?postId= 만 무시하고, 지도→홈 state 는 항상 반영한다.
+   * `main.jsx`가 풀 리로드 시에만 세팅하는 플래그로, 그 첫 홈 진입에서만
+   * `mapFocusPostId` / `?postId=` 포커스를 쓰지 않고 맨 위로 시작한다.
+   * (performance.navigation.type 은 리로드 후에도 계속 reload 로 남는다.)
    */
-  const focusPostId =
-    pageReload && postIdFromQuery != null
-      ? null
-      : postIdFromQuery ?? postIdFromState;
+  const focusPostId = suppressMapFocusOnce
+    ? null
+    : postIdFromQuery ?? postIdFromState;
 
   useEffect(() => {
+    if (suppressMapFocusOnce) {
+      clearSuppressMapFocusOnce();
+      setFeedScrollResetSignal((n) => n + 1);
+      const dropQuery = Boolean(pageReload && postIdFromQuery);
+      navigate(
+        {
+          pathname: location.pathname,
+          ...(dropQuery ? { search: "" } : {}),
+        },
+        { replace: true, state: {} },
+      );
+      return;
+    }
     if (!pageReload) return;
     if (!postIdFromQuery) return;
     navigate({ pathname: location.pathname, search: "" }, { replace: true });
-  }, [location.pathname, navigate, pageReload, postIdFromQuery]);
+  }, [
+    location.pathname,
+    location.search,
+    navigate,
+    pageReload,
+    postIdFromQuery,
+    suppressMapFocusOnce,
+  ]);
   const hydrated = initialHomeStateFromSessionCache();
   /** null = 로딩 중, 배열 = 주변 피드 결과(빈 배열 가능) */
   const [feed, setFeed] = useState(hydrated.feed);
@@ -91,6 +128,16 @@ export default function HomePage() {
     hydrated.devGeoBypassNotice,
   );
   const [commentSheetOpen, setCommentSheetOpen] = useState(false);
+  /** 풀 리로드 직후 피드 스크롤·activeIndex 를 맨 위로 강제할 때마다 증가 */
+  const [feedScrollResetSignal, setFeedScrollResetSignal] = useState(0);
+  /** sessionStorage suppress 플래그가 안 잡혀도, 풀 리로드 직후 포커스 없으면 피드 스크롤 복원으로 잘못된 카드가 뜨는 것을 막음 */
+  const reloadFeedScrollBumpDoneRef = useRef(false);
+  useLayoutEffect(() => {
+    if (!pageReload || focusPostId != null) return;
+    if (reloadFeedScrollBumpDoneRef.current) return;
+    reloadFeedScrollBumpDoneRef.current = true;
+    setFeedScrollResetSignal((n) => n + 1);
+  }, [pageReload, focusPostId]);
   /** 업로드 완료/실패 알림 — `/upload`에서 홈으로 보낸 뒤 백그라운드 업로드 결과 */
   const [uploadToast, setUploadToast] = useState(null);
 
@@ -374,6 +421,7 @@ export default function HomePage() {
       <Home
         feed={feed}
         focusPostId={focusPostId}
+        feedScrollResetSignal={feedScrollResetSignal}
         feedEmptyDetail={
           feedLoadError
             ? "위치·네트워크를 확인해 주세요. (상단 안내 참고)"

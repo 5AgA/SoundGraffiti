@@ -320,6 +320,7 @@ function spotifyTrackUrl(track) {
 function Home({
   feed = null,
   focusPostId = null,
+  feedScrollResetSignal = 0,
   feedEmptyDetail = null,
   persistFeedUpdate,
   onPullRefresh,
@@ -332,6 +333,7 @@ function Home({
   const isLoading = feed === null;
   const list = isLoading ? [null] : feed;
   const [activeIndex, setActiveIndex] = useState(0);
+  const lastFeedScrollResetSignalRef = useRef(0);
   /** 활성 카드: 전체 3D 플립으로 업로드 사진면 표시 */
   const [cardFlipped, setCardFlipped] = useState(false);
   /** 플립 시 한 장만 보기 + 상단 제목·가수, 나가면 스크롤 복원 */
@@ -1119,6 +1121,16 @@ function Home({
     });
     setActiveIndex((prev) => (prev !== bestIdx ? bestIdx : prev));
   };
+
+  /** 풀 리로드 직후 등: 피드 컨테이너 scrollTop 복원으로 잘못된 activeIndex 가 잡히는 것 방지 */
+  useLayoutEffect(() => {
+    if (feedScrollResetSignal <= lastFeedScrollResetSignalRef.current) return;
+    lastFeedScrollResetSignalRef.current = feedScrollResetSignal;
+    activeIndexRef.current = 0;
+    const root = feedScrollRef.current;
+    if (root) root.scrollTop = 0;
+    setActiveIndex(0);
+  }, [feedScrollResetSignal]);
 
   const handleFeedScroll = (e) => {
     updateActiveFromScroll(e.currentTarget);
