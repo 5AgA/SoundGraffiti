@@ -1,9 +1,36 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import {
+  resolveItunesPreview,
+  type PreviewInput,
+} from "../_shared/itunes_preview_match.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
 };
+
+type SpotifyArtist = { name?: string };
+type SpotifyTrack = {
+  name?: string;
+  artists?: SpotifyArtist[];
+  album?: { name?: string };
+  duration_ms?: number;
+};
+
+function previewInputFromSpotify(track: SpotifyTrack): PreviewInput | null {
+  const title = track.name?.trim();
+  if (!title) return null;
+  const artistName = (track.artists ?? [])
+    .map((a) => a?.name)
+    .filter((n): n is string => Boolean(n && String(n).trim()))
+    .join(", ");
+  return {
+    trackTitle: title,
+    artistName: artistName || undefined,
+    albumName: track.album?.name,
+    durationMs: track.duration_ms,
+  };
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -33,7 +60,6 @@ serve(async (req) => {
 3. 한국어와 영어 노래를 적절히 섞어서 추천해.
 4. 20대들은 너무 유명한 노래만 나오면 금방 질려해. 음악 디깅의 재미를 느낄 수 있게 잘 알려지지 않은 명곡(숨은 띵곡)도 반드시 포함해.
 5. 무조건 7곡 이상 추천해주고, 추천할만한 노래가 많으면 10개 이상으로도 추천해.
->>>>>>> ef48364 (fix: create-post)
 
 # 출력 형식
 반드시 순수한 JSON 형식으로만 답해줘.
@@ -116,10 +142,28 @@ serve(async (req) => {
       }
     }
 
+    const enrichedTracks = await Promise.all(
+      realSpotifyTracks.map(async (track) => {
+        const input = previewInputFromSpotify(track as SpotifyTrack);
+        if (!input) {
+          return { ...track, itunes_preview_available: false };
+        }
+        try {
+          const match = await resolveItunesPreview(input);
+          return {
+            ...track,
+            itunes_preview_available: Boolean(match?.previewUrl),
+          };
+        } catch {
+          return { ...track, itunes_preview_available: false };
+        }
+      }),
+    );
+
     // 최종 반환
     return new Response(JSON.stringify({
       analysis: aiData.analysis,
-      recommendations: realSpotifyTracks 
+      recommendations: enrichedTracks,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });

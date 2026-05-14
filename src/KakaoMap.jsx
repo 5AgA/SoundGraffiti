@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMapPosts } from "./api/posts";
+import { supabase } from "./supabaseClient";
 import "./KakaoMap.css";
 import { getDevGeoCoordinates } from "./utils/devGeoCoords";
 import { resolvedProfileImageUrl } from "./utils/profileImage";
@@ -14,6 +15,8 @@ const SEOUL_CENTER = { latitude: 37.5665, longitude: 126.978 };
 const KAKAO_MAP_SDK_SRC = "https://dapi.kakao.com/v2/maps/sdk.js";
 const MAX_VISIBLE_DOTS = 5;
 const DISTANCE_LOCKED_MESSAGE = "200m 이내 노래만 확인할 수 있어요";
+/** 지도 클릭 좌표와 음악 핀 장소가 이 거리(m) 안이면 음악 시트를 우선 */
+const MAP_CLICK_MATCH_POST_PLACE_M = 48;
 /** 내 위치로 맞출 때 카카오 맵 zoom level (숫자가 작을수록 더 확대) */
 const MAP_USER_ZOOM_LEVEL = 4;
 
@@ -105,6 +108,39 @@ const getPlaceKey = (post) => {
   return `${place?.place_name ?? "unknown"}-${place?.latitude ?? ""}-${place?.longitude ?? ""}`;
 };
 
+function distanceMeters(
+  latA,
+  lngA,
+  latB,
+  lngB,
+) {
+  const earthRadiusMeters = 6371000;
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const dLat = toRad(latB - latA);
+  const dLng = toRad(lngB - lngA);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(latA)) * Math.cos(toRad(latB)) * Math.sin(dLng / 2) ** 2;
+  return 2 * earthRadiusMeters * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+function findNearestPlaceGroup(lat, lng, groups, maxMeters) {
+  let best = null;
+  let bestD = Infinity;
+  for (const g of groups) {
+    const p = g?.place;
+    const plat = Number(p?.latitude);
+    const plng = Number(p?.longitude);
+    if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
+    const d = distanceMeters(lat, lng, plat, plng);
+    if (d <= maxMeters && d < bestD) {
+      best = g;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
 const getUserName = (post) => {
   const user = Array.isArray(post?.Users) ? post.Users[0] : post?.Users;
   return user?.user_name || post?.user_name || "anonymous";
@@ -191,6 +227,7 @@ function KakaoMap() {
   const isMountedRef = useRef(true);
   const enableAutoFitBoundsRef = useRef(false);
   const myLocationOverlayRef = useRef(null);
+  const mapCoordinatePickSuppressedUntilRef = useRef(0);
   const [posts, setPosts] = useState([]);
   const [mapRefreshing, setMapRefreshing] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
@@ -200,6 +237,7 @@ function KakaoMap() {
   const [sheetDragY, setSheetDragY] = useState(0);
   const [isSheetDragging, setIsSheetDragging] = useState(false);
   const [isSheetClosing, setIsSheetClosing] = useState(false);
+  const [mapNotice, setMapNotice] = useState("");
 
   const placeGroups = useMemo(() => {
     const groups = new Map();
@@ -256,19 +294,95 @@ function KakaoMap() {
 
     return Array.from(clusters.values()).map((cluster) => {
       const placeCount = cluster.sourceGroups.length;
-      const firstPlaceName = cluster.sourceGroups[0]?.place?.place_name;
+      const firstGroup = cluster.sourceGroups[0];
+      const basePlace = firstGroup?.place ?? {};
+      const avgLat = cluster.latitudeTotal / placeCount;
+      const avgLng = cluster.longitudeTotal / placeCount;
 
+      if (placeCount === 1) {
+        return {
+          key: cluster.key,
+          place: { ...basePlace, latitude: avgLat, longitude: avgLng },
+          posts: cluster.posts,
+        };
+      }
+
+      const hubName = basePlace.place_name ?? "이 구역";
       return {
         key: cluster.key,
         place: {
-          place_name: placeCount > 1 ? `${firstPlaceName} 근처` : firstPlaceName,
-          latitude: cluster.latitudeTotal / placeCount,
-          longitude: cluster.longitudeTotal / placeCount,
+          ...basePlace,
+          place_name: `${hubName} 근처`,
+          latitude: avgLat,
+          longitude: avgLng,
         },
         posts: cluster.posts,
       };
     });
   }, [placeGroups, zoomLevel]);
+
+  const pickPlaceAtMapCoordinates = useCallback(async (lat, lng) => {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    setMapNotice("");
+
+    const matchPost = findNearestPlaceGroup(
+      lat,
+      lng,
+      placeGroups,
+      MAP_CLICK_MATCH_POST_PLACE_M,
+    );
+    if (matchPost) {
+      setSelectedPlace(matchPost);
+      setActiveTrackIndex(0);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke("search-places", {
+        body: { keyword: "", x: lng, y: lat },
+      });
+      if (error) throw error;
+      const row = Array.isArray(data?.results) ? data.results[0] : null;
+      if (!row?.place_name || row.x == null || row.y == null) {
+        setMapNotice("이 위치 주변에서 장소를 찾지 못했어요.");
+        return;
+      }
+      const plat = parseFloat(String(row.y));
+      const plng = parseFloat(String(row.x));
+      if (!Number.isFinite(plat) || !Number.isFinite(plng)) {
+        setMapNotice("장소 정보를 확인하지 못했어요.");
+        return;
+      }
+
+      const matchNearKakao = findNearestPlaceGroup(
+        plat,
+        plng,
+        placeGroups,
+        MAP_CLICK_MATCH_POST_PLACE_M,
+      );
+      if (matchNearKakao) {
+        setSelectedPlace(matchNearKakao);
+        setActiveTrackIndex(0);
+        return;
+      }
+
+      setSelectedPlace({
+        key: `kakao-local-${row.id}`,
+        place: {
+          place_name: row.place_name,
+          latitude: plat,
+          longitude: plng,
+          address: row.road_address_name || row.address_name || "",
+          external_place_id: row.id != null ? String(row.id) : undefined,
+        },
+        posts: [],
+      });
+      setActiveTrackIndex(0);
+    } catch (e) {
+      console.error(e);
+      setMapNotice("장소를 불러오지 못했어요.");
+    }
+  }, [placeGroups]);
 
   const resolveMapCoords = useCallback(async () => {
     const insecure = typeof window !== "undefined" && !window.isSecureContext;
@@ -322,6 +436,13 @@ function KakaoMap() {
     });
     overlay.setMap(map);
     myLocationOverlayRef.current = overlay;
+    window.requestAnimationFrame(() => {
+      try {
+        map.relayout();
+      } catch {
+        /* noop */
+      }
+    });
   }, [resolveMapCoords]);
 
   const loadMapPosts = useCallback(async (options = {}) => {
@@ -429,14 +550,26 @@ function KakaoMap() {
             center,
             level: 7,
           });
+          const scheduleRelayout = () => {
+            window.requestAnimationFrame(() => {
+              try {
+                map.relayout();
+              } catch {
+                /* noop */
+              }
+            });
+          };
           const handleZoomChanged = () => {
             setZoomLevel(map.getLevel());
+            scheduleRelayout();
           };
 
           mapInstanceRef.current = map;
           setZoomLevel(map.getLevel());
           setIsMapReady(true);
           kakao.maps.event.addListener(map, "zoom_changed", handleZoomChanged);
+          scheduleRelayout();
+          window.setTimeout(scheduleRelayout, 120);
           removeZoomListener = () => {
             kakao.maps.event.removeListener(
               map,
@@ -464,6 +597,71 @@ function KakaoMap() {
     const map = mapInstanceRef.current;
     if (!isMapReady || !map || !window.kakao?.maps) return undefined;
 
+    const handleMapClick = (mouseEvent) => {
+      if (Date.now() < mapCoordinatePickSuppressedUntilRef.current) {
+        return;
+      }
+      const orig = mouseEvent.originalEvent;
+      const t = orig && orig.target;
+      if (t && typeof t.closest === "function" && t.closest(".album-map-pin")) {
+        return;
+      }
+      const latlng = mouseEvent.latLng;
+      if (!latlng) return;
+      void pickPlaceAtMapCoordinates(latlng.getLat(), latlng.getLng());
+    };
+
+    window.kakao.maps.event.addListener(map, "click", handleMapClick);
+    return () => {
+      window.kakao.maps.event.removeListener(map, "click", handleMapClick);
+    };
+  }, [isMapReady, pickPlaceAtMapCoordinates]);
+
+  useEffect(() => {
+    if (
+      !isMapReady ||
+      !mapContainerRef.current ||
+      !mapInstanceRef.current ||
+      !window.kakao?.maps
+    ) {
+      return undefined;
+    }
+
+    const map = mapInstanceRef.current;
+    const el = mapContainerRef.current;
+
+    const scheduleRelayout = () => {
+      window.requestAnimationFrame(() => {
+        const m = mapInstanceRef.current;
+        if (m !== map) return;
+        try {
+          m.relayout();
+        } catch {
+          /* noop */
+        }
+      });
+    };
+
+    scheduleRelayout();
+    const ro =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(scheduleRelayout)
+        : null;
+    ro?.observe(el);
+    window.addEventListener("resize", scheduleRelayout);
+    window.addEventListener("orientationchange", scheduleRelayout);
+
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener("resize", scheduleRelayout);
+      window.removeEventListener("orientationchange", scheduleRelayout);
+    };
+  }, [isMapReady]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!isMapReady || !map || !window.kakao?.maps) return undefined;
+
     const overlays = [];
     const cleanupListeners = [];
     const bounds = new window.kakao.maps.LatLngBounds();
@@ -481,15 +679,19 @@ function KakaoMap() {
         yAnchor: 0.5,
         zIndex: 10,
       });
-      const handlePinClick = () => {
+      const onPinActivate = (e) => {
+        e.stopPropagation();
+        mapCoordinatePickSuppressedUntilRef.current = Date.now() + 900;
         setSelectedPlace(placeGroup);
         setActiveTrackIndex(0);
       };
 
       overlay.setMap(map);
-      pinElement.addEventListener("click", handlePinClick);
+      pinElement.addEventListener("pointerdown", onPinActivate, true);
+      pinElement.addEventListener("click", onPinActivate, true);
       cleanupListeners.push(() => {
-        pinElement.removeEventListener("click", handlePinClick);
+        pinElement.removeEventListener("pointerdown", onPinActivate, true);
+        pinElement.removeEventListener("click", onPinActivate, true);
       });
       overlays.push(overlay);
       bounds.extend(position);
@@ -502,6 +704,13 @@ function KakaoMap() {
     ) {
       map.setBounds(bounds);
       hasFitBoundsRef.current = true;
+      window.requestAnimationFrame(() => {
+        try {
+          map.relayout();
+        } catch {
+          /* noop */
+        }
+      });
     }
 
     return () => {
@@ -523,6 +732,7 @@ function KakaoMap() {
       setIsSheetClosing(false);
       setIsSheetDragging(false);
       sheetCloseLockRef.current = false;
+      setMapNotice("");
     }, 220);
   };
 
@@ -567,8 +777,9 @@ function KakaoMap() {
   };
 
   const handleTrackCardClick = (post, index) => {
-    if (post?.within_feed_radius && post?.post_id != null) {
-      navigate(`/home?postId=${encodeURIComponent(post.post_id)}`);
+    if (post?.post_id != null) {
+      /* 위치 권한이 없어도 within_feed_radius 가 false일 수 있음 — 그래도 홈에서 해당 글(또는 주변 피드)로 이동 */
+      navigate("/home", { state: { mapFocusPostId: post.post_id } });
       return;
     }
 
@@ -604,6 +815,38 @@ function KakaoMap() {
   const selectedTracks = selectedPlace?.posts ?? [];
   const dotRange = getVisibleDotRange(selectedTracks.length, activeTrackIndex);
   const visibleDotTracks = selectedTracks.slice(dotRange.start, dotRange.end);
+
+  const sheetPlace = selectedPlace?.place;
+  const canPostAtSelectedPlace =
+    sheetPlace?.place_id != null ||
+    (sheetPlace?.external_place_id != null &&
+      String(sheetPlace.external_place_id).trim() !== "");
+
+  const handlePostAtThisPlace = () => {
+    if (!sheetPlace) return;
+    if (!canPostAtSelectedPlace) {
+      setMapNotice(
+        "이 장소로 글을 남기려면 카카오 장소 정보가 필요해요. 다른 위치를 눌러 보세요.",
+      );
+      return;
+    }
+    const ext =
+      sheetPlace.external_place_id != null
+        ? String(sheetPlace.external_place_id)
+        : null;
+    navigate("/upload", {
+      state: {
+        mapPrefillPlace: {
+          place_id: sheetPlace.place_id,
+          external_place_id: ext && ext.trim() !== "" ? ext : null,
+          place_name: sheetPlace.place_name,
+          latitude: sheetPlace.latitude,
+          longitude: sheetPlace.longitude,
+          address: sheetPlace.address ?? "",
+        },
+      },
+    });
+  };
 
   return (
     <div
@@ -664,6 +907,23 @@ function KakaoMap() {
             {selectedPlace.place.place_name ?? "Unknown place"}
           </p>
 
+          {mapNotice ? (
+            <div className="map-sheet-notice" role="status">
+              {mapNotice}
+            </div>
+          ) : null}
+
+          <div className="map-sheet-post-row">
+            <button
+              type="button"
+              className="map-sheet-post-btn"
+              onClick={handlePostAtThisPlace}
+              disabled={!canPostAtSelectedPlace}
+            >
+              이 장소에서 포스트
+            </button>
+          </div>
+
           <div
             ref={carouselRef}
             className="map-track-carousel"
@@ -685,8 +945,8 @@ function KakaoMap() {
                   key={post.post_id}
                   onClick={() => handleTrackCardClick(post, index)}
                   title={
-                    post?.within_feed_radius
-                      ? "피드에서 이 게시물 보기"
+                    post?.post_id != null
+                      ? "홈 피드에서 이 게시물 보기"
                       : undefined
                   }
                 >

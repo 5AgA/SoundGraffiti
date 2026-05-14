@@ -133,7 +133,7 @@ code {
 .sound-map-shell {
   position: relative;
   width: 100%;
-  height: min(760px, 78svh);
+  /* 높이는 KakaoMap.css에서 부모(main-content)에 맞춤 — 고정 svh는 지도 타일/줌 왜곡 유발 */
   overflow: hidden;
   background: #d8dde6;
 }
@@ -187,8 +187,14 @@ code {
   position: absolute;
   inset: 0;
   z-index: 15;
-  pointer-events: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  appearance: none;
   background: rgba(33, 38, 48, 0.28);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .map-music-sheet {
@@ -392,10 +398,6 @@ code {
   #root {
     width: 100%;
     border-inline: 0;
-  }
-
-  .sound-map-shell {
-    height: 100svh;
   }
 
   .map-music-sheet {

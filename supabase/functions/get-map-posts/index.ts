@@ -17,7 +17,7 @@ const MAP_POST_SELECT = `
   preview_start_ms,
   preview_end_ms,
   Users (user_name, user_profile_url),
-  Places (place_name, latitude, longitude),
+  Places (place_id, place_name, latitude, longitude, external_place_id, address),
   Tracks (track_id, track_title, artist_name, album_image_url, preview_url, duration_ms)
 `;
 

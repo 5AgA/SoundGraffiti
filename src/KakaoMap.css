@@ -2,7 +2,7 @@
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 100lvh;
+  min-height: 100%;
   overflow: hidden;
   background: #d8dde6;
 }
@@ -222,6 +222,42 @@
   font-weight: 700;
   line-height: 1.25;
   text-align: center;
+}
+
+.map-sheet-post-row {
+  display: flex;
+  justify-content: center;
+  padding: 0 24px 14px;
+}
+
+.map-sheet-post-btn {
+  width: 100%;
+  max-width: 320px;
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 12px;
+  background: #005eff;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(0, 94, 255, 0.28);
+}
+
+.map-sheet-post-btn:not(:disabled):hover {
+  background: #004ecc;
+}
+
+.map-sheet-post-btn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.map-sheet-post-btn:not(:disabled):active {
+  transform: scale(0.98);
+  background: #004ecc;
 }
 
 .map-track-carousel {

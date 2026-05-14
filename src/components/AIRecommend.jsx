@@ -75,6 +75,20 @@ function AIRecommend({ onSelect }) {
                     {/* 스포티파이 진짜 노래 제목 & 가수 출력 */}
                     <p className="ai-track-title">{track.name}</p>
                     <p className="ai-track-artist">{track.artists?.[0]?.name}</p>
+                    {typeof track.itunes_preview_available === "boolean" ? (
+                      <p
+                        className={`ai-itunes-preview${
+                          track.itunes_preview_available
+                            ? " ai-itunes-preview--yes"
+                            : " ai-itunes-preview--no"
+                        }`}
+                        title="iTunes Search API로 이 Spotify 결과와 같은 곡을 찾은 뒤, Apple이 제공하는 30초 미리듣기(previewUrl)가 있는지 표시합니다. 매칭이 어긋나면 실제와 다를 수 있어요."
+                      >
+                        {track.itunes_preview_available
+                          ? "iTunes에서 미리듣기 제공"
+                          : "iTunes에서 미리듣기 없음"}
+                      </p>
+                    ) : null}
                   </div>
                   
                   <button

@@ -11,11 +11,11 @@
   overflow: visible;
 }
 
-.home-playback-notice {
+.home-playback-notice,
+.home-upload-notice {
   position: fixed;
   left: 50%;
   top: calc(18px + env(safe-area-inset-top, 0px));
-  z-index: 20;
   max-width: min(268px, calc(100% - 40px));
   width: fit-content;
   padding: 10px 16px;
@@ -31,6 +31,14 @@
   line-height: 1.35;
   text-align: center;
   pointer-events: none;
+}
+
+.home-playback-notice {
+  z-index: 20;
+}
+
+.home-upload-notice {
+  z-index: 10060;
 }
 
 .home-phone {

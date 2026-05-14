@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { getNearbyPosts } from "../api/posts";
 import BottomNav from "../components/BottomNav";
 import Home from "../components/Home";
+import "../components/Home.css";
 import { getDevGeoCoordinates } from "../utils/devGeoCoords";
 import {
   clearHomeFeedSessionCache,
@@ -31,6 +32,16 @@ function feedGeolocationFailureMessage(geoErr) {
   return "위치를 확인할 수 없어 주변 피드를 불러올 수 없습니다.";
 }
 
+/** 이 탭이 문서를 처음 연 방식(최초 한 번만 의미). SPA 라우트 전환마다 바뀌지 않음 */
+function isDocumentReload() {
+  if (typeof performance === "undefined") return false;
+  const nav = performance.getEntriesByType?.("navigation")?.[0];
+  if (nav && typeof nav.type === "string") return nav.type === "reload";
+  const legacy = performance.navigation;
+  if (legacy && typeof legacy.type === "number") return legacy.type === 1;
+  return false;
+}
+
 function initialHomeStateFromSessionCache() {
   const snap = readHomeFeedSessionCache();
   if (snap.feed === null) {
@@ -49,7 +60,28 @@ function initialHomeStateFromSessionCache() {
 
 export default function HomePage() {
   const [searchParams] = useSearchParams();
-  const focusPostId = searchParams.get("postId");
+  const location = useLocation();
+  const navigate = useNavigate();
+  const pageReload = isDocumentReload();
+  const postIdFromQuery = searchParams.get("postId");
+  const postIdFromState =
+    location.state?.mapFocusPostId != null
+      ? String(location.state.mapFocusPostId)
+      : null;
+  /**
+   * 최초 진입이 리로드였어도 navigation.type 은 세션 내내 reload 로 남는다.
+   * 그래서 “리로드 시 맨 위”는 URL ?postId= 만 무시하고, 지도→홈 state 는 항상 반영한다.
+   */
+  const focusPostId =
+    pageReload && postIdFromQuery != null
+      ? null
+      : postIdFromQuery ?? postIdFromState;
+
+  useEffect(() => {
+    if (!pageReload) return;
+    if (!postIdFromQuery) return;
+    navigate({ pathname: location.pathname, search: "" }, { replace: true });
+  }, [location.pathname, navigate, pageReload, postIdFromQuery]);
   const hydrated = initialHomeStateFromSessionCache();
   /** null = 로딩 중, 배열 = 주변 피드 결과(빈 배열 가능) */
   const [feed, setFeed] = useState(hydrated.feed);
@@ -59,6 +91,8 @@ export default function HomePage() {
     hydrated.devGeoBypassNotice,
   );
   const [commentSheetOpen, setCommentSheetOpen] = useState(false);
+  /** 업로드 완료/실패 알림 — `/upload`에서 홈으로 보낸 뒤 백그라운드 업로드 결과 */
+  const [uploadToast, setUploadToast] = useState(null);
 
   const coordsRef = useRef(null);
   const isMountedRef = useRef(true);
@@ -76,6 +110,26 @@ export default function HomePage() {
       isMountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    const onUploadSuccess = () => setUploadToast("success");
+    const onUploadError = () => setUploadToast("error");
+    window.addEventListener("soundgraffiti-upload-success", onUploadSuccess);
+    window.addEventListener("soundgraffiti-upload-error", onUploadError);
+    return () => {
+      window.removeEventListener(
+        "soundgraffiti-upload-success",
+        onUploadSuccess,
+      );
+      window.removeEventListener("soundgraffiti-upload-error", onUploadError);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!uploadToast) return undefined;
+    const timer = window.setTimeout(() => setUploadToast(null), 6500);
+    return () => window.clearTimeout(timer);
+  }, [uploadToast]);
 
   const applyPostsResult = (posts, error) => {
     if (!isMountedRef.current) return;
@@ -307,6 +361,16 @@ export default function HomePage() {
           ) : null}
         </div>
       )}
+      {uploadToast === "success" ? (
+        <div className="home-upload-notice" role="status">
+          작성 완료! 새로고침하세요
+        </div>
+      ) : null}
+      {uploadToast === "error" ? (
+        <div className="home-upload-notice" role="alert">
+          업로드에 실패했습니다.
+        </div>
+      ) : null}
       <Home
         feed={feed}
         focusPostId={focusPostId}

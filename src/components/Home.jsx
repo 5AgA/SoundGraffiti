@@ -1144,6 +1144,29 @@ function Home({
     [feed, feedFocused],
   );
 
+  /** 브라우저/레이아웃이 스크롤 위치를 먼저 복원하면 list.length effect가 잘못된 activeIndex를 잡는 것을 막음 */
+  useLayoutEffect(() => {
+    if (feed === null || !Array.isArray(feed) || feed.length === 0) return;
+
+    const prev = prevFeedRef.current;
+    const emptyToPosts =
+      Array.isArray(prev) &&
+      prev.length === 0 &&
+      feed.length > 0;
+    const firstPaint = prev === null;
+    if (!firstPaint && !emptyToPosts) return;
+
+    if (focusPostId) {
+      const idx = feed.findIndex(
+        (post) => String(post?.post_id) === String(focusPostId),
+      );
+      if (idx >= 0) return;
+    }
+
+    const root = feedScrollRef.current;
+    if (root) root.scrollTop = 0;
+  }, [feed, focusPostId]);
+
   useEffect(() => {
     if (feed === null) {
       prevFeedRef.current = null;
@@ -1151,10 +1174,17 @@ function Home({
     }
 
     const prev = prevFeedRef.current;
+    /* 빈 피드 [] → 첫 글 로드만으로 바뀔 때(prev는 null이 아님) 기존엔 ‘첫 로드’ 분기를 타지 않아 스크롤이 맨 위로 안 감 */
+    const emptyToPosts =
+      Array.isArray(prev) &&
+      prev.length === 0 &&
+      Array.isArray(feed) &&
+      feed.length > 0;
+
     prevFeedRef.current = feed;
 
     /* 로딩 끝난 직후 한 번: 첫 포스트가 화면 중심에 오도록 (스냅·레이아웃 전 active 추측 오류 방지) */
-    if (prev !== null) return;
+    if (prev !== null && !emptyToPosts) return;
 
     if (focusPostId) {
       const idx = feed.findIndex(

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Cropper from "react-easy-crop";
 import "./CreatePost.css";
 import TrackSearch from "./TrackSearch";
@@ -12,10 +12,129 @@ const musicIcon = '/spotify.svg';
 const mapIcon = '/map_pin.svg';
 const aiIcon = "/AI.png";
 
+const UPLOAD_SUCCESS_EVENT = "soundgraffiti-upload-success";
+const UPLOAD_ERROR_EVENT = "soundgraffiti-upload-error";
+
+/**
+ * 업로드 화면이 언마운트된 뒤에도 동작하도록 모듈 스코프에서 실행.
+ * @param {{ selectedPlace: object, selectedTrack: object, content: string, imageFile: File | null }} snapshot
+ */
+async function submitGraffitiFromSnapshot(snapshot) {
+  const { selectedPlace, selectedTrack, content, imageFile } = snapshot;
+
+  const { data: userData, error: userError } =
+    await supabase.functions.invoke("get-current-user");
+
+  if (userError || !userData?.user?.user_id) {
+    throw new Error(
+      "로그인된 사용자 정보를 불러오는 데 실패했습니다. 다시 로그인해 주세요.",
+    );
+  }
+
+  const currentUserId = userData.user.user_id;
+
+  const trackData = {
+    trackId: selectedTrack.id,
+    trackTitle: selectedTrack.name,
+    artistName: selectedTrack.artists[0]?.name,
+    albumName: selectedTrack.album?.name,
+    albumImageUrl: selectedTrack.album?.images[0]?.url,
+    durationMs: selectedTrack.duration_ms,
+    previewUrl: selectedTrack.preview_url,
+  };
+
+  const { error: trackError } = await supabase.functions.invoke("save-track", {
+    body: trackData,
+  });
+
+  if (trackError) {
+    throw new Error("노래 정보를 데이터베이스에 등록하는 데 실패했습니다.");
+  }
+
+  let finalPlaceId = selectedPlace._fromMapDbPlaceId;
+
+  if (finalPlaceId == null) {
+    const placeData = {
+      placeName: selectedPlace.place_name,
+      address:
+        selectedPlace.road_address_name || selectedPlace.address_name || "",
+      latitude: parseFloat(selectedPlace.y),
+      longitude: parseFloat(selectedPlace.x),
+      externalPlaceId: String(selectedPlace.id),
+    };
+
+    const { data: placeRes, error: placeError } = await supabase.functions.invoke(
+      "upsert-place",
+      { body: placeData },
+    );
+    if (placeError) {
+      throw new Error("장소 정보를 등록하는 데 실패했습니다.");
+    }
+    finalPlaceId = placeRes.place_id;
+  }
+
+  const postData = {
+    userId: currentUserId,
+    trackId: selectedTrack.id,
+    placeId: finalPlaceId,
+    content,
+    previewStartMs: 0,
+    previewEndMs: 30000,
+  };
+
+  const { data: createdPost, error: postError } = await supabase.functions.invoke(
+    "create-post",
+    { body: postData },
+  );
+
+  if (postError) throw postError;
+
+  if (imageFile) {
+    const postFolder = String(createdPost.post_id);
+    const ext =
+      imageFile.name?.toLowerCase().endsWith(".png") &&
+      imageFile.type === "image/png"
+        ? "png"
+        : "jpg";
+    const fileName = `${postFolder}/${Date.now()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("post-media")
+      .upload(fileName, imageFile, {
+        contentType: imageFile.type || "image/jpeg",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw new Error("이미지 업로드에 실패했습니다.");
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("post-media")
+      .getPublicUrl(fileName);
+
+    const uploadedMediaUrl = publicUrlData.publicUrl;
+
+    const { error: mediaError } = await supabase.functions.invoke("save-media", {
+      body: {
+        postId: createdPost.post_id,
+        mediaUrl: uploadedMediaUrl,
+      },
+    });
+
+    if (mediaError) {
+      throw new Error("사진 DB 등록에 실패했습니다.");
+    }
+  }
+
+  return createdPost;
+}
+
 function UploadGraffiti() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const mapPrefillAppliedRef = useRef(false);
   const [content, setContent] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   
   // 바텀 시트 및 선택된 음악 상태 관리
   const [activeSheet, setActiveSheet] = useState(null);
@@ -103,6 +222,27 @@ function UploadGraffiti() {
       );
     }
   }, []);
+
+  useEffect(() => {
+    if (mapPrefillAppliedRef.current) return;
+    const mp = location.state?.mapPrefillPlace;
+    if (!mp?.place_name || mp.latitude == null || mp.longitude == null) {
+      return;
+    }
+    mapPrefillAppliedRef.current = true;
+    const ext = mp.external_place_id;
+    const hasExt = ext != null && String(ext).trim() !== "";
+    const next = {
+      id: hasExt ? String(ext) : `sound-place-${mp.place_id ?? "map"}`,
+      place_name: mp.place_name,
+      y: String(mp.latitude),
+      x: String(mp.longitude),
+      road_address_name: mp.address || "",
+      address_name: mp.address || "",
+    };
+    if (mp.place_id != null) next._fromMapDbPlaceId = mp.place_id;
+    setSelectedPlace(next);
+  }, [location.state]);
 
   useEffect(() => {
     return () => {
@@ -365,7 +505,7 @@ function UploadGraffiti() {
     setSelectedPlace(null);
   };
 
-  const handleShare = async () => {
+  const handleShare = () => {
     if (!selectedPlace) {
       alert("먼저 그래피티를 남길 장소를 검색하고 선택해주세요!");
       return;
@@ -378,119 +518,25 @@ function UploadGraffiti() {
       alert("스포티파이 버튼이나 AI 추천을 통해 배경음악을 골라주세요!");
       return;
     }
-    
-    try {
-      setIsLoading(true);
 
-      const { data: userData, error: userError } = await supabase.functions.invoke('get-current-user');
-      
-      if (userError || !userData?.user?.user_id) {
-        throw new Error("로그인된 사용자 정보를 불러오는 데 실패했습니다. 다시 로그인해 주세요.");
+    const snapshot = {
+      selectedPlace: { ...selectedPlace },
+      selectedTrack: { ...selectedTrack },
+      content,
+      imageFile,
+    };
+
+    navigate("/home");
+
+    void (async () => {
+      try {
+        await submitGraffitiFromSnapshot(snapshot);
+        window.dispatchEvent(new CustomEvent(UPLOAD_SUCCESS_EVENT));
+      } catch (err) {
+        console.error(err);
+        window.dispatchEvent(new CustomEvent(UPLOAD_ERROR_EVENT));
       }
-
-      const currentUserId = userData.user.user_id;
-
-      // ==========================================
-      // 1️⃣ 노래 정보 먼저 DB에 저장 (save-track)
-      // ==========================================
-      const trackData = {
-        trackId: selectedTrack.id,
-        trackTitle: selectedTrack.name,
-        artistName: selectedTrack.artists[0]?.name,
-        albumName: selectedTrack.album?.name,
-        albumImageUrl: selectedTrack.album?.images[0]?.url,
-        durationMs: selectedTrack.duration_ms,
-        previewUrl: selectedTrack.preview_url
-      };
-
-      const { error: trackError } = await supabase.functions.invoke('save-track', {
-        body: trackData
-      });
-
-      if (trackError) throw new Error("노래 정보를 데이터베이스에 등록하는 데 실패했습니다.");
-
-      const placeData = {
-        placeName: selectedPlace.place_name,
-        // 도로명 주소가 없으면 지번 주소 사용
-        address: selectedPlace.road_address_name || selectedPlace.address_name || '',
-        latitude: parseFloat(selectedPlace.y),
-        longitude: parseFloat(selectedPlace.x),
-        externalPlaceId: String(selectedPlace.id) // 카카오 고유 ID
-      };
-
-      const { data: placeRes, error: placeError } = await supabase.functions.invoke('upsert-place', { body: placeData });
-      if (placeError) throw new Error("장소 정보를 등록하는 데 실패했습니다.");
-
-      
-      const finalPlaceId = placeRes.place_id; // 🎯 우리 DB의 깔끔한 int8 place_id 획득!
-      // ==========================================
-      // 2️⃣ 게시글(Post) DB에 저장 (create-post)
-      // ==========================================
-      const postData = {
-        userId: currentUserId, 
-        trackId: selectedTrack.id, 
-        placeId: finalPlaceId,
-        content: content,
-        previewStartMs: 0,        
-        previewEndMs: 30000
-      };
-
-      // 새로 쓴 글의 정보(data)를 반환받음! (여기에 post_id가 들어있음)
-      const { data: createdPost, error: postError } = await supabase.functions.invoke('create-post', {
-        body: postData
-      });
-
-      if (postError) throw postError;
-
-      // ==========================================
-      // 3️⃣ 사진이 있다면 스토리지에 올리고, 사진 DB 저장 (save-media)
-      // ==========================================
-      if (imageFile) {
-        const postFolder = String(createdPost.post_id);
-        const ext =
-          imageFile.name?.toLowerCase().endsWith(".png") &&
-          imageFile.type === "image/png"
-            ? "png"
-            : "jpg";
-        const fileName = `${postFolder}/${Date.now()}.${ext}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("post-media")
-          .upload(fileName, imageFile, {
-            contentType: imageFile.type || "image/jpeg",
-            upsert: false,
-          });
-
-        if (uploadError) throw new Error("이미지 업로드에 실패했습니다.");
-
-        const { data: publicUrlData } = supabase.storage
-          .from("post-media")
-          .getPublicUrl(fileName);
-
-        const uploadedMediaUrl = publicUrlData.publicUrl;
-
-        // 새 엣지 펑션(save-media) 호출해서 PostMedia 테이블에 저장
-        const { error: mediaError } = await supabase.functions.invoke('save-media', {
-          body: {
-            postId: createdPost.post_id, // 2번 과정에서 만든 게시글의 ID
-            mediaUrl: uploadedMediaUrl
-          }
-        });
-
-        if (mediaError) throw new Error("사진 DB 등록에 실패했습니다.");
-      }
-
-      alert("그래피티가 성공적으로 기록되었습니다!"); // 💡 이제 확실히 뜰 거야
-      navigate('/home', { 
-        state: { newPostId: createdPost.post_id } 
-      });
-
-    } catch (err) {
-      console.error(err);
-      alert(`업로드 실패: ${err.message}`);
-    } finally {
-      setIsLoading(false);
-    }
+    })();
   };
 
 return (
@@ -520,11 +566,11 @@ return (
           </div>
 
           <div className="upload-btn-group">
-            <button className="upload-dark-btn" onClick={handleMusicSearch} disabled={isLoading}>
+            <button className="upload-dark-btn" onClick={handleMusicSearch}>
               <div className="btn-icon-circle"><img src={musicIcon} alt="" /></div>
               <span>Spotify로 음악 추가</span>
             </button>
-            <button className="upload-dark-btn" onClick={handleAIRecommend} disabled={isLoading}>
+            <button className="upload-dark-btn" onClick={handleAIRecommend}>
               <div className="btn-icon-circle"><img src={aiIcon} alt="" /></div>
               <span>AI로 음악 추천 받기</span>
             </button>
@@ -640,8 +686,8 @@ return (
             )}
           </div>
 
-          <textarea className="upload-input-area" placeholder="이 장소에 어울리는 한마디를 남겨보세요." value={content} onChange={(e) => setContent(e.target.value)} disabled={isLoading} />
-          <button className="upload-share-btn" onClick={handleShare} disabled={isLoading}>{isLoading ? "작성 중..." : "공유"}</button>
+          <textarea className="upload-input-area" placeholder="이 장소에 어울리는 한마디를 남겨보세요." value={content} onChange={(e) => setContent(e.target.value)} />
+          <button className="upload-share-btn" onClick={handleShare}>공유</button>
         </div>
 
         {/* 바텀 시트 영역 */}
@@ -748,7 +794,7 @@ return (
                   type="button"
                   className="upload-crop-btn upload-crop-btn--ghost"
                   onClick={onCropCancel}
-                  disabled={cropBusy || isLoading}
+                  disabled={cropBusy}
                 >
                   취소
                 </button>
@@ -756,7 +802,7 @@ return (
                   type="button"
                   className="upload-crop-btn upload-crop-btn--primary"
                   onClick={() => void onCropApply()}
-                  disabled={cropBusy || isLoading}
+                  disabled={cropBusy}
                 >
                   {cropBusy ? "처리 중…" : "적용"}
                 </button>

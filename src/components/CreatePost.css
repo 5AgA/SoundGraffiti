@@ -658,7 +658,7 @@
 /* AI 추천 트랙 아이템 */
 .ai-track-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
 }
 
@@ -699,6 +699,25 @@
   text-overflow: ellipsis;
   width: 100%;
   text-align: left;
+}
+
+/* 음악 검색(TrackSearch)과 동일 톤의 iTunes 미리듣기 안내 */
+.ai-itunes-preview {
+  margin: 6px 0 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-align: left;
+  line-height: 1.3;
+  width: 100%;
+}
+
+.ai-itunes-preview--yes {
+  color: #0b6e4f;
+}
+
+.ai-itunes-preview--no {
+  color: #9ca3af;
 }
 
 /* 선택 버튼 */
