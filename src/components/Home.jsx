@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   checkCommentAccess,
   createComment,
@@ -25,6 +26,7 @@ import {
 } from "../utils/likesUi";
 import OwnPostLikersDialog from "./OwnPostLikersDialog";
 import "./Home.css";
+import { supabase } from "../supabaseClient";
 
 /** 스크롤 스냅 때문에 첫 카드일 때도 scrollTop ≠ 0 — 두 번째 카드 기준으로 ‘첫 카드 구간’ 판별 */
 const PTR_ARM_SCROLL_SLACK_PX = 28;
@@ -318,6 +320,9 @@ function Home({
   onCommentSheetOpenChange,
   onCommentCreated,
 }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const newPostIdFromCreate = location.state?.newPostId;
   const isLoading = feed === null;
   const list = isLoading ? [null] : feed;
   const [activeIndex, setActiveIndex] = useState(0);
@@ -353,6 +358,25 @@ function Home({
   const commentInputRef = useRef(null);
   const commentScrollRef = useRef(null);
   const closeCommentSheetRef = useRef(() => {});
+  const commentSheetRef = useRef(null);
+  const autoRefreshedPostId = useRef(null);
+  const handledPostIdRef = useRef(null);
+  const commentSheetDragRef = useRef({
+    active: false,
+    pointerId: null,
+    startY: 0,
+    startTranslate: 0,
+    lastOffset: 0,
+    lastClientY: 0,
+    /** 접힘 상태에서 한 번의 제스처 동안 가장 위로 당긴 dy(음수일수록 상향) */
+    bestDy: 0,
+    /** 접힘 상태에서 손가락이 도달한 가장 위쪽 clientY (작을수록 화면 상단) */
+    minClientY: 0,
+    /** 접힘 상태에서 아래로 당긴 거리 (닫기 전 높이 줄임용) */
+    lastStretchDown: 0,
+    /** 확장 상태에서 드래그 시작 시 시트 높이(px) */
+    expandDragStartHeight: null,
+  });
   const commentLongPressRef = useRef({
     timer: null,
     pointerId: null,
@@ -384,6 +408,65 @@ function Home({
   const { user } = useAuth();
   /** Auth 메타데이터에 없을 때 Users 테이블 프로필 (고정 id·OAuth 병행) */
   const [dbUserProfileUrl, setDbUserProfileUrl] = useState(null);
+
+  useEffect(() => {
+    if (!newPostIdFromCreate || handledPostIdRef.current === newPostIdFromCreate) {
+      return;
+    }
+
+    if (feed === null) return;
+
+    const targetIndex = feed.findIndex(
+      (p) => String(p?.post_id) === String(newPostIdFromCreate)
+    );
+
+    if (targetIndex >= 0) {
+      // 2️⃣ 피드에 글이 나타났다면 즉시 포커스 & 플립!
+      setActiveIndex(targetIndex);
+      setFeedFocused(true);
+      setCardFlipped(true);
+      handledPostIdRef.current = newPostIdFromCreate;
+      
+      // 🔥 핵심: 라우터에 남아있는 state 흔적을 완벽하게 지워서 무한 루프 원천 차단!
+      navigate(location.pathname, { replace: true, state: {} });
+      
+    } else {
+      // 3️⃣ 피드에 없다면? -> 무거운 전체 새로고침을 기다리지 않고, DB에서 방금 쓴 글 딱 1개만 스틸해서 피드 맨 앞에 꽂아버림!
+      if (autoRefreshedPostId.current !== newPostIdFromCreate) {
+        autoRefreshedPostId.current = newPostIdFromCreate;
+        
+        const fetchAndInject = async () => {
+          try {
+            const { data: newPost, error } = await supabase
+              .from('Posts')
+              .select(`
+                post_id, content, post_created, preview_start_ms, preview_end_ms,
+                Users (user_id, user_name, user_profile_url),
+                Places (place_name),
+                Tracks (track_id, track_title, artist_name, album_image_url, preview_url, duration_ms),
+                PostMedia (media_url),
+                Likes (like_id, user_id, Users (user_name)),
+                Comments (comment_id)
+              `)
+              .eq('post_id', newPostIdFromCreate)
+              .single();
+
+            // 성공적으로 가져왔으면 부모 피드 맨 앞에 강제로 쑤셔 넣기 (이러면 화면에 즉시 뜸!)
+            if (!error && newPost && typeof persistFeedUpdate === "function") {
+              persistFeedUpdate(prev => [newPost, ...prev]);
+            } else if (typeof onPullRefresh === "function") {
+              // 혹시 모를 에러 대비용 최후의 보루
+              onPullRefresh();
+            }
+          } catch (err) {
+            console.error("새 포스트 주입 에러:", err);
+          }
+        };
+        
+        fetchAndInject();
+      }
+    }
+  }, [newPostIdFromCreate, feed, location.pathname, navigate, persistFeedUpdate, onPullRefresh]);
 
   useEffect(() => {
     activeIndexRef.current = activeIndex;

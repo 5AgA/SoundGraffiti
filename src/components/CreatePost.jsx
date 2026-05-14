@@ -384,7 +384,9 @@ function UploadGraffiti() {
       }
 
       alert("그래피티가 성공적으로 기록되었습니다!"); // 💡 이제 확실히 뜰 거야
-      navigate('/home'); // 💡 홈 화면으로 강제 이동
+      navigate('/home', { 
+        state: { newPostId: createdPost.post_id } 
+      });
 
     } catch (err) {
       console.error(err);
