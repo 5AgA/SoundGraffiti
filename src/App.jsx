@@ -11,6 +11,7 @@ import MyPage from "./pages/MyPage";
 import ProfileEditPage from "./pages/ProfileEditPage";
 import SettingsPage from "./pages/SettingsPage";
 import UploadGraffiti from "./components/CreatePost";
+import Trending from './pages/Trending';
 
 function ProtectedRoute({ children }) {
   const { loading, session } = useAuth();
@@ -45,6 +46,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <MapPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/trending"
+              element={
+                <ProtectedRoute>
+                  <Trending />
                 </ProtectedRoute>
               }
             />

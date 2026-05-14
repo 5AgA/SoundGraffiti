@@ -8,18 +8,21 @@ export default function BottomNav() {
   
   const onHome = pathname === "/home" || pathname.startsWith("/home/");
   const onMap = pathname === "/map" || pathname.startsWith("/map/");
-  const onMyPage = pathname.startsWith("/mypage");
+  const onTrending = pathname.startsWith("/trending"); // 💡 3번째: 트렌딩
+  const onMyPage = pathname.startsWith("/mypage");     // 💡 4번째: 마이페이지
 
   const homeSrc = onHome ? "/house.fill.svg" : "/house.svg";
   const mapSrc = onMap ? "/map.fill.svg" : "/map.svg";
   const profileSrc = onMyPage ? "/person.fill.svg" : "/person.svg";
 
-  const active = onHome ? "home" : onMap ? "map" : onMyPage ? "profile" : "none";
+  const active = onHome ? "home" : onMap ? "map" : onTrending ? "trending" : onMyPage ? "profile" : "none";
 
   return (
     <>
       <nav className="bottom-nav" aria-label="하단 메뉴" data-active={active}>
         <span className="bottom-nav__active-ring" aria-hidden />
+        
+        {/* 1. 홈 */}
         <span className="bottom-nav__item">
           <button
             type="button"
@@ -28,14 +31,11 @@ export default function BottomNav() {
             aria-label="홈"
             aria-current={onHome ? "page" : undefined}
           >
-            <img
-              className="bottom-nav__icon bottom-nav__icon--home"
-              src={homeSrc}
-              alt=""
-              aria-hidden
-            />
+            <img className="bottom-nav__icon bottom-nav__icon--home" src={homeSrc} alt="" aria-hidden />
           </button>
         </span>
+        
+        {/* 2. 지도 */}
         <span className="bottom-nav__item">
           <button
             type="button"
@@ -50,14 +50,35 @@ export default function BottomNav() {
             aria-label="지도"
             aria-current={onMap ? "page" : undefined}
           >
-            <img
-              className="bottom-nav__icon bottom-nav__icon--map"
-              src={mapSrc}
-              alt=""
-              aria-hidden
-            />
+            <img className="bottom-nav__icon bottom-nav__icon--map" src={mapSrc} alt="" aria-hidden />
           </button>
         </span>
+
+        {/* 3. 트렌딩 (순서 변경됨) */}
+        <span className="bottom-nav__item">
+          <button
+            type="button"
+            className="bottom-nav__btn"
+            onClick={() => navigate("/trending")}
+            aria-label="트렌딩"
+            aria-current={onTrending ? "page" : undefined}
+          >
+            <svg 
+              width="23" 
+              height="23" 
+              viewBox="0 0 24 24" 
+              fill={onTrending ? "#FFFFFF" : "none"} 
+              stroke={onTrending ? "#FFFFFF" : "#A9AFB9"} 
+              strokeWidth="1.5" 
+              strokeLinejoin="round" 
+              className="bottom-nav__icon bottom-nav__icon--trending"
+            >
+              <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" />
+            </svg>
+          </button>
+        </span>
+
+        {/* 4. 마이페이지 (순서 변경됨) */}
         <span className="bottom-nav__item">
           <Link
             to="/mypage"
@@ -65,17 +86,12 @@ export default function BottomNav() {
             aria-label="마이페이지"
             aria-current={onMyPage ? "page" : undefined}
           >
-            <img
-              className="bottom-nav__icon bottom-nav__icon--profile"
-              src={profileSrc}
-              alt=""
-              aria-hidden
-            />
+            <img className="bottom-nav__icon bottom-nav__icon--profile" src={profileSrc} alt="" aria-hidden />
           </Link>
         </span>
       </nav>
 
-      {/* 💡 플러스(FAB) 버튼 클릭 시 /upload 경로로 이동! */}
+      {/* 추가(FAB) 버튼 */}
       <button 
         type="button" 
         className="bottom-nav__fab" 
