@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import Cropper from "react-easy-crop";
 import "./CreatePost.css";
@@ -6,6 +6,7 @@ import TrackSearch from "./TrackSearch";
 import AIRecommend from "./AIRecommend";
 import { supabase } from "../supabaseClient";
 import { getCroppedImageFile } from "../utils/getCroppedImg";
+import { useTrackPreviewAudio } from "../hooks/useTrackPreviewAudio";
 
 const musicIcon = '/spotify.svg';
 const mapIcon = '/map_pin.svg';
@@ -46,6 +47,50 @@ function UploadGraffiti() {
   const [isVerifyingLoc, setIsVerifyingLoc] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const searchTimeoutRef = useRef(null);
+
+  const previewPost = useMemo(() => {
+    if (!selectedTrack?.id) return null;
+    const artistName =
+      selectedTrack.artists
+        ?.map((a) => a?.name)
+        .filter(Boolean)
+        .join(", ") || selectedTrack.artists?.[0]?.name || "";
+    return {
+      post_id: `create-preview-${selectedTrack.id}`,
+      tracks: [
+        {
+          track_id: String(selectedTrack.id),
+          track_title: selectedTrack.name,
+          artist_name: artistName,
+          preview_url: selectedTrack.preview_url || "",
+          name: selectedTrack.name,
+          artists: selectedTrack.artists,
+          album: selectedTrack.album,
+          duration_ms: selectedTrack.duration_ms,
+        },
+      ],
+    };
+  }, [selectedTrack]);
+
+  const onPreviewUnavailable = useCallback(({ reason }) => {
+    if (reason === "interaction_required") {
+      alert("화면을 한 번 터치한 뒤 미리듣기 버튼을 다시 눌러 주세요.");
+    } else if (reason === "preview_failed") {
+      alert("미리듣기를 재생하지 못했어요.");
+    }
+  }, []);
+
+  const { previewUnavailable, isPreviewPlaying, togglePreviewPlayback } =
+    useTrackPreviewAudio(previewPost, { onUnavailable: onPreviewUnavailable });
+
+  const handleSelectedTrackPreviewClick = (e) => {
+    e.stopPropagation();
+    if (previewUnavailable) {
+      alert("미리듣기를 제공하지 않습니다.");
+      return;
+    }
+    togglePreviewPlayback();
+  };
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -563,7 +608,34 @@ return (
                 <div className="selected-track-info">
                   <span className="selected-track-title">{selectedTrack.name}</span><span className="selected-track-artist">{selectedTrack.artists[0]?.name}</span>
                 </div>
-                <button className="selected-track-remove" onClick={(e) => { e.stopPropagation(); setSelectedTrack(null); }}>✕</button>
+                <div className="selected-track-actions">
+                  <button
+                    type="button"
+                    className="selected-track-preview-btn"
+                    onClick={handleSelectedTrackPreviewClick}
+                    aria-label={
+                      previewUnavailable
+                        ? "미리듣기 없음"
+                        : isPreviewPlaying
+                          ? "미리듣기 정지"
+                          : "미리듣기 재생"
+                    }
+                  >
+                    <img
+                      className="selected-track-preview-icon"
+                      src={
+                        previewUnavailable
+                          ? "/audio.off.png"
+                          : isPreviewPlaying
+                            ? "/audio.on.png"
+                            : "/audio.off.png"
+                      }
+                      alt=""
+                      aria-hidden
+                    />
+                  </button>
+                  <button type="button" className="selected-track-remove" onClick={(e) => { e.stopPropagation(); setSelectedTrack(null); }}>✕</button>
+                </div>
               </div>
             )}
           </div>

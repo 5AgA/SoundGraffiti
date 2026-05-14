@@ -40,9 +40,12 @@ function cacheKeyForTrack(track) {
  *   onUnavailable?: (args: { reason: string, track: unknown }) => void,
  *   previewGloballyMuted?: boolean,
  *   previewGloballyMutedRef?: React.MutableRefObject<boolean>,
+ *   eagerAutoplay?: boolean,
+ *   (eagerAutoplay true: 첫 로드에서도 미리듣기 즉시 시도. 브라우저가 막으면 제스처 후 playbackActivated로 재시도)
  * }} options
  */
 export function useTrackPreviewAudio(activePost, options = {}) {
+  const eagerAutoplay = Boolean(options.eagerAutoplay);
   const audioRef = useRef(null);
   const requestRef = useRef(0);
   const previewCacheRef = useRef(new Map());
@@ -138,7 +141,8 @@ export function useTrackPreviewAudio(activePost, options = {}) {
     }
 
     const track = getTrackFromPost(activePostRef.current);
-    if (!track || !playbackActivated || document.hidden) return undefined;
+    const mayStartPlayback = eagerAutoplay || playbackActivated;
+    if (!track || !mayStartPlayback || document.hidden) return undefined;
 
     let cancelled = false;
 
@@ -256,7 +260,7 @@ export function useTrackPreviewAudio(activePost, options = {}) {
       }
       setIsPreviewPlaying(false);
     };
-  }, [activePostKey, playbackActivated]);
+  }, [activePostKey, playbackActivated, eagerAutoplay]);
 
   useEffect(() => {
     return () => {

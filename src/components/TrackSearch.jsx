@@ -96,13 +96,31 @@ function TrackSearch({ onSelect }) {
                   alt={track.name} 
                   style={{ width: '52px', height: '52px', borderRadius: '6px', objectFit: 'cover' }}
                 />
-                <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', alignItems: 'flex-start', flex: 1 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', alignItems: 'flex-start', flex: 1, minWidth: 0 }}>
                   <p style={{ color: '#272729', fontSize: '15.5px', fontWeight: '600', margin: '0 0 4px 0', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', width: '100%', textAlign: 'left' }}>
                     {track.name}
                   </p>
                   <p style={{ color: '#71717A', fontSize: '13px', margin: 0, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', width: '100%', textAlign: 'left' }}>
                     {track.artists.map(a => a.name).join(', ')}
                   </p>
+                  {typeof track.itunes_preview_available === 'boolean' ? (
+                    <p
+                      style={{
+                        margin: '6px 0 0 0',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        letterSpacing: '-0.02em',
+                        color: track.itunes_preview_available ? '#0B6E4F' : '#9CA3AF',
+                        textAlign: 'left',
+                        lineHeight: 1.3,
+                      }}
+                      title="iTunes Search API로 이 Spotify 결과와 같은 곡을 찾은 뒤, Apple이 제공하는 30초 미리듣기(previewUrl)가 있는지 표시합니다. 매칭이 어긋나면 실제와 다를 수 있어요."
+                    >
+                      {track.itunes_preview_available
+                        ? 'iTunes에서 미리듣기 제공'
+                        : 'iTunes에서 미리듣기 없음'}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             ))}

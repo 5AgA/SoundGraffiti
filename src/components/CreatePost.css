@@ -278,6 +278,39 @@
   z-index: 10;
 }
 
+.selected-track-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.selected-track-preview-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.selected-track-preview-btn:active {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.selected-track-preview-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  display: block;
+  filter: invert(1);
+}
+
 /* 앨범 커버 썸네일 */
 .selected-track-img {
   width: 38.75px;
@@ -333,6 +366,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 /* 텍스트 입력 영역 */

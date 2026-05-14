@@ -227,7 +227,13 @@ function postBodyText(post) {
 }
 
 function spotifyTrackUrl(track) {
-  const id = typeof track?.track_id === "string" ? track.track_id.trim() : "";
+  const raw = track?.track_id;
+  const id =
+    typeof raw === "string"
+      ? raw.trim()
+      : typeof raw === "number" && Number.isFinite(raw)
+        ? String(raw)
+        : "";
   return id ? `https://open.spotify.com/track/${encodeURIComponent(id)}` : "";
 }
 
