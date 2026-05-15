@@ -1018,16 +1018,17 @@ function KakaoMap({ initialPlaceId }) {
     return distanceMeters(u.lat, u.lng, plat, plng);
   }, [sheetPlace, userCoordsForMap]);
 
+  const isSelectedPlaceDistanceLocked =
+    selectedTracks.length > 0 && selectedTracks.every(isDistanceLockedPost);
+
   const hidePostRowDueToDistance =
-    distanceToSelectedPlaceM != null &&
-    distanceToSelectedPlaceM > POST_AT_PLACE_MAX_DISTANCE_M;
+    isSelectedPlaceDistanceLocked ||
+    (distanceToSelectedPlaceM != null &&
+      distanceToSelectedPlaceM > POST_AT_PLACE_MAX_DISTANCE_M);
 
   const handlePostAtThisPlace = () => {
     if (!sheetPlace) return;
-    if (
-      distanceToSelectedPlaceM != null &&
-      distanceToSelectedPlaceM > POST_AT_PLACE_MAX_DISTANCE_M
-    ) {
+    if (hidePostRowDueToDistance) {
       return;
     }
     if (!canPostAtSelectedPlace) {
