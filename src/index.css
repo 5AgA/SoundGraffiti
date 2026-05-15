@@ -34,11 +34,11 @@
 
 html {
   overflow: visible;
-  height: 100lvh;
+  height: 100%;
 }
 
 body {
-  min-height: 100lvh;
+  min-height: 100%;
   background-color: var(--bg);
   overflow: hidden;
 
@@ -87,7 +87,8 @@ body,
   margin: 0 !important;
   padding-top: 0 !important;
 
-  height: 100lvh;
+  height: var(--app-viewport-height, 100dvh);
+  min-height: var(--app-viewport-height, 100dvh);
 }
 
 h1,

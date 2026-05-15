@@ -21,6 +21,7 @@ const POST_AT_PLACE_MAX_DISTANCE_M = 200;
 const MAP_CLICK_MATCH_POST_PLACE_M = 48;
 /** 내 위치로 맞출 때 카카오 맵 zoom level (숫자가 작을수록 더 확대) */
 const MAP_USER_ZOOM_LEVEL = 4;
+const MAP_PLACE_FOCUS_ZOOM_LEVEL = 4;
 
 let kakaoMapsSdkPromise = null;
 
@@ -531,6 +532,32 @@ function KakaoMap({ initialPlaceId }) {
     await runMyLocationFocus();
   }, [loadMapPosts, runMyLocationFocus]);
 
+  const focusPlaceGroup = useCallback((placeGroup) => {
+    const map = mapInstanceRef.current;
+    if (!map || !window.kakao?.maps) return false;
+
+    const lat = Number(placeGroup?.place?.latitude);
+    const lng = Number(placeGroup?.place?.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+
+    const position = new window.kakao.maps.LatLng(lat, lng);
+    map.setLevel(MAP_PLACE_FOCUS_ZOOM_LEVEL, { animate: true });
+    map.panTo(position);
+    setZoomLevel(map.getLevel());
+    setSelectedPlace(placeGroup);
+    setActiveTrackIndex(0);
+
+    window.requestAnimationFrame(() => {
+      try {
+        map.relayout();
+      } catch {
+        /* noop */
+      }
+    });
+
+    return true;
+  }, []);
+
   useEffect(() => {
     isMountedRef.current = true;
     const snap = readMapSessionCache();
@@ -553,6 +580,7 @@ function KakaoMap({ initialPlaceId }) {
     let cancelled = false;
 
     void (async () => {
+      if (initialPlaceId) return;
       await runMyLocationFocus();
       if (cancelled) {
         myLocationOverlayRef.current?.setMap(null);
@@ -565,7 +593,7 @@ function KakaoMap({ initialPlaceId }) {
       myLocationOverlayRef.current?.setMap(null);
       myLocationOverlayRef.current = null;
     };
-  }, [isMapReady, runMyLocationFocus]);
+  }, [initialPlaceId, isMapReady, runMyLocationFocus]);
 
   useEffect(() => {
     const onRecenter = () => {
@@ -596,7 +624,11 @@ function KakaoMap({ initialPlaceId }) {
       // 좌표가 정상적이면 카메라 스무스하게 이동 후 바텀시트 띄우기
       if (Number.isFinite(lat) && Number.isFinite(lng)) {
         const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
+        mapInstanceRef.current.setLevel(MAP_PLACE_FOCUS_ZOOM_LEVEL, {
+          animate: true,
+        });
         mapInstanceRef.current.panTo(moveLatLon);
+        setZoomLevel(mapInstanceRef.current.getLevel());
 
         // 해당 장소 핀을 직접 클릭한 것과 100% 동일한 효과 (바텀시트 열기)
         setSelectedPlace(targetGroup);
@@ -836,8 +868,7 @@ function KakaoMap({ initialPlaceId }) {
       const onPinActivate = (e) => {
         e.stopPropagation();
         mapCoordinatePickSuppressedUntilRef.current = Date.now() + 900;
-        setSelectedPlace(placeGroup);
-        setActiveTrackIndex(0);
+        focusPlaceGroup(placeGroup);
       };
 
       overlay.setMap(map);
@@ -871,7 +902,7 @@ function KakaoMap({ initialPlaceId }) {
       cleanupListeners.forEach((cleanup) => cleanup());
       overlays.forEach((overlay) => overlay.setMap(null));
     };
-  }, [isMapReady, visibleGroups]);
+  }, [focusPlaceGroup, isMapReady, visibleGroups]);
 
   const closeSheet = () => {
     if (sheetCloseLockRef.current) return;
