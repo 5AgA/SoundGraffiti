@@ -3,6 +3,7 @@ import { getCurrentUser } from "../api/users";
 import { supabase } from "../supabaseClient";
 import { AuthContext } from "./AuthContextCore";
 import {
+  clearAllPendingAuth,
   getSessionProvider,
   providerSetFromIdentities,
 } from "../utils/authProviders";
@@ -134,6 +135,7 @@ export function AuthProvider({ children }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT") {
+        clearAllPendingAuth();
         clearHomeFeedSessionCache();
         clearMapSessionCache();
       }

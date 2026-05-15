@@ -122,6 +122,7 @@ function rememberPendingFlow(key, provider, returnTo) {
 }
 
 export function rememberPendingOAuth(provider, returnTo = "/home") {
+  clearPendingIdentityLink();
   rememberPendingFlow(PENDING_OAUTH_KEY, provider, returnTo);
 }
 
@@ -134,6 +135,7 @@ export function clearPendingOAuth() {
 }
 
 export function rememberPendingIdentityLink(provider, returnTo = "/home") {
+  clearPendingOAuth();
   rememberPendingFlow(PENDING_LINK_KEY, provider, returnTo);
 }
 
@@ -143,6 +145,51 @@ export function getPendingIdentityLink() {
 
 export function clearPendingIdentityLink() {
   removeStorageItem(localStore(), PENDING_LINK_KEY);
+}
+
+export function clearAllPendingAuth() {
+  clearPendingOAuth();
+  clearPendingIdentityLink();
+}
+
+/** @returns {{ type: "oauth" | "link" | "", provider: string, returnTo: string }} */
+export function resolvePendingAuthFlow() {
+  const link = getPendingIdentityLink();
+  const oauth = getPendingOAuth();
+  const linkAt = Number(link?.createdAt) || 0;
+  const oauthAt = Number(oauth?.createdAt) || 0;
+
+  if (link && oauth) {
+    const newer = oauthAt >= linkAt ? oauth : link;
+    const type = oauthAt >= linkAt ? "oauth" : "link";
+    return {
+      type,
+      provider: normalizeProvider(newer.provider),
+      returnTo: safeReturnTo(newer.returnTo),
+    };
+  }
+
+  if (link) {
+    return {
+      type: "link",
+      provider: normalizeProvider(link.provider),
+      returnTo: safeReturnTo(link.returnTo),
+    };
+  }
+
+  if (oauth) {
+    return {
+      type: "oauth",
+      provider: normalizeProvider(oauth.provider),
+      returnTo: safeReturnTo(oauth.returnTo),
+    };
+  }
+
+  return {
+    type: "",
+    provider: "",
+    returnTo: "/home",
+  };
 }
 
 export function authOptionsForProvider() {
