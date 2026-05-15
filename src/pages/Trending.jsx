@@ -67,7 +67,9 @@ function Trending() {
                   </svg>
                   <span>{spots[0].post_count}</span>
                 </div>
-                <div className="trending-top-deco"></div>
+
+                {/* 🚨 다른 요소 건드리지 않고 오직 SVG 태그만 삽입! */}
+                <img src="/Trending.svg" className="trending-top-bg-svg" alt="" aria-hidden="true" />
               </div>
 
               {/* 💡 2~11위 카드 */}
