@@ -9,14 +9,12 @@ function TrackSearch({ onSelect }) {
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
 
-  // 검색어가 바뀌면 싹 다 초기화
   useEffect(() => {
     setTracks([]);
     setOffset(0);
     setHasMore(true);
   }, [query]);
 
-  // 검색 로직
   useEffect(() => {
     const fetchTracks = async () => {
       if (query.trim() === '' || !hasMore) return;
@@ -25,10 +23,7 @@ function TrackSearch({ onSelect }) {
       try {
         const results = await searchTracks(query, offset);
         if (results && results.length > 0) {
-          // 기존 트랙에 새로 불러온 트랙을 뒤에 이어붙임
-          setTracks(prev => offset === 0 ? results : [...prev, ...results]);
-          
-          // 💡 만약 스포티파이에서 10개보다 적게 줬다면? 그게 마지막 페이지라는 뜻!
+          setTracks((prev) => (offset === 0 ? results : [...prev, ...results]));
           if (results.length < 10) setHasMore(false);
         } else {
           setHasMore(false); 
@@ -44,7 +39,6 @@ function TrackSearch({ onSelect }) {
     return () => clearTimeout(timeoutId);
   }, [query, offset]);
 
-  // 💡 [추가] 더보기 버튼 클릭 시 실행될 함수 (10개씩 증가!)
   const handleLoadMore = () => {
     if (!isSearching && hasMore) {
       setOffset(prev => prev + 10); 
@@ -53,8 +47,7 @@ function TrackSearch({ onSelect }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', fontFamily: '"Pretendard", sans-serif' }}>
-      
-      {/* 검색창 */}
+
       <div style={{ 
         flexShrink: 0, 
         display: 'flex', background: '#EAF2FD', 
@@ -73,8 +66,7 @@ function TrackSearch({ onSelect }) {
         />
       </div>
 
-      {/* 💡 무한스크롤(onScroll) 삭제! 깔끔하게 스크롤만 되도록 설정 */}
-      <div style={{ 
+      <div style={{
         flex: 1, overflowY: 'auto', overscrollBehaviorY: 'none', 
         WebkitOverflowScrolling: 'touch', paddingBottom: '40px', scrollbarWidth: 'none' 
       }}>
@@ -125,14 +117,12 @@ function TrackSearch({ onSelect }) {
               </div>
             ))}
             
-            {/* 로딩 중일 때 */}
             {isSearching && (
               <p style={{ color: '#005EFF', textAlign: 'center', marginTop: '10px', fontSize: '14px', fontWeight: '500' }}>
                 불러오는 중...
               </p>
             )}
 
-            {/* 💡 [추가] 10개씩 더 불러오는 '더보기' 버튼 */}
             {!isSearching && hasMore && tracks.length > 0 && (
               <button 
                 onClick={handleLoadMore}

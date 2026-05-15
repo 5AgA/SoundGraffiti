@@ -4,7 +4,7 @@ import './index.css'
 import './styles/skeleton-shimmer.css'
 import App from './App.jsx'
 
-/** 풀 리로드 직후 홈: mapFocusPostId·스크롤 복원으로 인한 잘못된 카드 포커스를 한 번 무시 */
+// 풀 리로드 직후 홈에서 mapFocusPostId 포커스를 한 번 무시
 function markReloadForHomeFeedReset() {
   try {
     const entries = performance.getEntriesByType?.('navigation')
@@ -27,7 +27,6 @@ function markReloadForHomeFeedReset() {
 }
 
 markReloadForHomeFeedReset()
-// Navigation Timing 이 첫 마이크로태스크 이후에야 reload 로 잡히는 브라우저 대비
 setTimeout(markReloadForHomeFeedReset, 0)
 
 try {
@@ -39,7 +38,7 @@ try {
 }
 
 createRoot(document.getElementById('root')).render(
-  //<StrictMode>
+  <StrictMode>
     <App />
-  //</StrictMode>,
+  </StrictMode>,
 )

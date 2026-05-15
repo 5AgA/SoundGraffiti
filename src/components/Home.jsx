@@ -19,25 +19,25 @@ import { useCommentSheetDrag } from "../hooks/useCommentSheetDrag";
 import { useTrackPreviewAudio } from "../hooks/useTrackPreviewAudio";
 import {
   DEFAULT_PROFILE_IMAGE,
+  profileUrlRawFromUsersRow,
   resolvedProfileImageUrl,
 } from "../utils/profileImage";
 import {
   isViewerAuthorOfPost,
 } from "../utils/likesUi";
+import { getDevGeoCoordinates } from "../utils/devGeoCoords";
 import { openSpotifyTrackInBrowser } from "../utils/spotifyLinks";
 import OwnPostLikersDialog from "./OwnPostLikersDialog";
 import "./Home.css";
 import { supabase } from "../supabaseClient";
 
-/** 스크롤 스냅 때문에 첫 카드일 때도 scrollTop ≠ 0 — 두 번째 카드 기준으로 ‘첫 카드 구간’ 판별 */
+// 스크롤 스냅: 첫 카드도 scrollTop ≠ 0일 수 있어 여유(px)로 판별
 const PTR_ARM_SCROLL_SLACK_PX = 28;
-/** 이 거리 이상 아래로 누적되면 새로고침 전에 로딩 힌트 표시 */
 const PULL_HINT_ACCUM_PX = 26;
+const MAX_COMMENT_REPLY_DEPTH = 2; // 답글 깊이 2까지
 
-/** 루트=0 … 깊이 2(답글의 답글)까지 스레드 허용 — 그 이하에는 답글 달기 비활성 */
-const MAX_COMMENT_REPLY_DEPTH = 2;
+// — Supabase nested relations (array | single row) —
 
-/** Supabase 중첩 Likes: 배열 | 단일 행 | 없음 */
 function likesFromPost(post) {
   const raw = post?.Likes ?? post?.likes;
   if (raw == null) return [];
@@ -49,7 +49,6 @@ function userMatchesLike(like, userId) {
   return String(like.user_id) === String(userId);
 }
 
-/** Supabase 중첩 Comments: 배열 | 단일 행 | 없음. 삭제된 행(comment_deleted != null)은 제외 */
 function commentsFromPost(post) {
   const raw = post?.Comments ?? post?.comments;
   if (raw == null) return [];
@@ -69,7 +68,6 @@ function postAuthorUserFromPost(post) {
   return u != null && typeof u === "object" ? u : {};
 }
 
-/** 중첩 Users + 행 폴백 — 피드 카드·댓글 동일 규칙 */
 function profileRawFromUserAndRow(u, row) {
   const candidates = [
     u?.user_profile_url,
@@ -87,12 +85,10 @@ function postAuthorProfileRawFromPost(post) {
   return profileRawFromUserAndRow(postAuthorUserFromPost(post), post);
 }
 
-/** 댓글 작성자 프로필 URL(원문). 비어 있으면 `resolvedProfileImageUrl`이 기본 이미지로 처리 */
 function commentProfileRawFromRow(row) {
   return profileRawFromUserAndRow(commentUserFromRow(row), row);
 }
 
-/** 행에 직접 없으면 중첩 Users.user_id (피드 형태 차이 대비) */
 function commentAuthorUserId(row) {
   if (row == null) return null;
   if (row.user_id != null) return row.user_id;
@@ -114,7 +110,6 @@ function sheetCommentsSorted(rows) {
   });
 }
 
-/** parent_comment_id 기준 트리 순회(선주 후손), 고아 댓글은 루트로 표시 */
 function orderedCommentsWithDepth(rows) {
   const valid = rows.filter((r) => r != null && r.comment_id != null);
   const byId = new Map(valid.map((r) => [String(r.comment_id), r]));
@@ -154,7 +149,6 @@ function orderedCommentsWithDepth(rows) {
   return out;
 }
 
-/** 서버 피드 댓글 + 아직 반영 전 방금 작성분(pending) 합치기 */
 function mergeSheetCommentsFromFeed(post, pendingRows, removedCommentIds) {
   const omit = new Set((removedCommentIds ?? []).map((id) => String(id)));
   const server = commentsFromPost(post).filter(
@@ -185,36 +179,12 @@ function formatSheetCommentTime(iso) {
   }
 }
 
-/** http://192.168… 등 비 HTTPS 개발: Geolocation 불가 → .env 로 고정 좌표만 허용 */
-function getDevCommentCoordinates() {
-  if (!import.meta.env.DEV) return null;
-  const combined = import.meta.env.VITE_DEV_COMMENT_COORDS;
-  if (typeof combined === "string" && combined.trim()) {
-    const parts = combined.split(",").map((s) => Number(s.trim()));
-    if (
-      parts.length >= 2 &&
-      Number.isFinite(parts[0]) &&
-      Number.isFinite(parts[1])
-    ) {
-      return { lat: parts[0], lng: parts[1] };
-    }
-  }
-  const lat = Number(import.meta.env.VITE_DEV_COMMENT_LAT);
-  const lng = Number(import.meta.env.VITE_DEV_COMMENT_LNG);
-  if (Number.isFinite(lat) && Number.isFinite(lng)) {
-    return { lat, lng };
-  }
-  return null;
-}
-
-/** Tracks 단일 행 | 배열 */
 function trackFromPost(post) {
   const raw = post?.Tracks ?? post?.tracks;
   if (raw == null) return null;
   return Array.isArray(raw) ? raw[0] : raw;
 }
 
-/** PostMedia: 배열 | 단일 행 — URL 목록(순서 유지, 중복 제거) */
 function postMediaUrlsFromPost(post) {
   const raw = post?.PostMedia ?? post?.post_media;
   const rows = Array.isArray(raw)
@@ -242,7 +212,6 @@ function postMediaUrlsFromPost(post) {
   return out;
 }
 
-/** 포스트 첨부 사진 — 여러 장이면 가로 스냅 스크롤 (피그마 /home 카드 영역) */
 function HomeCardMediaStrip({ urls, imageAlt }) {
   const scrollRef = useRef(null);
   const [activeDot, setActiveDot] = useState(0);
@@ -306,7 +275,6 @@ function HomeCardMediaStrip({ urls, imageAlt }) {
   );
 }
 
-/** feed 가 null 이면 로딩 중, 배열이면 로딩 완료(빈 배열 가능) */
 function Home({
   feed = null,
   focusPostId = null,
@@ -324,21 +292,15 @@ function Home({
   const list = isLoading ? [null] : feed;
   const [activeIndex, setActiveIndex] = useState(0);
   const lastFeedScrollResetSignalRef = useRef(0);
-  /** 활성 카드: 전체 3D 플립으로 업로드 사진면 표시 */
   const [cardFlipped, setCardFlipped] = useState(false);
-  /** 플립 시 한 장만 보기 + 상단 제목·가수, 나가면 스크롤 복원 */
   const [feedFocused, setFeedFocused] = useState(false);
   const [feedRefreshing, setFeedRefreshing] = useState(false);
   const [feedPullHint, setFeedPullHint] = useState(false);
   const [likeStateByPostId, setLikeStateByPostId] = useState({});
   const [commentSheetPost, setCommentSheetPost] = useState(null);
-  const [ownPostLikersForPost, setOwnPostLikersForPost] = useState(
-    /** @type {Record<string, unknown> | null} */ (null),
-  );
-  /** 카드 뒷면(한 장 보기+플립)에서 댓글 연 시 — Figma ver.1 시트 높이·톤 */
+  const [ownPostLikersForPost, setOwnPostLikersForPost] = useState(null);
   const [commentSheetFromFlipView, setCommentSheetFromFlipView] =
     useState(false);
-  /** 위치·반경 확인 전에는 스켈레톤만 보이고 입력 비활성 */
   const [commentSheetAccessPending, setCommentSheetAccessPending] =
     useState(false);
   const commentSheetPostRef = useRef(null);
@@ -346,9 +308,7 @@ function Home({
   const cardRefs = useRef([]);
   const feedScrollRef = useRef(null);
   const feedScrollBeforeFocusRef = useRef(0);
-  /** 직전 feed — null → 배열 첫 로드일 때만 맨 위 스크롤 보정 */
   const prevFeedRef = useRef(null);
-  /** 한 장 보기 종료 직후 layout 단계에서 scrollTop 복원 (페인트 전, 번쩍임 방지) */
   const shouldRestoreFeedScrollRef = useRef(false);
   const activeIndexRef = useRef(0);
   const ptrArmMaxScrollTopRef = useRef(Number.POSITIVE_INFINITY);
@@ -356,25 +316,8 @@ function Home({
   const commentInputRef = useRef(null);
   const commentScrollRef = useRef(null);
   const closeCommentSheetRef = useRef(() => {});
-  const commentSheetRef = useRef(null);
   const autoRefreshedPostId = useRef(null);
   const handledPostIdRef = useRef(null);
-  const commentSheetDragRef = useRef({
-    active: false,
-    pointerId: null,
-    startY: 0,
-    startTranslate: 0,
-    lastOffset: 0,
-    lastClientY: 0,
-    /** 접힘 상태에서 한 번의 제스처 동안 가장 위로 당긴 dy(음수일수록 상향) */
-    bestDy: 0,
-    /** 접힘 상태에서 손가락이 도달한 가장 위쪽 clientY (작을수록 화면 상단) */
-    minClientY: 0,
-    /** 접힘 상태에서 아래로 당긴 거리 (닫기 전 높이 줄임용) */
-    lastStretchDown: 0,
-    /** 확장 상태에서 드래그 시작 시 시트 높이(px) */
-    expandDragStartHeight: null,
-  });
   const commentLongPressRef = useRef({
     timer: null,
     pointerId: null,
@@ -392,19 +335,15 @@ function Home({
   const [commentAccessBusy, setCommentAccessBusy] = useState(false);
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [pendingSheetComments, setPendingSheetComments] = useState([]);
-  /** 답글 작성 대상 (하단 입력창에 parent_comment_id 로 전달) */
   const [commentReplyTarget, setCommentReplyTarget] = useState(null);
-  /** 삭제 직후 피드 갱신 전까지 목록에서만 숨김 */
   const [removedSheetCommentIds, setRemovedSheetCommentIds] = useState([]);
   const [commentDeletePrompt, setCommentDeletePrompt] = useState(null);
   const [commentDeleteSubmitting, setCommentDeleteSubmitting] = useState(false);
   const [playbackNotice, setPlaybackNotice] = useState("");
   const [previewGloballyMuted, setPreviewGloballyMuted] = useState(false);
   const previewGloballyMutedRef = useRef(false);
-  /** 앨범 커버 색감 기준: 밝으면 상단 트랙 타이틀·가수를 검정, 어두우면 흰색 */
   const [trackMetaOnLightBg, setTrackMetaOnLightBg] = useState(false);
   const { user } = useAuth();
-  /** Auth 메타데이터에 없을 때 Users 테이블 프로필 (고정 id·OAuth 병행) */
   const [dbUserProfileUrl, setDbUserProfileUrl] = useState(null);
 
   useEffect(() => {
@@ -419,17 +358,12 @@ function Home({
     );
 
     if (targetIndex >= 0) {
-      // 2️⃣ 피드에 글이 나타났다면 즉시 포커스 & 플립!
       setActiveIndex(targetIndex);
       setFeedFocused(true);
       setCardFlipped(true);
       handledPostIdRef.current = newPostIdFromCreate;
-      
-      // 🔥 핵심: 라우터에 남아있는 state 흔적을 완벽하게 지워서 무한 루프 원천 차단!
       navigate(location.pathname, { replace: true, state: {} });
-      
     } else {
-      // 3️⃣ 피드에 없다면? -> 무거운 전체 새로고침을 기다리지 않고, DB에서 방금 쓴 글 딱 1개만 스틸해서 피드 맨 앞에 꽂아버림!
       if (autoRefreshedPostId.current !== newPostIdFromCreate) {
         autoRefreshedPostId.current = newPostIdFromCreate;
         
@@ -449,11 +383,9 @@ function Home({
               .eq('post_id', newPostIdFromCreate)
               .single();
 
-            // 성공적으로 가져왔으면 부모 피드 맨 앞에 강제로 쑤셔 넣기 (이러면 화면에 즉시 뜸!)
             if (!error && newPost && typeof persistFeedUpdate === "function") {
-              persistFeedUpdate(prev => [newPost, ...prev]);
+              persistFeedUpdate((prev) => [newPost, ...prev]);
             } else if (typeof onPullRefresh === "function") {
-              // 혹시 모를 에러 대비용 최후의 보루
               onPullRefresh();
             }
           } catch (err) {
@@ -522,25 +454,22 @@ function Home({
     let cancelled = false;
     void getUserById(id).then((row) => {
       if (cancelled) return;
-      setDbUserProfileUrl(
-        row && typeof row.user_profile_url === "string"
-          ? row.user_profile_url.trim() || null
-          : null,
-      );
+      setDbUserProfileUrl(row ? profileUrlRawFromUsersRow(row) : null);
     });
     return () => {
       cancelled = true;
     };
   }, [likeUserId]);
 
-  /** 로그인 사용자 — Auth에서 머지된 프로필 URL 우선(카드·댓글·입력창 동일) */
   const meProfileRaw =
-    (typeof user?.user_metadata?.user_profile_url === "string" &&
-      user.user_metadata.user_profile_url.trim()) ||
-    (typeof dbUserProfileUrl === "string" && dbUserProfileUrl.trim()) ||
-    user?.user_metadata?.avatar_url ||
-    user?.user_metadata?.picture ||
-    "";
+    dbUserProfileUrl !== null
+      ? dbUserProfileUrl
+      : profileUrlRawFromUsersRow(user?.appUser) ??
+        (typeof user?.user_metadata?.user_profile_url === "string" &&
+          user.user_metadata.user_profile_url.trim()) ||
+        user?.user_metadata?.avatar_url ||
+        user?.user_metadata?.picture ||
+        "";
   const composerAvatarSrc = resolvedProfileImageUrl(meProfileRaw);
 
   const sheetPostFresh = useMemo(() => {
@@ -625,8 +554,6 @@ function Home({
     setRemovedSheetCommentIds([]);
     setCommentDeletePrompt(null);
     setPendingSheetComments([]);
-    /* tryOpenCommentSheet 에서 같은 틱에 setFeedFocused/setCardFlipped 하면
-       여기서 feedFocused/cardFlipped 는 아직 갱신 전이라 항상 플립 댓글 UI로 연다 */
     setCommentSheetFromFlipView(true);
     setCommentSheetPost(post);
     commentSheetPostRef.current = post;
@@ -649,9 +576,7 @@ function Home({
 
   const dismissCommentDeletePrompt = () => setCommentDeletePrompt(null);
 
-  /** 스크롤 안에서 pointer 가 빨리 cancel 되는 터치 환경 대비 */
   const COMMENT_LONG_PRESS_MS = 580;
-  /** 손가락 미세 흔들림 허용 (~35px) */
   const COMMENT_LONG_PRESS_MOVE_SQ = 1200;
 
   const beginCommentLongPress = (row, clientX, clientY, pressKey) => {
@@ -670,7 +595,6 @@ function Home({
   const handleCommentRowPointerDown = (row) => (e) => {
     if (!isOwnSheetComment(row, likeUserId)) return;
     if (commentSheetAccessPending) return;
-    /* 터치는 touchstart 쪽에서만 처리 (pointercancel 로 타이머가 너무 자주 끊김) */
     if (e.pointerType === "touch") return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     beginCommentLongPress(row, e.clientX, e.clientY, `p:${e.pointerId}`);
@@ -781,7 +705,7 @@ function Home({
     }
 
     const insecure = typeof window !== "undefined" && !window.isSecureContext;
-    const devCoords = getDevCommentCoordinates();
+    const devCoords = getDevGeoCoordinates();
 
     const runCommentAccessCheck = async (lat, lng) => {
       const postId = post.post_id;
@@ -814,7 +738,6 @@ function Home({
       }
     };
 
-    /* 비 HTTPS(예: http://192.168…)에서는 브라우저가 Geolocation 자체를 막음 */
     if (insecure && devCoords) {
       setCommentAccessBusy(true);
       showCommentSheetForPost(post);
@@ -827,8 +750,8 @@ function Home({
       alert(
         "지금 주소가 HTTP(비보안)라서 브라우저가 위치 API를 사용하지 못합니다.\n\n" +
           "[개발] 폰에서 192.168… 로 테스트할 때는 프로젝트 루트에 .env.local 을 만들고:\n" +
-          "  VITE_DEV_COMMENT_COORDS=위도,경도\n" +
-          "예: VITE_DEV_COMMENT_COORDS=37.5665,126.9780\n" +
+          "  VITE_DEV_GEO_COORDS=위도,경도\n" +
+          "예: VITE_DEV_GEO_COORDS=37.5665,126.9780\n" +
           "(저장 후 npm run dev 다시 실행)\n\n" +
           "[배포·실사용] HTTPS 또는 localhost 로 접속하면 실제 GPS를 씁니다.",
       );
@@ -868,10 +791,8 @@ function Home({
         }
       },
       {
-        /* 목 위치(Fake GPS)·에뮬: 고정밀 모드는 실제 GNSS만 기다려 좌표가 안 넘어오는 경우가 많음 */
         enableHighAccuracy: false,
         timeout: 15000,
-        /* 같은 세션에서 댓글 다시 열 때 매번 새 GNSS 고정을 기다리지 않도록 캐시 허용 */
         maximumAge: 120000,
       },
     );
@@ -1115,7 +1036,6 @@ function Home({
     setActiveIndex((prev) => (prev !== bestIdx ? bestIdx : prev));
   };
 
-  /** 풀 리로드 직후 등: 피드 컨테이너 scrollTop 복원으로 잘못된 activeIndex 가 잡히는 것 방지 */
   useLayoutEffect(() => {
     if (feedScrollResetSignal <= lastFeedScrollResetSignalRef.current) return;
     lastFeedScrollResetSignalRef.current = feedScrollResetSignal;
@@ -1129,7 +1049,6 @@ function Home({
     updateActiveFromScroll(e.currentTarget);
   };
 
-  /** 바로 위·아래 카드 탭 시 한 칸 스냅 스크롤 (캡처에서 처리해 비활성 카드 플립 버튼과 충돌 방지) */
   const handleAdjacentFeedItemClickCapture = useCallback(
     (e) => {
       if (feed === null || feedFocused) return;
@@ -1149,7 +1068,6 @@ function Home({
     [feed, feedFocused],
   );
 
-  /** 브라우저/레이아웃이 스크롤 위치를 먼저 복원하면 list.length effect가 잘못된 activeIndex를 잡는 것을 막음 */
   useLayoutEffect(() => {
     if (feed === null || !Array.isArray(feed) || feed.length === 0) return;
 
@@ -1179,7 +1097,6 @@ function Home({
     }
 
     const prev = prevFeedRef.current;
-    /* 빈 피드 [] → 첫 글 로드만으로 바뀔 때(prev는 null이 아님) 기존엔 ‘첫 로드’ 분기를 타지 않아 스크롤이 맨 위로 안 감 */
     const emptyToPosts =
       Array.isArray(prev) &&
       prev.length === 0 &&
@@ -1188,7 +1105,6 @@ function Home({
 
     prevFeedRef.current = feed;
 
-    /* 로딩 끝난 직후 한 번: 첫 포스트가 화면 중심에 오도록 (스냅·레이아웃 전 active 추측 오류 방지) */
     if (prev !== null && !emptyToPosts) return;
 
     if (focusPostId) {
@@ -1290,7 +1206,6 @@ function Home({
       });
     };
 
-    /* 이전 피드 방향 휠 후 scrollTop이 거의 안 줄었으면 막힌 상태 → 새로고침 */
     const onWheel = (e) => {
       if (!onFirstCard()) return;
       if (e.deltaY >= -10) return;
@@ -1388,7 +1303,6 @@ function Home({
     const serverLiked = likes.some((like) => userMatchesLike(like, userId));
     const serverCount = likes.length;
 
-    /** @type {{ isLiked: boolean; likeCount: number } | null} */
     let commit = null;
     setLikeStateByPostId((prev) => {
       if (prev[postKey]?.pending) return prev;

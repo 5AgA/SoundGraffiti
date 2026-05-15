@@ -1,4 +1,3 @@
-/** @param {unknown} raw */
 function normalizeSpotifyTrackId(raw) {
   if (raw == null) return "";
   const s =
@@ -13,11 +12,6 @@ function normalizeSpotifyTrackId(raw) {
   return s;
 }
 
-/**
- * 트랙 행에서 Spotify 웹 트랙 URL을 만든다.
- * @param {{ track_id?: unknown } | null | undefined} track
- * @returns {string} 빈 문자열이면 열 수 없음
- */
 export function spotifyTrackWebUrl(track) {
   const id = normalizeSpotifyTrackId(track?.track_id);
   if (!id) return "";
@@ -25,10 +19,6 @@ export function spotifyTrackWebUrl(track) {
   return `https://open.spotify.com/track/${encodeURIComponent(id)}`;
 }
 
-/**
- * @param {string} url
- * @returns {boolean} 새 탭/창으로 연 것으로 보이면 true
- */
 function openUrlInNewTab(url) {
   if (!url) return false;
   const w = window.open(url, "_blank");
@@ -49,10 +39,7 @@ function openUrlInNewTab(url) {
   }
 }
 
-/**
- * @param {{ track_id?: unknown } | null | undefined} track
- * @returns {"ok" | "no_track" | "blocked"}
- */
+/** @returns {"ok" | "no_track" | "blocked"} */
 export function openSpotifyTrackInBrowser(track) {
   const url = spotifyTrackWebUrl(track);
   if (!url) return "no_track";

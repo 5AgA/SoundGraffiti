@@ -7,6 +7,7 @@ import { checkCommentAccess } from "../api/comments";
 import {
   resolvedProfileImageUrl,
   DEFAULT_PROFILE_IMAGE,
+  profileUrlRawFromUsersRow,
 } from "../utils/profileImage";
 import { useTrackPreviewAudio } from "../hooks/useTrackPreviewAudio";
 import { getDevGeoCoordinates } from "../utils/devGeoCoords";
@@ -23,11 +24,9 @@ import OwnPostLikersDialog from "../components/OwnPostLikersDialog";
 import "../components/Home.css";
 import "./MyPage.css";
 
-/** public/MY graffiti.svg와 동일 path — 인라인 SVG(img 미사용) */
 const MY_GRAFFITI_WORDMARK_PATH =
   "M5.75416 29.736L3.99016 12.012V29.736H0.000156309V0.33596H5.96416L7.35016 15.834L8.69416 0.33596H14.7002V29.736H10.5002V12.516L8.82016 29.736H5.75416ZM23.7994 18.228V29.736H19.0114V18.438L15.3154 0.33596H19.7674L21.4474 10.878L23.1274 0.33596H27.4534L23.7994 18.228ZM37.5764 18.9V14.952H43.1204V29.736H39.3824V28.308C38.7104 29.442 37.6184 30.072 36.1064 30.072C33.3344 30.072 31.9484 28.098 31.9484 24.948V5.71196C31.9484 2.18396 33.7964 -3.82662e-05 37.4924 -3.82662e-05C41.1884 -3.82662e-05 43.0364 2.18396 43.0364 5.71196V10.458H38.2484V5.08196C38.2484 4.57796 38.1224 4.07396 37.4924 4.07396C36.8624 4.07396 36.7364 4.57796 36.7364 5.08196V24.99C36.7364 25.62 36.9464 26.124 37.6184 26.124C38.3744 26.124 38.5004 25.62 38.5004 24.99V18.9H37.5764ZM49.7501 18.396H49.3721V29.736H44.5841V0.33596H50.2541C53.8241 0.33596 55.6301 2.43596 55.6301 5.87996V12.432C55.6301 14.07 54.9161 15.33 53.5301 16.044C54.9161 16.884 55.6301 18.396 55.6301 20.37V25.662C55.6301 27.258 55.7981 28.518 56.0081 29.736H51.1361C50.8841 28.896 50.7581 27.216 50.7581 25.662V19.656C50.7581 18.984 50.5061 18.396 49.7501 18.396ZM49.7501 14.112C50.5481 14.112 50.7581 13.524 50.7581 12.852V5.58596C50.7581 4.91396 50.5061 4.32596 49.7501 4.32596H49.3721V14.112H49.7501ZM64.9459 29.736L64.2739 23.394H61.1659L60.5359 29.736H56.1679L59.9479 0.33596H65.7019L69.4819 29.736H64.9459ZM61.5439 19.572H63.8959L62.6779 8.06396L61.5439 19.572ZM78.4529 17.304H74.9249V29.736H70.1369V0.33596H79.1669V4.36796H74.9249V13.272H78.4529V17.304ZM88.8298 17.304H85.3018V29.736H80.5138V0.33596H89.5438V4.36796H85.3018V13.272H88.8298V17.304ZM95.6788 0.33596V29.736H90.8908V0.33596H95.6788ZM107.493 4.36796H104.553V29.736H99.7653V4.36796H96.8673V0.33596H107.493V4.36796ZM113.439 0.33596V29.736H108.651V0.33596H113.439Z";
 
-/** @param {string | undefined} iso */
 function formatRelativeKo(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -44,14 +43,14 @@ function formatRelativeKo(iso) {
   return d.toLocaleDateString("ko-KR");
 }
 
-/** @param {Record<string, unknown>} post */
+// — Supabase nested relations (array | single row) —
+
 function trackFromPost(post) {
   const raw = post?.Tracks ?? post?.tracks;
   if (raw == null) return null;
   return Array.isArray(raw) ? raw[0] : raw;
 }
 
-/** @param {Record<string, unknown>} post */
 function resolveAlbumCover(post) {
   const track = trackFromPost(post);
   const album = track?.album_image_url?.trim?.();
@@ -63,7 +62,6 @@ function resolveAlbumCover(post) {
   return first?.media_url?.trim?.() ?? "";
 }
 
-/** PostMedia 행 → URL 목록 (홈과 동일 규칙) */
 function postMediaUrlsFromPost(post) {
   const raw = post?.PostMedia ?? post?.post_media;
   const rows = Array.isArray(raw)
@@ -91,7 +89,6 @@ function postMediaUrlsFromPost(post) {
   return out;
 }
 
-/** 홈 피드 앞면과 동일: 트랙 앨범 이미지 URL만 */
 function trackAlbumArtFromPost(post) {
   const track = trackFromPost(post);
   return typeof track?.album_image_url === "string"
@@ -99,7 +96,6 @@ function trackAlbumArtFromPost(post) {
     : "";
 }
 
-/** @param {{ urls: string[]; imageAlt: string }} props */
 function MyPageFlipMediaStrip({ urls, imageAlt }) {
   const scrollRef = useRef(null);
   const [activeDot, setActiveDot] = useState(0);
@@ -163,14 +159,12 @@ function MyPageFlipMediaStrip({ urls, imageAlt }) {
   );
 }
 
-/** @param {Record<string, unknown>} post */
 function resolvePlaceName(post) {
   const p = post?.Places;
   const row = Array.isArray(p) ? p[0] : p;
   return row?.place_name?.trim?.() || "장소 미설정";
 }
 
-/** @param {Record<string, unknown>} post */
 function resolveTrackLine(post) {
   const raw = post?.Tracks ?? post?.tracks;
   const track = Array.isArray(raw) ? raw[0] : raw;
@@ -184,13 +178,11 @@ function resolveTrackLine(post) {
   return "노래 정보 없음";
 }
 
-/** @param {Record<string, unknown>} post */
 function likeCount(post) {
   const likes = post?.Likes;
   return Array.isArray(likes) ? likes.length : 0;
 }
 
-/** 삭제되지 않은 댓글 수 (Supabase 중첩 Comments: 배열 | 단일 행) */
 function activeCommentCount(post) {
   const raw = post?.Comments ?? post?.comments;
   if (raw == null) return 0;
@@ -227,29 +219,6 @@ function postBodyText(post) {
   return typeof c === "string" ? c.trim() : "";
 }
 
-function getFlipCommentDevCoords() {
-  const g = getDevGeoCoordinates();
-  if (g) return g;
-  if (!import.meta.env.DEV) return null;
-  const combined = import.meta.env.VITE_DEV_COMMENT_COORDS;
-  if (typeof combined === "string" && combined.trim()) {
-    const parts = combined.split(",").map((s) => Number(s.trim()));
-    if (
-      parts.length >= 2 &&
-      Number.isFinite(parts[0]) &&
-      Number.isFinite(parts[1])
-    ) {
-      return { lat: parts[0], lng: parts[1] };
-    }
-  }
-  const lat = Number(import.meta.env.VITE_DEV_COMMENT_LAT);
-  const lng = Number(import.meta.env.VITE_DEV_COMMENT_LNG);
-  if (Number.isFinite(lat) && Number.isFinite(lng)) {
-    return { lat, lng };
-  }
-  return null;
-}
-
 function MyPageFlipCardChrome({
   fp,
   displayName,
@@ -274,7 +243,6 @@ function MyPageFlipCardChrome({
     typeof viewerProfileRaw === "string" && viewerProfileRaw.trim() !== ""
       ? viewerProfileRaw.trim()
       : "";
-  /** 마이페이지 그리드는 본인 글만 — 아바타는 항상 로그인 사용자(세션) 프로필 */
   const avatarRaw = meRaw || postAuthorProfileRawFromPost(fp);
   const avatarSrcFlip = resolvedProfileImageUrl(avatarRaw);
   const likeCountDisplay = likeCount(fp);
@@ -401,7 +369,6 @@ function MyPageFlipCardChrome({
   );
 }
 
-/** @param {Record<string, unknown>[]} list @param {'latest'|'popular'} order */
 function sortMyPosts(list, order) {
   const copy = [...list];
   if (order === "latest") {
@@ -462,32 +429,23 @@ export default function MyPage() {
   const [postsLoaded, setPostsLoaded] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [logoutBusy, setLogoutBusy] = useState(false);
-  const [sortOrder, setSortOrder] = useState(
-    /** @type {'latest' | 'popular'} */ ("latest"),
-  );
+  const [sortOrder, setSortOrder] = useState("latest");
   const [postsRefreshing, setPostsRefreshing] = useState(false);
-  const [deleteConfirmPostId, setDeleteConfirmPostId] = useState(
-    /** @type {number | null} */ (null),
-  );
+  const [deleteConfirmPostId, setDeleteConfirmPostId] = useState(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
-  const [flipPost, setFlipPost] = useState(
-    /** @type {Record<string, unknown> | null} */ (null),
-  );
+  const [flipPost, setFlipPost] = useState(null);
   const [flipEntered, setFlipEntered] = useState(false);
-  const [commentSheetPost, setCommentSheetPost] = useState(
-    /** @type {Record<string, unknown> | null} */ (null),
-  );
+  const [commentSheetPost, setCommentSheetPost] = useState(null);
   const [commentAccessPending, setCommentAccessPending] = useState(false);
   const [commentAccessReady, setCommentAccessReady] = useState(false);
   const [mypageFlipLikersOpen, setMypageFlipLikersOpen] = useState(false);
   const [playbackNotice, setPlaybackNotice] = useState("");
   const [flipTrackMetaOnLightBg, setFlipTrackMetaOnLightBg] = useState(false);
-  /** writeMyPageSessionCache 시 최신 profile·postCount 등 (좋아요 토글 직후 캐시 동기화) */
   const myPageCacheMetaRef = useRef({
-    pageUserId: /** @type {string|number|null} */ (null),
-    profile: /** @type {unknown} */ (null),
-    postCount: /** @type {number|null} */ (null),
-    loadError: /** @type {string|null} */ (null),
+    pageUserId: null,
+    profile: null,
+    postCount: null,
+    loadError: null,
   });
   useEffect(() => {
     myPageCacheMetaRef.current = {
@@ -497,14 +455,11 @@ export default function MyPage() {
       loadError,
     };
   }, [pageUserId, profile, postCount, loadError]);
-  const commentSheetPostRef = useRef(
-    /** @type {Record<string, unknown> | null} */ (null),
-  );
+  const commentSheetPostRef = useRef(null);
 
   const longPressDidOpenDeleteRef = useRef(false);
 
   const longPressRef = useRef({
-    /** @type {ReturnType<typeof setTimeout> | null} */
     timer: null,
     x: 0,
     y: 0,
@@ -690,7 +645,7 @@ export default function MyPage() {
     if (!post?.post_id) return;
 
     const insecure = typeof window !== "undefined" && !window.isSecureContext;
-    const devCoords = getFlipCommentDevCoords();
+    const devCoords = getDevGeoCoordinates();
 
     const runCommentAccessCheck = async (lat, lng) => {
       const postId = post.post_id;
@@ -960,26 +915,17 @@ export default function MyPage() {
     user?.user_metadata?.name ||
     (typeof user?.email === "string" ? user.email.split("@")[0] : "");
   const displayName = profile?.user_name || authName || "…";
-  /** 세션 사용자 ID에 묶인 DB 프로필 URL: 마이페이지 캐시·getUserById → Auth의 appUser 순 */
   const sessionUserProfileUrl =
-    (typeof profile?.user_profile_url === "string" &&
-      profile.user_profile_url.trim()) ||
-    (typeof user?.appUser?.user_profile_url === "string" &&
-      user.appUser.user_profile_url.trim()) ||
-    "";
-  const avatarSrc = resolvedProfileImageUrl(
-    sessionUserProfileUrl ||
-      (typeof user?.user_metadata?.user_profile_url === "string"
-        ? user.user_metadata.user_profile_url.trim()
-        : ""),
-  );
-  const meProfileRaw =
-    sessionUserProfileUrl ||
-    (typeof user?.user_metadata?.user_profile_url === "string" &&
-      user.user_metadata.user_profile_url.trim()) ||
+    profileUrlRawFromUsersRow(profile) ??
+    profileUrlRawFromUsersRow(user?.appUser) ??
+    (typeof user?.user_metadata?.user_profile_url === "string"
+      ? user.user_metadata.user_profile_url.trim()
+      : "") ||
     user?.user_metadata?.avatar_url ||
     user?.user_metadata?.picture ||
     "";
+  const avatarSrc = resolvedProfileImageUrl(sessionUserProfileUrl);
+  const meProfileRaw = sessionUserProfileUrl;
   const isLoading = !postsLoaded;
 
   const handleLogout = async () => {
@@ -1033,7 +979,6 @@ export default function MyPage() {
     }
   }, [deleteConfirmPostId, pageUserId, posts, postCount, profile]);
 
-  /** @param {number} postIdNum */
   function longPressPropsFor(postIdNum) {
     return {
       onPointerDown: (e) => {

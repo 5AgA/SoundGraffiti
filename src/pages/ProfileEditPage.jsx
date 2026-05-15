@@ -267,7 +267,7 @@ export default function ProfileEditPage() {
       const { error: metaErr } = await supabase.auth.updateUser({
         data: {
           user_name: trimmedName,
-          user_profile_url: profileUrlToSave ?? undefined,
+          user_profile_url: profileUrlToSave,
         },
       });
       if (metaErr) {
@@ -275,6 +275,10 @@ export default function ProfileEditPage() {
       }
       await refreshAuthState();
       clearMyPageSessionCache();
+      if (useDefaultAvatar) {
+        setStoredProfileUrl("");
+        setUseDefaultAvatar(false);
+      }
       navigate("/mypage", { replace: true });
     } catch (e) {
       console.error(e);

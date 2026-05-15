@@ -15,10 +15,7 @@ const aiIcon = "/AI.png";
 const UPLOAD_SUCCESS_EVENT = "soundgraffiti-upload-success";
 const UPLOAD_ERROR_EVENT = "soundgraffiti-upload-error";
 
-/**
- * 업로드 화면이 언마운트된 뒤에도 동작하도록 모듈 스코프에서 실행.
- * @param {{ selectedPlace: object, selectedTrack: object, content: string, imageFile: File | null }} snapshot
- */
+// 업로드 화면 언마운트 후에도 완료되도록 모듈 스코프에서 제출
 async function submitGraffitiFromSnapshot(snapshot) {
   const { selectedPlace, selectedTrack, content, imageFile } = snapshot;
 
@@ -136,16 +133,13 @@ function UploadGraffiti() {
   const mapPrefillAppliedRef = useRef(false);
   const [content, setContent] = useState('');
   
-  // 바텀 시트 및 선택된 음악 상태 관리
   const [activeSheet, setActiveSheet] = useState(null);
   const [selectedTrack, setSelectedTrack] = useState(null);
 
-  // 📸 사진 업로드 · 크롭
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
-  /** @type {React.MutableRefObject<import('react-easy-crop').Area | null>} */
   const croppedPixelsRef = useRef(null);
   const cropOriginalNameRef = useRef("");
   const [cropSrc, setCropSrc] = useState("");
@@ -159,7 +153,6 @@ function UploadGraffiti() {
   const dragStartRef = useRef(0);
   
 
-  // 위치 및 장소 검색 관련 상태
   const [userLoc, setUserLoc] = useState(null);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searchResults, setSearchResults] = useState([]);

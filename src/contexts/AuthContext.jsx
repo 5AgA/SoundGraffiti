@@ -8,6 +8,7 @@ import {
 } from "../utils/authProviders";
 import { clearHomeFeedSessionCache } from "../utils/homeFeedSessionCache";
 import { clearMapSessionCache } from "../utils/mapSessionCache";
+import { profileUrlRawFromUsersRow } from "../utils/profileImage";
 
 function authDisplayName(authUser) {
   return (
@@ -48,9 +49,7 @@ async function resolveSessionUser(session) {
         authUser.user_metadata?.user_name ||
         authDisplayName(authUser),
       user_profile_url:
-        appUser?.user_profile_url ||
-        authUser.user_metadata?.user_profile_url ||
-        authAvatarUrl(authUser),
+        profileUrlRawFromUsersRow(appUser) ?? authAvatarUrl(authUser),
     },
   };
 }

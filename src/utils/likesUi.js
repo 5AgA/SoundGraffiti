@@ -1,4 +1,3 @@
-/** @param {Record<string, unknown> | null | undefined} post */
 function postAuthorUserId(post) {
   if (post == null || typeof post !== "object") return null;
   const top = post.user_id ?? post.userId;
@@ -9,10 +8,6 @@ function postAuthorUserId(post) {
   return u.user_id ?? u.userId ?? null;
 }
 
-/**
- * @param {Record<string, unknown> | null | undefined} post
- * @param {string | number | null | undefined} viewerUserId 앱 Users.user_id (Auth의 user.id)
- */
 export function isViewerAuthorOfPost(post, viewerUserId) {
   if (viewerUserId == null || post == null) return false;
   const aid = postAuthorUserId(post);
@@ -20,7 +15,6 @@ export function isViewerAuthorOfPost(post, viewerUserId) {
   return String(aid) === String(viewerUserId);
 }
 
-/** @param {unknown} like */
 function likeNestedUserName(like) {
   if (like == null || typeof like !== "object") return "";
   const raw = like.Users ?? like.users;
@@ -34,7 +28,6 @@ function likesArrayFromPost(post) {
   return Array.isArray(raw) ? raw : [raw];
 }
 
-/** @param {unknown} like */
 function likeNestedUserProfileRaw(like) {
   if (like == null || typeof like !== "object") return "";
   const raw = like.Users ?? like.users;
@@ -47,10 +40,8 @@ function likeNestedUserProfileRaw(like) {
   return "";
 }
 
-/** @param {unknown[]} likes */
 function likerRowsFromLikes(likes) {
   const list = Array.isArray(likes) ? likes : [];
-  /** @type {{ key: string; displayName: string; profileRaw: string }[]} */
   const rows = [];
   for (const lk of list) {
     if (!lk || typeof lk !== "object") continue;
@@ -68,7 +59,6 @@ function likerRowsFromLikes(likes) {
   return rows;
 }
 
-/** @param {Record<string, unknown> | null | undefined} post */
 export function likerRowsForOwnPostDialog(post) {
   return likerRowsFromLikes(likesArrayFromPost(post));
 }

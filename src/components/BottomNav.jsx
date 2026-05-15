@@ -8,8 +8,8 @@ export default function BottomNav() {
   
   const onHome = pathname === "/home" || pathname.startsWith("/home/");
   const onMap = pathname === "/map" || pathname.startsWith("/map/");
-  const onTrending = pathname.startsWith("/trending"); // 💡 3번째: 트렌딩
-  const onMyPage = pathname.startsWith("/mypage");     // 💡 4번째: 마이페이지
+  const onTrending = pathname.startsWith("/trending");
+  const onMyPage = pathname.startsWith("/mypage");
 
   const homeSrc = onHome ? "/house.fill.svg" : "/house.svg";
   const mapSrc = onMap ? "/map.fill.svg" : "/map.svg";
@@ -22,7 +22,6 @@ export default function BottomNav() {
       <nav className="bottom-nav" aria-label="하단 메뉴" data-active={active}>
         <span className="bottom-nav__active-ring" aria-hidden />
         
-        {/* 1. 홈 */}
         <span className="bottom-nav__item">
           <button
             type="button"
@@ -35,7 +34,6 @@ export default function BottomNav() {
           </button>
         </span>
         
-        {/* 2. 지도 */}
         <span className="bottom-nav__item">
           <button
             type="button"
@@ -54,7 +52,6 @@ export default function BottomNav() {
           </button>
         </span>
 
-        {/* 3. 트렌딩 (순서 변경됨) */}
         <span className="bottom-nav__item">
           <button
             type="button"
@@ -78,7 +75,6 @@ export default function BottomNav() {
           </button>
         </span>
 
-        {/* 4. 마이페이지 (순서 변경됨) */}
         <span className="bottom-nav__item">
           <Link
             to="/mypage"
@@ -91,7 +87,6 @@ export default function BottomNav() {
         </span>
       </nav>
 
-      {/* 추가(FAB) 버튼 */}
       <button 
         type="button" 
         className="bottom-nav__fab" 

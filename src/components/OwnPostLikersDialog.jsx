@@ -6,14 +6,6 @@ import {
 } from "../utils/profileImage";
 import "./OwnPostLikersDialog.css";
 
-/**
- * @param {{
- *   post: Record<string, unknown>;
- *   onClose: () => void;
- *   backdropPassthrough?: boolean;
- * }} props
- * backdropPassthrough: 딤은 pointer-events 없음 — 부모 오버레이에서 배경 탭 처리
- */
 export default function OwnPostLikersDialog({
   post,
   onClose,

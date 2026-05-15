@@ -26,20 +26,19 @@ function AIRecommend({ onSelect }) {
         { 
           role: 'ai', 
           content: data.analysis || '이 분위기에 어울리는 음악을 골라봤어요.', 
-          tracks: data.recommendations || [] // 💡 여기에 진짜 스포티파이 트랙들이 들어있음!
+          tracks: data.recommendations || [],
         }
       ]);
     } catch (err) {
       console.error(err);
       
-      // 💡 백엔드에서 넘어온 진짜 에러 메시지를 잡아서 화면에 보여줌!
       setMessages([
         { role: 'user', content: userMsg },
-        { 
-          role: 'ai', 
-          content: `앗, 에러가 발생했어요.. 다시 시도해주세요`, // 화면에 에러 이유 출력!
-          tracks: [] 
-        }
+        {
+          role: 'ai',
+          content: '앗, 에러가 발생했어요.. 다시 시도해주세요',
+          tracks: [],
+        },
       ]);
     } finally {
       setIsLoading(false);
@@ -60,11 +59,9 @@ function AIRecommend({ onSelect }) {
             <div key={idx} className="ai-result-box">
               <p className="ai-result-title">{msg.content}</p>
               
-              {/* 💡 진짜 스포티파이 데이터로 렌더링하도록 수정된 부분! */}
               {msg.tracks && msg.tracks.map((track, tIdx) => (
                 <div key={tIdx} className="ai-track-item">
                   
-                  {/* 스포티파이 진짜 앨범 커버 이미지 출력 */}
                   <img 
                     src={track.album?.images[0]?.url || 'https://picsum.photos/50'} 
                     alt={track.name} 
@@ -72,7 +69,6 @@ function AIRecommend({ onSelect }) {
                   />
                   
                   <div className="ai-track-info">
-                    {/* 스포티파이 진짜 노래 제목 & 가수 출력 */}
                     <p className="ai-track-title">{track.name}</p>
                     <p className="ai-track-artist">{track.artists?.[0]?.name}</p>
                     {typeof track.itunes_preview_available === "boolean" ? (
@@ -92,8 +88,8 @@ function AIRecommend({ onSelect }) {
                   </div>
                   
                   <button
+                    type="button"
                     className="ai-select-btn"
-                    // 💡 통째로 스포티파이 객체를 부모(CreatePost)로 넘겨버림!
                     onClick={() => onSelect(track)}
                   >
                     선택

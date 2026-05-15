@@ -34,16 +34,6 @@ function cacheKeyForTrack(track) {
   return `${getTrackTitle(track)}::${getTrackArtist(track)}`;
 }
 
-/**
- * @param {Record<string, unknown> | null} activePost
- * @param {{
- *   onUnavailable?: (args: { reason: string, track: unknown }) => void,
- *   previewGloballyMuted?: boolean,
- *   previewGloballyMutedRef?: React.MutableRefObject<boolean>,
- *   eagerAutoplay?: boolean,
- *   (eagerAutoplay true: 첫 로드에서도 미리듣기 즉시 시도. 브라우저가 막으면 제스처 후 playbackActivated로 재시도)
- * }} options
- */
 export function useTrackPreviewAudio(activePost, options = {}) {
   const eagerAutoplay = Boolean(options.eagerAutoplay);
   const audioRef = useRef(null);

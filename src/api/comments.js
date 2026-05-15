@@ -1,6 +1,5 @@
 import { supabase } from "../supabaseClient";
 
-/** Supabase int/bigint 등 → JSON 직렬화 가능한 유한 숫자 (BigInt는 여기서만 Number로) */
 function toFiniteNumber(value) {
   if (value == null) return null;
   if (typeof value === "bigint") {
@@ -23,13 +22,7 @@ function normalizeFunctionJson(data) {
   return data;
 }
 
-/**
- * 게시글 장소 반경 내에서만 댓글 조회·작성 가능 여부 (Edge: check_comment_access).
- * 요청에 세션 JWT가 있으면, 해당 글 작성자 본인일 때는 반경과 무관하게 허용됩니다.
- * @param {number|string} postId
- * @param {number} userLatitude
- * @param {number} userLongitude
- */
+/** Edge: check_comment_access (작성자 본인은 반경 무관) */
 export async function checkCommentAccess(postId, userLatitude, userLongitude) {
   const pid = toFiniteNumber(postId);
   if (pid == null) {
@@ -50,10 +43,7 @@ export async function checkCommentAccess(postId, userLatitude, userLongitude) {
   return data;
 }
 
-/**
- * 댓글 생성 (Edge: create_comment)
- * @param {{ postId: number|string, userId: number, content: string, parentCommentId?: number|string }} params
- */
+/** Edge: create_comment */
 export async function createComment({
   postId,
   userId,
@@ -135,10 +125,7 @@ export async function createComment({
   return { data };
 }
 
-/**
- * 댓글 소프트 삭제 (Edge: delete_comment, 작성자만)
- * @param {{ commentId: number|string, userId: number|string }} params
- */
+/** Edge: delete_comment (작성자만) */
 export async function deleteComment({ commentId, userId }) {
   const cid = toFiniteNumber(commentId);
   const uid = toFiniteNumber(userId);

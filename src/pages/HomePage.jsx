@@ -12,7 +12,6 @@ import {
 } from "../utils/homeFeedSessionCache";
 import { patchMyPageCachedPostsLikesFromFeedPosts } from "../utils/myPageSessionCache";
 
-/** GeolocationPositionError.code — 권한(1)과 좌표 실패(2·3)를 구분해 Mac 데스크톱에서 오해를 줄임 */
 function feedGeolocationFailureMessage(geoErr) {
   const code = geoErr?.code;
   if (code === 1) {
@@ -32,7 +31,6 @@ function feedGeolocationFailureMessage(geoErr) {
   return "위치를 확인할 수 없어 주변 피드를 불러올 수 없습니다.";
 }
 
-/** 이 탭이 문서를 처음 연 방식(최초 한 번만 의미). SPA 라우트 전환마다 바뀌지 않음 */
 function isDocumentReload() {
   if (typeof performance === "undefined") return false;
   const nav = performance.getEntriesByType?.("navigation")?.[0];
@@ -85,11 +83,6 @@ export default function HomePage() {
     location.state?.mapFocusPostId != null
       ? String(location.state.mapFocusPostId)
       : null;
-  /**
-   * `main.jsx`가 풀 리로드 시에만 세팅하는 플래그로, 그 첫 홈 진입에서만
-   * `mapFocusPostId` / `?postId=` 포커스를 쓰지 않고 맨 위로 시작한다.
-   * (performance.navigation.type 은 리로드 후에도 계속 reload 로 남는다.)
-   */
   const focusPostId = suppressMapFocusOnce
     ? null
     : postIdFromQuery ?? postIdFromState;
@@ -120,17 +113,13 @@ export default function HomePage() {
     suppressMapFocusOnce,
   ]);
   const hydrated = initialHomeStateFromSessionCache();
-  /** null = 로딩 중, 배열 = 주변 피드 결과(빈 배열 가능) */
   const [feed, setFeed] = useState(hydrated.feed);
   const [feedLoadError, setFeedLoadError] = useState(hydrated.feedLoadError);
-  /** HTTP + .env 고정 좌표로 피드만 돌릴 때: 실제 GPS 권한 창이 안 뜨는 이유 안내 */
   const [devGeoBypassNotice, setDevGeoBypassNotice] = useState(
     hydrated.devGeoBypassNotice,
   );
   const [commentSheetOpen, setCommentSheetOpen] = useState(false);
-  /** 풀 리로드 직후 피드 스크롤·activeIndex 를 맨 위로 강제할 때마다 증가 */
   const [feedScrollResetSignal, setFeedScrollResetSignal] = useState(0);
-  /** sessionStorage suppress 플래그가 안 잡혀도, 풀 리로드 직후 포커스 없으면 피드 스크롤 복원으로 잘못된 카드가 뜨는 것을 막음 */
   const reloadFeedScrollBumpDoneRef = useRef(false);
   useLayoutEffect(() => {
     if (!pageReload || focusPostId != null) return;
@@ -138,9 +127,7 @@ export default function HomePage() {
     reloadFeedScrollBumpDoneRef.current = true;
     setFeedScrollResetSignal((n) => n + 1);
   }, [pageReload, focusPostId]);
-  /** 업로드 실패 시 짧은 알림만 */
   const [uploadToast, setUploadToast] = useState(null);
-  /** 업로드 성공 후 ‘작성된 포스트로 이동’ 제안 — postId 있을 때만 모달 */
   const [uploadCompletePostId, setUploadCompletePostId] = useState(null);
 
   const coordsRef = useRef(null);
@@ -221,7 +208,6 @@ export default function HomePage() {
     applyPostsResult(posts, error);
   }, []);
 
-  /** 좋아요 등 피드 내용만 바꿀 때 세션 캐시와 동기화 (다른 탭 갔다 와도 유지) */
   const persistFeedUpdate = useCallback((updater) => {
     setFeed((prev) => {
       if (!Array.isArray(prev)) return prev;

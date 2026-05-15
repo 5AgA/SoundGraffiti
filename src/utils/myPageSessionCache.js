@@ -1,10 +1,4 @@
-/**
- * 로그인 세션 동안만 유지되는 마이페이지 스냅샷.
- * 네비로 다른 탭 갔다가 돌아올 때 컴포넌트가 언마운트돼도 다시 요청하지 않도록 사용.
- * MY GRAFFITI 탭 시에만 서버에서 다시 불러옴.
- */
-
-/** @type {null | { pageUserId: string, profile: unknown, postCount: number|null, posts: unknown[], loadError: string|null }} */
+// 로그인 세션 동안 마이페이지 스냅샷 (탭 전환 시 재요청 방지)
 let cache = null;
 
 export function readMyPageSessionCache() {
@@ -15,7 +9,6 @@ export function readMyPageSessionCache() {
   };
 }
 
-/** @param {{ pageUserId: string, profile: unknown, postCount: number|null, posts: unknown[], loadError: string|null }} partial */
 export function writeMyPageSessionCache(partial) {
   cache = {
     ...partial,
@@ -27,14 +20,10 @@ export function clearMyPageSessionCache() {
   cache = null;
 }
 
-/**
- * 홈 주변 피드 `feed`가 갱신된 뒤, 세션에 캐시된 마이 그리드 글 중 같은 post_id의 Likes만 맞춤.
- * (홈에서 내 글 좋아요/취소 후 MY 탭으로 올 때 그리드·카운트가 바로 맞도록)
- */
+// 홈 피드 좋아요 변경 → 마이페이지 캐시 Likes 동기화
 export function patchMyPageCachedPostsLikesFromFeedPosts(feedPosts) {
   if (cache == null || !Array.isArray(cache.posts) || !Array.isArray(feedPosts))
     return;
-  /** @type {Map<string, unknown[]>} */
   const likeMap = new Map();
   for (const fp of feedPosts) {
     const pid = fp?.post_id;

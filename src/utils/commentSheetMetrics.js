@@ -1,4 +1,3 @@
-/** CSS `.home-comment-sheet` peek / expanded — 일반 vs 카드 뒤집힌 뒤(Figma /home ver.1) */
 export function getCommentSheetPeekHeightPx(fromFlipView = false) {
   if (typeof window === "undefined") return fromFlipView ? 360 : 520;
   if (fromFlipView) {
@@ -13,7 +12,6 @@ export function getCommentSheetExpandedHeightPx() {
   return Math.min(Math.round(vh * 0.92), vh - 12);
 }
 
-/** peek 에서 아래로 줄일 수 있는 최소 높이 */
 export function getCommentSheetPeekMinShrinkPx(peekH) {
   return Math.max(152, Math.round(peekH * 0.34));
 }

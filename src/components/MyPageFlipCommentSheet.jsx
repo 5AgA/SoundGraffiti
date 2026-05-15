@@ -6,12 +6,12 @@ import {
   resolvedProfileImageUrl,
 } from "../utils/profileImage";
 
-/** 루트=0 … 깊이 2까지 스레드 — 그보다 깊은 댓글에는 답글 달기 비활성 (Home.jsx 와 동일) */
 const MAX_COMMENT_REPLY_DEPTH = 2;
 const COMMENT_LONG_PRESS_MS = 580;
 const COMMENT_LONG_PRESS_MOVE_SQ = 1200;
 
-/** @param {Record<string, unknown>} post */
+// — Supabase nested relations (array | single row) —
+
 function commentsFromPost(post) {
   const raw = post?.Comments ?? post?.comments;
   if (raw == null) return [];
@@ -21,14 +21,12 @@ function commentsFromPost(post) {
   );
 }
 
-/** @param {Record<string, unknown>} row */
 function commentUserFromRow(row) {
   const raw = row?.Users ?? row?.users;
   const u = Array.isArray(raw) ? raw[0] : raw;
   return u != null && typeof u === "object" ? u : {};
 }
 
-/** 행에 직접 없으면 중첩 Users.user_id (Home.jsx 와 동일) */
 function commentAuthorUserId(row) {
   if (row == null) return null;
   if (row.user_id != null) return row.user_id;
@@ -42,7 +40,6 @@ function isOwnSheetComment(row, viewerUserId) {
   return String(cid) === String(viewerUserId);
 }
 
-/** DB·조회 형태 차이 대비 */
 function commentBodyFromRow(row) {
   if (row == null || typeof row !== "object") return "";
   const c = row.content ?? row.comment_content;
@@ -57,7 +54,6 @@ function sheetCommentsSorted(rows) {
   });
 }
 
-/** parent_comment_id 기준 트리 순회(선주 후손) — Home.jsx 와 동일 */
 function orderedCommentsWithDepth(rows) {
   const valid = rows.filter((r) => r != null && r.comment_id != null);
   const byId = new Map(valid.map((r) => [String(r.comment_id), r]));
@@ -110,21 +106,6 @@ function formatSheetCommentTime(iso) {
   }
 }
 
-/**
- * 마이페이지 플립 모달용 댓글 시트 (홈 `home-comment-*` 스타일·핸들 드래그 재사용)
- * @param {{
- *   open: boolean,
- *   post: Record<string, unknown> | null,
- *   appUserId: number | null,
- *   meProfileRaw: string,
- *   displayName: string,
- *   accessPending: boolean,
- *   accessReady: boolean,
- *   onClose: () => void,
- *   onCommentCreated: (row: Record<string, unknown>) => void,
- *   onCommentDeleted?: (commentId: string | number) => void,
- * }} props
- */
 export default function MyPageFlipCommentSheet({
   open,
   post,
@@ -147,12 +128,8 @@ export default function MyPageFlipCommentSheet({
 
   const [draft, setDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [replyTarget, setReplyTarget] = useState(
-    /** @type {{ id: unknown, name: string } | null} */ (null),
-  );
-  const [commentDeletePrompt, setCommentDeletePrompt] = useState(
-    /** @type {{ commentId: unknown } | null} */ (null),
-  );
+  const [replyTarget, setReplyTarget] = useState(null);
+  const [commentDeletePrompt, setCommentDeletePrompt] = useState(null);
   const [commentDeleteSubmitting, setCommentDeleteSubmitting] =
     useState(false);
   const commentLongPressRef = useRef({
@@ -417,9 +394,26 @@ export default function MyPageFlipCommentSheet({
         </h2>
         <div className="home-comment-scroll" ref={commentScrollRef}>
           {accessPending ? (
-            <p className="home-visually-hidden" aria-live="polite">
-              위치 확인 중
-            </p>
+            <>
+              <p className="home-visually-hidden" aria-live="polite">
+                위치와 접근 가능 여부를 확인하는 중입니다.
+              </p>
+              <ul className="home-comment-skel-list" aria-hidden>
+                {[0, 1, 2].map((key) => (
+                  <li key={key} className="home-comment-skel-row">
+                    <div className="home-comment-skel-avatar" />
+                    <div className="home-comment-skel-main">
+                      <div className="home-comment-skel-line home-comment-skel-line--name" />
+                      <div className="home-comment-skel-line home-comment-skel-line--body" />
+                    </div>
+                    <div className="home-comment-skel-side">
+                      <div className="home-comment-skel-line home-comment-skel-line--meta" />
+                      <div className="home-comment-skel-line home-comment-skel-line--meta2" />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
           ) : !accessReady ? (
             <p className="home-comment-empty" role="status">
               이 위치에서는 댓글을 열 수 없습니다.

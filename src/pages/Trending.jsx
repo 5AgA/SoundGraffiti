@@ -84,12 +84,10 @@ function Trending() {
             <div className="trending-empty">아직 등록된 그래피티가 없습니다.</div>
           ) : (
             <>
-              {/* 💡 1위 카드 */}
-              <div 
+              <div
                 className="trending-card top-card" 
                 onClick={() => navigate(`/map?placeId=${spots[0].place_id}`)}
               >
-                {/* 🚨 절대 안 겹치게 Flexbox로 묶은 헤더 */}
                 <div className="trending-card-header">
                   <div className="trending-rank">
                     <span className="trending-hash">#</span>1
@@ -107,11 +105,9 @@ function Trending() {
                   <span>{spots[0].post_count}</span>
                 </div>
 
-                {/* 🚨 다른 요소 건드리지 않고 오직 SVG 태그만 삽입! */}
                 <img src="/Trending.svg" className="trending-top-bg-svg" alt="" aria-hidden="true" />
               </div>
 
-              {/* 💡 2~11위 카드 */}
               <div className="trending-grid">
                 {spots.slice(1).map((spot, index) => (
                   <div 
@@ -119,7 +115,6 @@ function Trending() {
                     className="trending-card normal-card"
                     onClick={() => navigate(`/map?placeId=${spot.place_id}`)}
                   >
-                    {/* 🚨 절대 안 겹치게 Flexbox로 묶은 헤더 */}
                     <div className="trending-card-header">
                       <div className="trending-rank">
                         <span className="trending-hash">#</span>{index + 2}

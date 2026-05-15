@@ -5,15 +5,7 @@ import {
   getCommentSheetPeekMinShrinkPx,
 } from "../utils/commentSheetMetrics";
 
-/**
- * 홈·마이페이지 댓글 바텀시트 — 핸들 드래그로 peek ↔ 확장 ↔ 닫기
- * @param {{
- *   fromFlipView: boolean,
- *   isActive: boolean,
- *   layoutResetKey?: string | number | null,
- *   onDismiss: () => void,
- * }} opts
- */
+/** 댓글 바텀시트 peek ↔ 확장 ↔ 닫기 (핸들 드래그) */
 export function useCommentSheetDrag({
   fromFlipView,
   isActive,

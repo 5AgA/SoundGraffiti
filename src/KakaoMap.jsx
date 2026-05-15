@@ -15,11 +15,8 @@ const SEOUL_CENTER = { latitude: 37.5665, longitude: 126.978 };
 const KAKAO_MAP_SDK_SRC = "https://dapi.kakao.com/v2/maps/sdk.js";
 const MAX_VISIBLE_DOTS = 5;
 const DISTANCE_LOCKED_MESSAGE = "200m 이내 노래만 확인할 수 있어요";
-/** 이 거리(m)보다 멀면 지도 시트에서 ‘이 장소에서 포스트’ 버튼을 숨김 */
 const POST_AT_PLACE_MAX_DISTANCE_M = 200;
-/** 지도 클릭 좌표와 음악 핀 장소가 이 거리(m) 안이면 음악 시트를 우선 */
 const MAP_CLICK_MATCH_POST_PLACE_M = 48;
-/** 내 위치로 맞출 때 카카오 맵 zoom level (숫자가 작을수록 더 확대) */
 const MAP_USER_ZOOM_LEVEL = 4;
 const MAP_PLACE_FOCUS_ZOOM_LEVEL = 4;
 
@@ -127,7 +124,6 @@ function distanceMeters(
   return 2 * earthRadiusMeters * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
-/** 중심(lat,lng)에서 반경 `radiusM` 만큼 떨어진 폐곡선 링 — `Polygon`/`Polyline` path 용 */
 function latLngPairsRingMeters(centerLat, centerLng, radiusM, pointCount = 72) {
   const R = 6371000;
   const φ1 = (centerLat * Math.PI) / 180;
@@ -258,7 +254,6 @@ function KakaoMap({ initialPlaceId }) {
   const isMountedRef = useRef(true);
   const enableAutoFitBoundsRef = useRef(false);
   const myLocationOverlayRef = useRef(null);
-  /** 내 위치 기준 200m 반경 — `Polygon`(또는 `Polyline`) 지오데식 링 */
   const feedRadiusRingRef = useRef(null);
   const mapCoordinatePickSuppressedUntilRef = useRef(0);
   const [posts, setPosts] = useState([]);
@@ -271,7 +266,6 @@ function KakaoMap({ initialPlaceId }) {
   const [isSheetDragging, setIsSheetDragging] = useState(false);
   const [isSheetClosing, setIsSheetClosing] = useState(false);
   const [mapNotice, setMapNotice] = useState("");
-  /** 피드/작성 거리 판정용 — `resolveMapCoords`로 얻은 최근 좌표 */
   const [userCoordsForMap, setUserCoordsForMap] = useState(null);
 
   const placeGroups = useMemo(() => {
@@ -571,7 +565,6 @@ function KakaoMap({ initialPlaceId }) {
     };
   }, [loadMapPosts]);
 
-  /** 지도 탭 진입: 내 위치로 이동·줌인 + 내 위치 표시 */
   useEffect(() => {
     if (!isMapReady || !mapInstanceRef.current || !window.kakao?.maps) {
       return undefined;
@@ -607,21 +600,17 @@ function KakaoMap({ initialPlaceId }) {
   }, [isMapReady, runMyLocationFocus]);
 
   useEffect(() => {
-    // 1. 지도가 완전히 켜졌고, 2. 트렌딩에서 넘어온 ID가 있고, 3. 묶여진 장소 데이터(placeGroups)가 있을 때!
     if (!isMapReady || !mapInstanceRef.current || !window.kakao?.maps) return;
     if (!initialPlaceId || placeGroups.length === 0) return;
 
-    // DB에서 가져온 장소들(placeGroups) 중에서 트렌딩에서 넘겨받은 ID랑 똑같은 장소 찾기
-    // (URL 파라미터는 문자열이라서 안전하게 String으로 변환해서 비교)
     const targetGroup = placeGroups.find(
-      (g) => String(g.place?.place_id) === String(initialPlaceId)
+      (g) => String(g.place?.place_id) === String(initialPlaceId),
     );
 
     if (targetGroup) {
       const lat = targetGroup.place.latitude;
       const lng = targetGroup.place.longitude;
 
-      // 좌표가 정상적이면 카메라 스무스하게 이동 후 바텀시트 띄우기
       if (Number.isFinite(lat) && Number.isFinite(lng)) {
         const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
         mapInstanceRef.current.setLevel(MAP_PLACE_FOCUS_ZOOM_LEVEL, {
@@ -630,7 +619,6 @@ function KakaoMap({ initialPlaceId }) {
         mapInstanceRef.current.panTo(moveLatLon);
         setZoomLevel(mapInstanceRef.current.getLevel());
 
-        // 해당 장소 핀을 직접 클릭한 것과 100% 동일한 효과 (바텀시트 열기)
         setSelectedPlace(targetGroup);
         setActiveTrackIndex(0);
       }
@@ -699,7 +687,6 @@ function KakaoMap({ initialPlaceId }) {
     };
   }, []);
 
-  /** 내 위치 기준 200m 반경 — 맵 생성 effect보다 뒤: unmount 시 링을 맵 파괴보다 먼저 제거 */
   useEffect(() => {
     if (!isMapReady || !mapInstanceRef.current || !window.kakao?.maps) {
       try {
