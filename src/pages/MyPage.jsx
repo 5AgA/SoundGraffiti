@@ -22,26 +22,11 @@ import {
 import { openSpotifyTrackInBrowser } from "../utils/spotifyLinks";
 import OwnPostLikersDialog from "../components/OwnPostLikersDialog";
 import "../components/Home.css";
+import { formatPostDateTimeKo } from "../utils/formatPostDateTime";
 import "./MyPage.css";
 
 const MY_GRAFFITI_WORDMARK_PATH =
   "M5.75416 29.736L3.99016 12.012V29.736H0.000156309V0.33596H5.96416L7.35016 15.834L8.69416 0.33596H14.7002V29.736H10.5002V12.516L8.82016 29.736H5.75416ZM23.7994 18.228V29.736H19.0114V18.438L15.3154 0.33596H19.7674L21.4474 10.878L23.1274 0.33596H27.4534L23.7994 18.228ZM37.5764 18.9V14.952H43.1204V29.736H39.3824V28.308C38.7104 29.442 37.6184 30.072 36.1064 30.072C33.3344 30.072 31.9484 28.098 31.9484 24.948V5.71196C31.9484 2.18396 33.7964 -3.82662e-05 37.4924 -3.82662e-05C41.1884 -3.82662e-05 43.0364 2.18396 43.0364 5.71196V10.458H38.2484V5.08196C38.2484 4.57796 38.1224 4.07396 37.4924 4.07396C36.8624 4.07396 36.7364 4.57796 36.7364 5.08196V24.99C36.7364 25.62 36.9464 26.124 37.6184 26.124C38.3744 26.124 38.5004 25.62 38.5004 24.99V18.9H37.5764ZM49.7501 18.396H49.3721V29.736H44.5841V0.33596H50.2541C53.8241 0.33596 55.6301 2.43596 55.6301 5.87996V12.432C55.6301 14.07 54.9161 15.33 53.5301 16.044C54.9161 16.884 55.6301 18.396 55.6301 20.37V25.662C55.6301 27.258 55.7981 28.518 56.0081 29.736H51.1361C50.8841 28.896 50.7581 27.216 50.7581 25.662V19.656C50.7581 18.984 50.5061 18.396 49.7501 18.396ZM49.7501 14.112C50.5481 14.112 50.7581 13.524 50.7581 12.852V5.58596C50.7581 4.91396 50.5061 4.32596 49.7501 4.32596H49.3721V14.112H49.7501ZM64.9459 29.736L64.2739 23.394H61.1659L60.5359 29.736H56.1679L59.9479 0.33596H65.7019L69.4819 29.736H64.9459ZM61.5439 19.572H63.8959L62.6779 8.06396L61.5439 19.572ZM78.4529 17.304H74.9249V29.736H70.1369V0.33596H79.1669V4.36796H74.9249V13.272H78.4529V17.304ZM88.8298 17.304H85.3018V29.736H80.5138V0.33596H89.5438V4.36796H85.3018V13.272H88.8298V17.304ZM95.6788 0.33596V29.736H90.8908V0.33596H95.6788ZM107.493 4.36796H104.553V29.736H99.7653V4.36796H96.8673V0.33596H107.493V4.36796ZM113.439 0.33596V29.736H108.651V0.33596H113.439Z";
-
-function formatRelativeKo(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const diffMs = Date.now() - d.getTime();
-  const sec = Math.floor(diffMs / 1000);
-  if (sec < 45) return "방금 전";
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}분 전`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}시간 전`;
-  const day = Math.floor(hr / 24);
-  if (day < 7) return `${day}일 전`;
-  return d.toLocaleDateString("ko-KR");
-}
 
 // — Supabase nested relations (array | single row) —
 
@@ -249,6 +234,7 @@ function MyPageFlipCardChrome({
   const commentCount = activeCommentCount(fp);
   const trackTitle =
     typeof track?.track_title === "string" ? track.track_title.trim() : "";
+  const postTime = formatPostDateTimeKo(fp?.post_created);
 
   return (
     <>
@@ -258,19 +244,22 @@ function MyPageFlipCardChrome({
           <div className="home-card-bottom-shadow" aria-hidden />
         </>
       ) : null}
-      <div className="home-user">
-        <img
-          className="home-avatar"
-          src={avatarSrcFlip}
-          alt={userName}
-          onError={(e) => {
-            e.currentTarget.src = DEFAULT_PROFILE_IMAGE;
-          }}
-        />
-        <div>
-          <p className="home-name">{userName}</p>
-          <p className="home-place">{placeName}</p>
+      <div className="home-card-header">
+        <div className="home-user">
+          <img
+            className="home-avatar"
+            src={avatarSrcFlip}
+            alt={userName}
+            onError={(e) => {
+              e.currentTarget.src = DEFAULT_PROFILE_IMAGE;
+            }}
+          />
+          <div>
+            <p className="home-name">{userName}</p>
+            <p className="home-place">{placeName}</p>
+          </div>
         </div>
+        {postTime ? <p className="home-post-time">{postTime}</p> : null}
       </div>
       <p className="home-content">
         {body || "이 공간에 남긴 이야기가 여기에 표시돼요."}
@@ -1160,7 +1149,7 @@ export default function MyPage() {
                 const id = post?.post_id ?? Math.random();
                 const cover = resolveAlbumCover(post);
                 const place = resolvePlaceName(post);
-                const time = formatRelativeKo(post?.post_created);
+                const time = formatPostDateTimeKo(post?.post_created);
                 const trackLine = resolveTrackLine(post);
                 const postIdNum = Number(post?.post_id);
                 const canLongPress = Number.isFinite(postIdNum);
@@ -1192,6 +1181,9 @@ export default function MyPage() {
                         <div className="mypage-card__placeholder" aria-hidden />
                       )}
                       <div className="mypage-card__shade" aria-hidden />
+                      {time ? (
+                        <span className="mypage-card__time">{time}</span>
+                      ) : null}
                       <div className="mypage-card__footer">
                         <p className="mypage-card__content">{trackLine}</p>
                         <div className="mypage-card__meta">
@@ -1206,7 +1198,6 @@ export default function MyPage() {
                             />
                             {place}
                           </span>
-                          <span className="mypage-card__time">{time}</span>
                         </div>
                       </div>
                     </div>

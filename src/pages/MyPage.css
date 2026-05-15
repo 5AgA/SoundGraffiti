@@ -551,7 +551,6 @@
 .mypage-card__meta {
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
   gap: 8px;
 }
 
@@ -579,14 +578,20 @@
 }
 
 .mypage-card__time {
-  flex-shrink: 0;
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  max-width: 52%;
   font-family: var(--sans);
   font-size: 10px;
   font-weight: 500;
   letter-spacing: -0.04em;
-  line-height: 1.2;
-  color: rgba(255, 255, 255, 0.5);
-  text-transform: uppercase;
+  line-height: 1.25;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.72);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
 }
 
 /* 로딩 스켈레톤 — 홈 카드와 유사한 회색 블록으로 영역 구분 */
@@ -910,7 +915,7 @@
   pointer-events: none;
 }
 
-.mypage-flip-modal-card .home-user,
+.mypage-flip-modal-card .home-card-header,
 .mypage-flip-modal-card .home-content,
 .mypage-flip-modal-card .home-actions {
   z-index: 4;

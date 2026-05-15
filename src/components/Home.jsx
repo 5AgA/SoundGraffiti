@@ -26,6 +26,7 @@ import {
   isViewerAuthorOfPost,
 } from "../utils/likesUi";
 import { getDevGeoCoordinates } from "../utils/devGeoCoords";
+import { formatPostDateTimeKo } from "../utils/formatPostDateTime";
 import { openSpotifyTrackInBrowser } from "../utils/spotifyLinks";
 import OwnPostLikersDialog from "./OwnPostLikersDialog";
 import "./Home.css";
@@ -1475,6 +1476,9 @@ function Home({
             const avatarSrc = resolvedProfileImageUrl(avatarRaw);
             const userName = userData?.user_name || "annonymous";
             const placeName = post?.Places?.place_name || "서울 홍대입구역";
+            const postTime = !isSkeleton
+              ? formatPostDateTimeKo(post?.post_created)
+              : "";
             const content =
               post?.content ||
               "이 공간에는 르세라핌 'Spaghetti'처럼 텐션 있는 음악이 어울려요.";
@@ -1645,16 +1649,21 @@ function Home({
                         />
                         {isActive ? (
                           <>
-                            <div className="home-user">
-                              <img
-                                className="home-avatar"
-                                src={avatarSrc}
-                                alt={userName}
-                              />
-                              <div>
-                                <p className="home-name">{userName}</p>
-                                <p className="home-place">{placeName}</p>
+                            <div className="home-card-header">
+                              <div className="home-user">
+                                <img
+                                  className="home-avatar"
+                                  src={avatarSrc}
+                                  alt={userName}
+                                />
+                                <div>
+                                  <p className="home-name">{userName}</p>
+                                  <p className="home-place">{placeName}</p>
+                                </div>
                               </div>
+                              {postTime ? (
+                                <p className="home-post-time">{postTime}</p>
+                              ) : null}
                             </div>
 
                             <p className="home-content">{content}</p>
@@ -1809,16 +1818,21 @@ function Home({
                               className="home-card-bottom-shadow"
                               aria-hidden
                             />
-                            <div className="home-user">
-                              <img
-                                className="home-avatar"
-                                src={avatarSrc}
-                                alt={userName}
-                              />
-                              <div>
-                                <p className="home-name">{userName}</p>
-                                <p className="home-place">{placeName}</p>
+                            <div className="home-card-header">
+                              <div className="home-user">
+                                <img
+                                  className="home-avatar"
+                                  src={avatarSrc}
+                                  alt={userName}
+                                />
+                                <div>
+                                  <p className="home-name">{userName}</p>
+                                  <p className="home-place">{placeName}</p>
+                                </div>
                               </div>
+                              {postTime ? (
+                                <p className="home-post-time">{postTime}</p>
+                              ) : null}
                             </div>
 
                             <p className="home-content">{content}</p>
