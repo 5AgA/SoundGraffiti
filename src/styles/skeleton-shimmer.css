@@ -1,0 +1,47 @@
+/* Shared skeleton shimmer — Trending, Home, MyPage */
+@keyframes sg-skel-shimmer {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -120% 0;
+  }
+}
+
+.trending-skeleton .trending-skel,
+.home-card--no-flip .home-skeleton,
+.home-card--no-flip .home-card-image-skeleton,
+.home-comment-skel-avatar,
+.home-comment-skel-line,
+.mypage-profile-card--skeleton .mypage-skel,
+.mypage-toolbar--skeleton .mypage-skel,
+.mypage-card--skeleton .mypage-card__skel-image,
+.mypage-card--skeleton .mypage-card__skel-bar,
+.mypage-card--skeleton .mypage-card__skel-chip {
+  background: linear-gradient(
+    90deg,
+    #c8d4ec 0%,
+    #dce4f4 38%,
+    #f0f4fc 50%,
+    #dce4f4 62%,
+    #c8d4ec 100%
+  );
+  background-size: 220% 100%;
+  animation: sg-skel-shimmer 1.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trending-skeleton .trending-skel,
+  .home-card--no-flip .home-skeleton,
+  .home-card--no-flip .home-card-image-skeleton,
+  .home-comment-skel-avatar,
+  .home-comment-skel-line,
+  .mypage-profile-card--skeleton .mypage-skel,
+  .mypage-toolbar--skeleton .mypage-skel,
+  .mypage-card--skeleton .mypage-card__skel-image,
+  .mypage-card--skeleton .mypage-card__skel-bar,
+  .mypage-card--skeleton .mypage-card__skel-chip {
+    animation: none;
+    background: #d0daf0;
+  }
+}

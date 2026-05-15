@@ -214,3 +214,87 @@
   right: 12px;
   bottom: 9px;
 }
+
+/* --- 로딩 스켈레톤 --- */
+.trending-skeleton {
+  width: 100%;
+}
+
+.trending-card--skeleton {
+  pointer-events: none;
+  cursor: default;
+}
+
+.trending-card--skeleton:active {
+  transform: none;
+}
+
+.trending-skel {
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.trending-skel-rank {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+
+.top-card.trending-card--skeleton .trending-skel-rank {
+  width: 40px;
+  height: 40px;
+  margin-top: 2px;
+}
+
+.normal-card.trending-card--skeleton .trending-skel-rank {
+  width: 38px;
+  height: 38px;
+  margin-top: 4px;
+}
+
+.trending-skel-name {
+  width: 72%;
+  height: 14px;
+  margin-top: 8px;
+}
+
+.trending-skel-name--top {
+  width: 88%;
+  height: 15px;
+}
+
+.normal-card.trending-card--skeleton .trending-skel-name {
+  width: 80%;
+}
+
+.trending-skel-address {
+  width: 52%;
+  height: 11px;
+  margin-top: 8px;
+}
+
+.top-card.trending-card--skeleton .trending-skel-address {
+  width: 58%;
+}
+
+.trending-skel-badge {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  width: 51px;
+  height: 25px;
+  border-radius: 15px;
+}
+
+.normal-card.trending-card--skeleton .trending-skel-badge {
+  right: 12px;
+  bottom: 9px;
+}
+
+.trending-grid .trending-card--skeleton:nth-child(even) .trending-skel-name {
+  width: 68%;
+}
+
+.trending-grid .trending-card--skeleton:nth-child(even) .trending-skel-address {
+  width: 46%;
+}

@@ -603,7 +603,6 @@
   width: 49px;
   height: 49px;
   border-radius: 50%;
-  background: #d7dce3;
 }
 
 .mypage-skel-profile-lines {
@@ -617,7 +616,6 @@
 .mypage-skel-name {
   width: 120px;
   height: 16px;
-  background: #eef2f7;
 }
 
 .mypage-toolbar--skeleton {
@@ -627,13 +625,11 @@
 .mypage-skel-toolbar-count {
   width: 92px;
   height: 15px;
-  background: #d9dee6;
 }
 
 .mypage-skel-toolbar-sort {
   width: 76px;
   height: 15px;
-  background: #eef2f7;
 }
 
 .mypage-card--skeleton {
@@ -644,7 +640,6 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(160deg, #cfd5dd 0%, #bfc8d3 100%);
 }
 
 .mypage-card__skel-shade {
@@ -681,12 +676,10 @@
 
 .mypage-card__skel-bar--1 {
   width: 88%;
-  background: #f4f6fa;
 }
 
 .mypage-card__skel-bar--2 {
   width: 56%;
-  background: #e3e8ef;
 }
 
 .mypage-card__skel-meta-row {
@@ -701,12 +694,10 @@
   height: 11px;
   border-radius: 6px;
   width: 70px;
-  background: #eef2f7;
 }
 
 .mypage-card__skel-chip--short {
   width: 46px;
-  background: #dde3eb;
 }
 
 .mypage-card--skeleton:nth-child(even) .mypage-card__skel-bar--1 {

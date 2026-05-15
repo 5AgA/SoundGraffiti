@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import './styles/skeleton-shimmer.css'
 import App from './App.jsx'
 
 /** 풀 리로드 직후 홈: mapFocusPostId·스크롤 복원으로 인한 잘못된 카드 포커스를 한 번 무시 */

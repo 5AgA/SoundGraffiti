@@ -4,6 +4,45 @@ import { supabase } from '../supabaseClient';
 import BottomNav from '../components/BottomNav';
 import './Trending.css';
 
+function TrendingCardSkeleton({ variant = 'normal' }) {
+  const isTop = variant === 'top';
+
+  return (
+    <div
+      className={`trending-card trending-card--skeleton${
+        isTop ? ' top-card' : ' normal-card'
+      }`}
+      aria-hidden="true"
+    >
+      <div className="trending-card-header">
+        <div className="trending-skel trending-skel-rank" />
+        <div className="trending-info">
+          <div
+            className={`trending-skel trending-skel-name${
+              isTop ? ' trending-skel-name--top' : ''
+            }`}
+          />
+          <div className="trending-skel trending-skel-address" />
+        </div>
+      </div>
+      <div className="trending-skel trending-skel-badge" />
+    </div>
+  );
+}
+
+function TrendingSkeleton() {
+  return (
+    <div className="trending-skeleton" aria-busy="true" aria-label="트렌딩 스팟 불러오는 중">
+      <TrendingCardSkeleton variant="top" />
+      <div className="trending-grid">
+        {Array.from({ length: 10 }, (_, index) => (
+          <TrendingCardSkeleton key={index} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Trending() {
   const navigate = useNavigate();
   const [spots, setSpots] = useState([]);
@@ -40,7 +79,7 @@ function Trending() {
         
         <div className="trending-content">
           {isLoading ? (
-            <div className="trending-loading">데이터를 불러오는 중...</div>
+            <TrendingSkeleton />
           ) : spots.length === 0 ? (
             <div className="trending-empty">아직 등록된 그래피티가 없습니다.</div>
           ) : (
