@@ -246,7 +246,7 @@ const createAlbumPinElement = (placeGroup) => {
   return element;
 };
 
-function KakaoMap() {
+function KakaoMap({ initialPlaceId }) {
   const navigate = useNavigate();
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -577,6 +577,33 @@ function KakaoMap() {
     window.addEventListener(MAP_RECENTER_USER_EVENT, onRecenter);
     return () => window.removeEventListener(MAP_RECENTER_USER_EVENT, onRecenter);
   }, [isMapReady, runMyLocationFocus]);
+
+  useEffect(() => {
+    // 1. 지도가 완전히 켜졌고, 2. 트렌딩에서 넘어온 ID가 있고, 3. 묶여진 장소 데이터(placeGroups)가 있을 때!
+    if (!isMapReady || !mapInstanceRef.current || !window.kakao?.maps) return;
+    if (!initialPlaceId || placeGroups.length === 0) return;
+
+    // DB에서 가져온 장소들(placeGroups) 중에서 트렌딩에서 넘겨받은 ID랑 똑같은 장소 찾기
+    // (URL 파라미터는 문자열이라서 안전하게 String으로 변환해서 비교)
+    const targetGroup = placeGroups.find(
+      (g) => String(g.place?.place_id) === String(initialPlaceId)
+    );
+
+    if (targetGroup) {
+      const lat = targetGroup.place.latitude;
+      const lng = targetGroup.place.longitude;
+
+      // 좌표가 정상적이면 카메라 스무스하게 이동 후 바텀시트 띄우기
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
+        mapInstanceRef.current.panTo(moveLatLon);
+
+        // 해당 장소 핀을 직접 클릭한 것과 100% 동일한 효과 (바텀시트 열기)
+        setSelectedPlace(targetGroup);
+        setActiveTrackIndex(0);
+      }
+    }
+  }, [isMapReady, initialPlaceId, placeGroups]);
 
   useEffect(() => {
     let cancelled = false;
