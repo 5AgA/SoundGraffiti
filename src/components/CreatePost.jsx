@@ -152,6 +152,7 @@ function UploadGraffiti() {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [cropBusy, setCropBusy] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [sheetTranslateY, setSheetTranslateY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -332,7 +333,6 @@ function UploadGraffiti() {
     setActiveSheet(null); 
   };
 
-  // 이미지 추가 영역 클릭 시 숨겨진 input 강제 클릭 (갤러리 오픈)
   const handleImageUpload = () => {
     fileInputRef.current?.click();
   };
@@ -382,16 +382,16 @@ function UploadGraffiti() {
   const onPointerMove = (e) => {
     if (!isDragging) return;
     const dy = e.clientY - dragStartRef.current;
-    if (dy > 0) setSheetTranslateY(dy); // 아래로만 드래그 허용
+    if (dy > 0) setSheetTranslateY(dy); 
   };
 
   const onPointerUp = () => {
     if (!isDragging) return;
     setIsDragging(false);
-    if (sheetTranslateY > 150) { // 150px 이상 드래그하면 닫기
+    if (sheetTranslateY > 150) { 
       setActiveSheet(null);
     }
-    setSheetTranslateY(0); // 위치 초기화
+    setSheetTranslateY(0); 
   };
 
   useEffect(() => {
@@ -433,7 +433,6 @@ function UploadGraffiti() {
     };
   }, [activeSheet, userLoc]);
 
-  // 카카오 장소 검색
   const handleSearchChange = (e) => {
     const keyword = e.target.value;
     setSearchKeyword(keyword);
@@ -474,7 +473,6 @@ function UploadGraffiti() {
     }, delay);
   };
 
-  // 장소 선택 시 200m 이내 검증 (엣지 펑션 호출)
   const handleSelectPlace = async (place) => {
     if (!userLoc) { alert("현재 위치를 확인하는 중입니다."); return; }
     try {
@@ -488,8 +486,8 @@ function UploadGraffiti() {
       if (error) throw error;
       if (data.is_accessible) {
         setSelectedPlace(place);
-        setActiveSheet(null); // 💡 검증 성공 시 시트 닫기
-        setSearchKeyword(''); // 다음을 위해 검색어 초기화
+        setActiveSheet(null); 
+        setSearchKeyword(''); 
         setSearchResults([]);
       } else {
         alert(data.message || "해당 장소 반경 200m 이내에서만 작성할 수 있습니다.");
@@ -519,6 +517,7 @@ function UploadGraffiti() {
       return;
     }
 
+    setIsSubmitting(true);
     const snapshot = {
       selectedPlace: { ...selectedPlace },
       selectedTrack: { ...selectedTrack },
@@ -541,6 +540,8 @@ function UploadGraffiti() {
       } catch (err) {
         console.error(err);
         window.dispatchEvent(new CustomEvent(UPLOAD_ERROR_EVENT));
+      } finally {
+        setIsSubmitting(false);
       }
     })();
   };
@@ -548,13 +549,14 @@ function UploadGraffiti() {
 return (
     <section className="upload-wrap">
       <div className="upload-phone">
-        <div className="upload-scroll-area">
-          <div className="upload-header">
-            <h1 className="upload-title">UPLOAD MY GRAFFITI</h1>
-            <button className="upload-close-btn" onClick={() => navigate(-1)} disabled={!!activeSheet || !!cropSrc}>〈</button>
-          </div>
-        
-          {/* 📍 메인 화면의 장소 표시 영역 */}
+        {/* 1. 상단 고정 헤더 */}
+        <header className="upload-header">
+          <h1 className="upload-title">UPLOAD MY GRAFFITI</h1>
+          <button className="upload-close-btn" onClick={() => navigate(-1)} disabled={!!activeSheet || !!cropSrc}>〈</button>
+        </header>
+
+        {/* 🚨 2. 내부 스크롤이 발생하는 콘텐츠 영역 */}
+        <div className="upload-inner">
           <div className="place-display-wrap">
             {selectedPlace ? (
               <div className="selected-place-box">
@@ -693,7 +695,17 @@ return (
           </div>
 
           <textarea className="upload-input-area" placeholder="이 장소에 어울리는 한마디를 남겨보세요." value={content} onChange={(e) => setContent(e.target.value)} />
-          <button className="upload-share-btn" onClick={handleShare}>공유</button>
+        </div>
+
+        {/* 🚨 3. 화면 하단에 무조건 고정되는 공유 버튼 영역 */}
+        <div className="upload-bottom-fixed">
+          <button 
+            className="upload-share-btn" 
+            onClick={handleShare}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "업로드 중..." : "공유"}
+          </button>
         </div>
 
         {/* 바텀 시트 영역 */}
@@ -722,7 +734,6 @@ return (
                     disabled={isVerifyingLoc}
 
                   />
-                  {/* 검색 중이거나 검증 중일 때 텍스트 표시 */}
                   {(isSearching || isVerifyingLoc) && (
                     <span className="place-search-loading">
                       {isVerifyingLoc ? "위치 검증 중..." : "검색 중..."}
@@ -733,7 +744,6 @@ return (
                 <ul className="place-search-results">
                   {searchResults.map((place) => (
                     <li key={place.id} onClick={() => handleSelectPlace(place)}>
-                      {/* 💡 카카오 지도 스타일로 정보 배치 */}
                       <div className="place-name-row">
                         <span className="place-name">{place.place_name}</span>
                         {place.category_group_name && (
